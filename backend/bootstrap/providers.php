@@ -6,10 +6,12 @@ use Fundly\Integration\IntegrationServiceProvider;
 use Fundly\Modules\Access\AccessServiceProvider;
 use Fundly\Modules\Application\ApplicationServiceProvider;
 use Fundly\Modules\Audit\AuditServiceProvider;
+use Fundly\Modules\Compliance\ComplianceServiceProvider;
 use Fundly\Modules\Licensing\LicensingServiceProvider;
 use Fundly\Modules\Party\PartyServiceProvider;
 use Fundly\Modules\Platform\PlatformServiceProvider;
 use Fundly\Modules\Product\ProductServiceProvider;
+use Fundly\Modules\Workflow\WorkflowServiceProvider;
 use Fundly\Shared\SharedServiceProvider;
 
 return [
@@ -23,4 +25,6 @@ return [
     ProductServiceProvider::class,
     PartyServiceProvider::class,
     ApplicationServiceProvider::class,
+    ComplianceServiceProvider::class,
+    WorkflowServiceProvider::class,
 ];

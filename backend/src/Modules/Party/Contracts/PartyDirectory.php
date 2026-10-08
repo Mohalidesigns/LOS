@@ -14,4 +14,7 @@ interface PartyDirectory
      * @return array<string, PartySummary> keyed by id; unknown ids are omitted
      */
     public function findMany(array $partyIds): array;
+
+    /** Identity verification state and related individuals (KYC / screening input). */
+    public function kycProfile(string $partyId): ?PartyKycProfile;
 }

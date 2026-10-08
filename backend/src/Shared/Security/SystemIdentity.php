@@ -18,4 +18,5 @@ enum SystemIdentity: string
     case Licensing = 'system:licensing';
     case IntegrationRuntime = 'system:integration-runtime';
     case RulesEngine = 'system:rules-engine';
+    case Workflow = 'system:workflow';
 }

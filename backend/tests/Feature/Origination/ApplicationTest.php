@@ -3,10 +3,7 @@
 declare(strict_types=1);
 
 use Fundly\Modules\Access\Domain\Permission;
-use Fundly\Modules\Application\Contracts\ApplicationLifecycle;
 use Fundly\Modules\Application\Contracts\CanonicalStatus;
-use Fundly\Shared\Security\Principal;
-use Fundly\Shared\Security\SystemIdentity;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -109,10 +106,8 @@ it('adds and removes guarantors and joint applicants', function () {
 it('runs hold/resume, rework and terminal actions with mandatory reasons and permission per action', function () {
     $app = newApplication($this)->json('data');
     act($this, $app, 'submit')->assertOk();
-    $lifecycle = app(ApplicationLifecycle::class);
-    $system = Principal::system($this->tenant->id, SystemIdentity::cases()[0]);
-    $lifecycle->advance($app['id'], CanonicalStatus::PreQualified, 'ELIGIBILITY_PASS', null, $system);
-    $lifecycle->advance($app['id'], CanonicalStatus::KycScreening, 'AUTO', null, $system);
+    // intake automation (Workflow) pre-qualifies and moves the case to KycScreening
+    expect($this->api('GET', "/api/v1/applications/{$app['id']}")->json('data.status'))->toBe(CanonicalStatus::KycScreening->value);
 
     act($this, $app, 'hold')->assertStatus(422)->assertJsonPath('code', 'application-rule-violation');
     act($this, $app, 'hold', ['reason_code' => 'AWAITING_CUSTOMER', 'reason_text' => 'Director abroad'])->assertOk()->assertJsonPath('data.status', 'on_hold')->assertJsonPath('data.resume_to', 'kyc_screening');
@@ -138,7 +133,7 @@ it('keeps the event store append-only and the projection rebuildable', function 
     expect(fn () => DB::transaction(fn () => DB::table('application_events')->where('application_id', $app['id'])->update(['type' => 'tampered'])))->toThrow(QueryException::class);
     expect(fn () => DB::transaction(fn () => DB::table('application_events')->where('application_id', $app['id'])->delete()))->toThrow(QueryException::class);
     expect(fn () => DB::transaction(fn () => DB::table('field_provenance')->where('application_id', $app['id'])->delete()))->toThrow(QueryException::class);
-    expect(DB::table('application_events')->where('application_id', $app['id'])->pluck('type')->all())->toBe(['application.created', 'application.status_changed']);
+    expect(DB::table('application_events')->where('application_id', $app['id'])->orderBy('version')->pluck('type')->all())->toBe(['application.created', 'application.status_changed', 'application.status_changed', 'application.status_changed']);
 })->group('FR-AUD-003');
 
 it('reconstructs the state at an instant and verifies the projection against events', function () {
@@ -149,7 +144,7 @@ it('reconstructs the state at an instant and verifies the projection against eve
     act($this, $app, 'submit')->assertOk();
     $before = $this->api('GET', "/api/v1/applications/{$app['id']}/as-at?t=".urlencode($mid))->assertOk()->json('data.state');
     expect($before['status'])->toBe('draft')->and($before['version'])->toBe(1);
-    expect($this->api('GET', "/api/v1/applications/{$app['id']}/as-at?t=".urlencode(now()->addMinute()->toIso8601ZuluString()))->json('data.state.status'))->toBe('submitted');
+    expect($this->api('GET', "/api/v1/applications/{$app['id']}/as-at?t=".urlencode(now()->addMinute()->toIso8601ZuluString()))->json('data.state.status'))->toBe('kyc_screening');
     expect(Artisan::call('applications:verify-projection'))->toBe(0);
 })->group('FR-AUD-010');
 

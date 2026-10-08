@@ -13,6 +13,7 @@ use Fundly\Modules\Access\Http\Controllers\SodController;
 use Fundly\Modules\Access\Http\Controllers\UserController;
 use Fundly\Modules\Application\Http\Controllers\ApplicationController;
 use Fundly\Modules\Audit\Http\Controllers\AuditController;
+use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
 use Fundly\Modules\Party\Http\Controllers\PartyController;
 use Fundly\Modules\Platform\Http\Controllers\ConfigController;
@@ -84,6 +85,10 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('parties/{id}', [PartyController::class, 'show'])->middleware('authz:application:view')->name('parties.show');
     Route::get('parties/{id}/relationships', [PartyController::class, 'relationships'])->middleware('authz:application:view')->name('parties.relationships.index');
     Route::post('parties/{id}/relationships', [PartyController::class, 'addRelationship'])->middleware(['authz:party:manage', 'idempotent'])->name('parties.relationships.store');
+    Route::get('parties/{id}/consents', [PartyController::class, 'consents'])->middleware('authz:application:view')->name('parties.consents.index');
+    Route::post('parties/{id}/consents', [PartyController::class, 'recordConsent'])->middleware(['authz:party:manage', 'idempotent'])->name('parties.consents.store');
+    Route::post('parties/{id}/identities/{type}/actions/verify', [PartyController::class, 'verifyIdentity'])->middleware(['authz:party:manage', 'idempotent'])
+        ->where('type', 'bvn|nin|passport|drivers_licence|voters_card')->name('parties.identities.verify');
 
     // Applications (FR-APP-*, LOS-FR-282/283/301)
     Route::get('applications', [ApplicationController::class, 'index'])->middleware('authz:application:view')->name('applications.index');
@@ -97,6 +102,14 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
         ->where('action', 'submit|withdraw|cancel|hold|resume|return|resubmit|recommend')->name('applications.act');
     Route::get('applications/{id}/timeline', [ApplicationController::class, 'timeline'])->middleware('authz:application:view')->name('applications.timeline');
     Route::get('applications/{id}/as-at', [ApplicationController::class, 'asAt'])->middleware('authz:application:view')->name('applications.as-at');
+
+    // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
+    Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');
+    Route::post('applications/{id}/kyc/actions/rescreen', [ComplianceController::class, 'rescreen'])->middleware(['authz:screening:review', 'idempotent'])->name('applications.kyc.rescreen');
+    Route::get('screening-alerts', [ComplianceController::class, 'alerts'])->middleware('authz:screening:review')->name('screening-alerts.index');
+    Route::get('screening-alerts/{id}', [ComplianceController::class, 'alert'])->middleware('authz:screening:review')->name('screening-alerts.show');
+    Route::post('screening-alerts/{id}/actions/{step}', [ComplianceController::class, 'disposition'])->middleware(['authz:screening:review', 'idempotent'])
+        ->where('step', 'propose|confirm')->name('screening-alerts.disposition');
 
     // Access: users, roles, permissions, assignments (FR-SEC-001..008, 011, 014)
     Route::get('users', [UserController::class, 'index'])->middleware('authz:user:read')->name('users.index');

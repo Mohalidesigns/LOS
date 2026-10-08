@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Fundly\Integration;
 
 use Fundly\Integration\Ports\CoreBanking\CoreBankingPort;
+use Fundly\Integration\Ports\Identity\IdentityVerificationPort;
+use Fundly\Integration\Ports\Screening\ScreeningPort;
 use Fundly\Integration\Runtime\AdapterDefinition;
 use Fundly\Integration\Runtime\AdapterRegistry;
 use Fundly\Integration\Runtime\BindingResolver;
+use Fundly\Integration\Runtime\Console\BindSimulatorsCommand;
 use Fundly\Integration\Runtime\Handlers\CreateLoanAccountHandler;
 use Fundly\Integration\Runtime\Handlers\DisburseHandler;
 use Fundly\Integration\Runtime\Models\AdapterBinding;
@@ -24,6 +27,8 @@ use Fundly\Integration\Runtime\Resilience\Sleeper;
 use Fundly\Integration\Simulators\CoreBanking\CbaSimulator;
 use Fundly\Integration\Simulators\CoreBanking\FaultScript;
 use Fundly\Integration\Simulators\CoreBanking\SimulatorStore;
+use Fundly\Integration\Simulators\Identity\IdentitySimulator;
+use Fundly\Integration\Simulators\Screening\ScreeningSimulator;
 use Fundly\Shared\Audit\AuditTrail;
 use Fundly\Shared\Clock\Clock;
 use Fundly\Shared\Http\RequestContext;
@@ -82,6 +87,27 @@ final class IntegrationServiceProvider extends ServiceProvider
             },
             isSimulator: true,
         ));
+
+        $adapters->register(new AdapterDefinition(
+            key: IdentitySimulator::KEY,
+            port: IdentityVerificationPort::PORT,
+            version: IdentitySimulator::VERSION,
+            manifest: IdentitySimulator::capabilities(),
+            factory: static fn (AdapterBinding $binding): IdentitySimulator => new IdentitySimulator($binding->config),
+            isSimulator: true,
+        ));
+        $adapters->register(new AdapterDefinition(
+            key: ScreeningSimulator::KEY,
+            port: ScreeningPort::PORT,
+            version: ScreeningSimulator::VERSION,
+            manifest: ScreeningSimulator::capabilities(),
+            factory: static fn (AdapterBinding $binding): ScreeningSimulator => new ScreeningSimulator($binding->config),
+            isSimulator: true,
+        ));
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([BindSimulatorsCommand::class]);
+        }
 
         $handlers->register(CreateLoanAccountHandler::TOPIC, CreateLoanAccountHandler::class);
         $handlers->register(DisburseHandler::TOPIC, DisburseHandler::class);

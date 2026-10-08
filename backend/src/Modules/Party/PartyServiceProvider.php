@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Fundly\Modules\Party;
 
+use Fundly\Modules\Party\Contracts\ConsentRegistry;
 use Fundly\Modules\Party\Contracts\PartyDirectory;
+use Fundly\Modules\Party\Infrastructure\DatabaseConsentRegistry;
 use Fundly\Modules\Party\Infrastructure\EloquentPartyDirectory;
 use Fundly\Modules\Party\Infrastructure\Models\Party;
 use Fundly\Shared\Security\ResourceAttributes;
@@ -17,6 +19,7 @@ final class PartyServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(PartyDirectory::class, EloquentPartyDirectory::class);
+        $this->app->scoped(ConsentRegistry::class, DatabaseConsentRegistry::class);
     }
 
     public function boot(ResourceResolver $resources): void

@@ -6,6 +6,8 @@ namespace Fundly\Modules\Party\Http\Controllers;
 
 use Fundly\Modules\Party\Application\Commands\AddPartyRelationship;
 use Fundly\Modules\Party\Application\Commands\CreateParty;
+use Fundly\Modules\Party\Application\Commands\RecordConsent;
+use Fundly\Modules\Party\Application\Commands\VerifyPartyIdentity;
 use Fundly\Modules\Party\Application\PartyQueries;
 use Fundly\Modules\Party\Domain\PhoneNumber;
 use Fundly\Shared\Bus\CommandBus;
@@ -99,6 +101,29 @@ final class PartyController
             'registration_number' => self::str($request->input('registration_number')),
             'identities' => $identities,
         ]));
+    }
+
+    public function consents(string $id): JsonResponse
+    {
+        return ApiResponse::json($this->queries->consentView($id, $this->principal->require()));
+    }
+
+    public function recordConsent(Request $request, string $id): JsonResponse
+    {
+        return ApiResponse::resource($this->bus->dispatch(new RecordConsent(
+            partyId: $id,
+            purpose: (string) $request->input('purpose', ''),
+            consentAction: (string) $request->input('action', ''),
+            channel: (string) $request->input('channel', ''),
+            termsVersion: (string) $request->input('terms_version', ''),
+            evidenceRef: self::str($request->input('evidence_ref')),
+            applicationId: self::str($request->input('application_id')),
+        ), $this->principal->require()), 201);
+    }
+
+    public function verifyIdentity(string $id, string $type): JsonResponse
+    {
+        return ApiResponse::resource($this->bus->dispatch(new VerifyPartyIdentity($id, $type), $this->principal->require()));
     }
 
     private static function str(mixed $v): ?string

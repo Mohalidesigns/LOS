@@ -1,0 +1,377 @@
+/* ==========================================================================
+   Fundly LOS — design tokens v1.1 (2026-10-08)
+   Visual values re-themed per PO decision D-042 (loan-ui.jpg), token
+   architecture per D-027 (semantic layer on the AuditPro component
+   architecture), contrast-corrected per G-46 / NFR-014 (WCAG 2.2 AA).
+   Every graded pair is verified by scripts/contrast-check.py, which parses
+   THIS file; `npm run contrast` runs it (CI gate).
+
+   Rules
+   - Components use SEMANTIC tokens (section 2+) only. Primitives (section 1)
+     exist so the semantic layer has one place to change a hue.
+   - No hex, rgba(), font name or px literal outside this file (ESLint rule
+     `no-restricted-syntax` rejects hex literals in .ts/.tsx).
+   - Tokens marked [non-text] must never colour text. Tokens marked
+     [decorative] must never carry meaning on their own.
+   - Lime (accent-fill) is a FILL behind dark-green text only: never lime text,
+     never lime on its own as the sole carrier of meaning.
+   - Fonts are SELF-HOSTED (on-prem, air-gapped, CSP default-src 'self'):
+     @fontsource-variable/plus-jakarta-sans and @fontsource/roboto-mono,
+     imported once in src/main.tsx. Never load Google Fonts or any CDN.
+   ========================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------------
+     1. PRIMITIVES (do not use in components)
+     --------------------------------------------------------------------- */
+  --p-white: #ffffff;
+  --p-ink-900: #1c2b27;            /* dark green-ink: text primary */
+  --p-ink-700: #3f514a;            /* text secondary */
+  --p-ink-600: #55665f;            /* text tertiary (4.5:1 on every surface) */
+  --p-ink-500: #74847d;            /* 3:1 non-text: control borders, meaningful icons */
+  --p-ink-400: #9aa7a1;            /* disabled text only (WCAG 1.4.3 exempt) */
+  --p-ink-300: #c3cdc8;            /* decorative marks only */
+
+  --p-sage-25: #fafcf9;            /* main content panel */
+  --p-sage-50: #f3f6f1;            /* page background */
+  --p-sage-100: #edf2ea;           /* table header tint, nested card */
+  --p-sage-150: #e7eee4;           /* sidebar */
+  --p-sage-200: #e2e9df;           /* neutral chip fill, search field */
+  --p-sage-300: #d5ded2;           /* track (progress), decorative rules */
+
+  --p-forest-950: #102823;         /* pressed */
+  --p-forest-900: #163a32;         /* hover */
+  --p-forest-800: #1f4a40;         /* BRAND: primary buttons, hero card, chart bars, headings */
+  --p-forest-600: #3d6e5f;         /* chart series 3 */
+  --p-forest-100: #e3efe6;         /* brand tint */
+
+  --p-lime-500: #9fe065;           /* lime hover */
+  --p-lime-400: #b8f08a;           /* ACCENT FILL: active nav pill, progress fill, chart series 2 */
+  --p-lime-200: #dcf7c4;           /* lime tint */
+  --p-lime-edge: #4e7d2c;          /* 3:1 edge drawn around lime graphics on white */
+
+  --p-green-700: #1b6b3a;          /* success text */
+  --p-green-100: #e1f3e3;          /* success fill */
+  --p-amber-800: #7c4f00;          /* warning text */
+  --p-amber-600: #b7791f;          /* chart series 4 [non-text] */
+  --p-amber-100: #fdf1d6;          /* warning fill */
+  --p-red-900: #6e1c16;            /* danger body text */
+  --p-red-800: #8f1d15;            /* danger hover */
+  --p-red-700: #b42318;            /* danger text / fill */
+  --p-red-100: #fde7e4;            /* danger fill */
+  --p-blue-800: #1d4c86;           /* info text */
+  --p-blue-100: #e2ecf9;           /* info fill */
+  --p-blue-300: #9dbbe3;           /* info edge [decorative] */
+
+  /* ---------------------------------------------------------------------
+     2. SURFACES
+     --------------------------------------------------------------------- */
+  --color-bg: var(--p-white);                         /* cards, tables, inputs, modals */
+  --color-bg-page: var(--p-sage-50);                  /* app background behind sidebar + panel */
+  --color-bg-panel: var(--p-sage-25);                 /* main content panel (rounded top-left) */
+  --color-bg-subtle: var(--p-sage-150);               /* sidebar */
+  --color-bg-muted: var(--p-sage-100);                /* table header row, nested card, quick-action tray */
+  --color-bg-neutral: var(--p-sage-200);              /* neutral chip fill, search field, icon tile */
+  --color-bg-hover: rgba(31, 74, 64, 0.04);           /* row / list item hover */
+  --color-bg-hover-nav: rgba(31, 74, 64, 0.07);       /* nav hover */
+  --color-bg-selected: var(--p-lime-400);             /* active nav pill, selected segment (fill only) */
+  --color-bg-pressed: rgba(31, 74, 64, 0.10);         /* pressed secondary button */
+  --color-bg-inverse: var(--p-forest-800);            /* tooltip */
+  --color-bg-brand: var(--p-forest-800);              /* hero card, login brand panel, Acting-as card */
+  --color-bg-brand-raised: var(--p-forest-900);       /* nested tile on brand surfaces */
+  --color-bg-danger-wash: rgba(180, 35, 24, 0.04);    /* breached row */
+  --color-bg-success-wash: rgba(27, 107, 58, 0.06);   /* acknowledged panel */
+  --color-bg-overlay: rgba(16, 40, 35, 0.45);         /* modal / drawer backdrop */
+  --color-skeleton: var(--p-sage-200);                /* [decorative] loading placeholder */
+
+  /* ---------------------------------------------------------------------
+     3. TEXT
+     --------------------------------------------------------------------- */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-700);
+  --color-text-tertiary: var(--p-ink-600);            /* meta, eyebrow, table header, inactive tab */
+  --color-text-placeholder: var(--p-ink-600);         /* placeholders are text: 4.5:1 applies */
+  --color-text-disabled: var(--p-ink-400);            /* ONLY inside disabled controls (exempt) */
+  --color-text-inverse: var(--p-white);
+  --color-text-heading: var(--p-forest-800);          /* page + card titles, big figures */
+  --color-text-on-accent: var(--p-white);             /* on --color-accent (brand) */
+  --color-text-on-brand: var(--p-white);              /* on brand surfaces */
+  --color-text-on-brand-muted: var(--p-lime-200);     /* labels on brand surfaces */
+  --color-text-on-accent-fill: var(--p-ink-900);      /* on lime fills (active nav, accent button) */
+  --color-text-on-danger: var(--p-white);
+  --color-text-link: var(--p-forest-800);
+  --color-text-link-hover: var(--p-forest-950);
+
+  /* ---------------------------------------------------------------------
+     4. BRAND / ACCENT
+     accent = the action colour (forest). accent-fill = lime, fill only.
+     --------------------------------------------------------------------- */
+  --color-brand: var(--p-forest-800);
+  --color-brand-contrast: var(--p-lime-400);          /* lime marks on brand surfaces (logo petals) */
+  --color-accent: var(--p-forest-800);                /* primary button fill, selected chip, links */
+  --color-accent-hover: var(--p-forest-900);
+  --color-accent-pressed: var(--p-forest-950);
+  --color-accent-subtle: var(--p-forest-100);         /* tint fill: info tile, icon tile */
+  --color-accent-graphic: var(--p-forest-800);        /* [non-text] tracker dots, chart series 1 */
+  --color-accent-border: var(--p-sage-300);           /* [decorative] connector, banner edge */
+  --color-accent-fill: var(--p-lime-400);             /* [non-text] lime: nav pill, progress track, accent button */
+  --color-accent-fill-hover: var(--p-lime-500);
+  --color-accent-fill-subtle: var(--p-lime-200);      /* lime tint: positive trend chip */
+  --color-accent-fill-edge: var(--p-lime-edge);       /* [non-text] 3:1 edge around lime graphics */
+  --color-selection: rgba(184, 240, 138, 0.55);       /* ::selection */
+  --color-region-fill: rgba(31, 74, 64, 0.12);
+
+  /* ---------------------------------------------------------------------
+     5. BORDERS
+     --------------------------------------------------------------------- */
+  --color-border: rgba(31, 74, 64, 0.10);             /* [decorative] hairline card edge, rules */
+  --color-border-subtle: rgba(31, 74, 64, 0.07);      /* [decorative] table row rules */
+  --color-border-strong: rgba(31, 74, 64, 0.16);      /* [decorative] secondary button edge */
+  --color-border-control: var(--p-ink-500);           /* inputs, selects, checkboxes: 3:1 (WCAG 1.4.11) */
+  --color-border-control-hover: var(--p-ink-600);
+  --color-border-danger: rgba(180, 35, 24, 0.40);     /* [decorative] */
+  --color-decorative: var(--p-ink-300);               /* [decorative] separators; never text, never state */
+  --color-indicator: var(--p-ink-500);                /* [non-text] pending marker, neutral meaningful icon */
+
+  /* ---------------------------------------------------------------------
+     6. STATUS TONES (fg = text and indicator; bg = fill; border = outlined pill)
+     Colour never carries meaning alone: every tone has a text label.
+     --------------------------------------------------------------------- */
+  --color-success-fg: var(--p-green-700);
+  --color-success-bg: var(--p-green-100);
+  --color-success-border: rgba(27, 107, 58, 0.45);
+
+  --color-warning-fg: var(--p-amber-800);
+  --color-warning-bg: var(--p-amber-100);
+  --color-warning-border: rgba(124, 79, 0, 0.45);
+
+  --color-danger-fg: var(--p-red-700);
+  --color-danger-bg: var(--p-red-100);
+  --color-danger-border: rgba(180, 35, 24, 0.50);
+  --color-danger-text-strong: var(--p-red-900);
+  --color-danger-fill: var(--p-red-700);              /* destructive button */
+  --color-danger-fill-hover: var(--p-red-800);
+
+  --color-info-fg: var(--p-blue-800);
+  --color-info-bg: var(--p-blue-100);
+  --color-info-border: var(--p-blue-300);
+
+  --color-neutral-fg: var(--p-ink-700);
+  --color-neutral-bg: var(--p-sage-200);
+  --color-neutral-border: rgba(63, 81, 74, 0.35);
+
+  /* ---------------------------------------------------------------------
+     7. DATA: score bands and chart series [non-text]
+     Series 2 (lime) is always drawn with --color-accent-fill-edge stroke so
+     its boundary meets 3:1; every chart has a table fallback.
+     --------------------------------------------------------------------- */
+  --color-score-1: var(--p-green-700);
+  --color-score-2: var(--p-forest-600);
+  --color-score-3: var(--p-amber-800);
+  --color-score-4: var(--p-amber-600);
+  --color-score-5: var(--p-red-700);
+
+  --color-chart-1: var(--p-forest-800);
+  --color-chart-2: var(--p-lime-400);
+  --color-chart-3: var(--p-forest-600);
+  --color-chart-4: var(--p-amber-600);
+  --color-chart-5: var(--p-ink-500);
+  --color-chart-grid: var(--p-sage-300);              /* [decorative] gridlines */
+  --color-chart-track: var(--p-sage-200);             /* [decorative] donut / progress track */
+
+  /* ---------------------------------------------------------------------
+     8. FOCUS
+     --------------------------------------------------------------------- */
+  --focus-ring-color: var(--p-forest-800);            /* on light surfaces */
+  --focus-ring-color-on-brand: var(--p-lime-400);     /* on brand (dark) surfaces */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-inset: inset 0 0 0 2px var(--p-forest-800);
+  --focus-ring-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--p-forest-800);
+
+  /* ---------------------------------------------------------------------
+     9. TYPOGRAPHY (Plus Jakarta Sans; numeric data uses tabular figures)
+     --------------------------------------------------------------------- */
+  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --font-weight-regular: 400;
+  --font-weight-control: 500;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --text-micro: 11px;      --leading-micro: 16px;     /* count badge, chip meta */
+  --text-meta: 12px;       --leading-meta: 16px;      /* meta lines, table header, chips */
+  --text-table: 13px;      --leading-table: 18px;     /* table body */
+  --text-body-sm: 13px;    --leading-body-sm: 18px;   /* secondary body, small buttons */
+  --text-nav: 14.5px;      --leading-nav: 20px;       /* sidebar items */
+  --text-body: 14px;       --leading-body: 20px;      /* base body, inputs, buttons */
+  --text-title: 18px;      --leading-title: 24px;     /* card titles (600) */
+  --text-title-lg: 20px;   --leading-title-lg: 26px;  /* section titles */
+  --text-heading: 26px;    --leading-heading: 32px;   /* page title in TitleBar (700) */
+  --text-metric: 28px;     --leading-metric: 34px;    /* stat card value (700); large text */
+  --text-hero: 34px;       --leading-hero: 40px;      /* hero card amount (700) */
+
+  --tracking-tight: -0.01em;
+  --tracking-tighter: -0.02em;
+  --tracking-metric: -0.02em;
+  --tracking-eyebrow: 0.03em;
+  --tracking-ref: 0.01em;
+
+  /* ---------------------------------------------------------------------
+     10. SPACING (4px base)
+     --------------------------------------------------------------------- */
+  --space-0: 0px;
+  --space-px: 1px;
+  --space-0_5: 2px;
+  --space-1: 4px;
+  --space-1_5: 6px;
+  --space-2: 8px;
+  --space-2_5: 10px;
+  --space-3: 12px;
+  --space-3_5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --card-padding-y: 20px;
+  --card-padding-x: 20px;
+  --table-cell-py: 12px;
+  --table-cell-px: 14px;
+  --page-gutter: 28px;          /* desktop; 16px at <1024 */
+
+  --target-min: 24px;           /* WCAG 2.2 2.5.8 floor */
+  --target-touch: 44px;
+  --control-h-sm: 32px;
+  --control-h: 40px;
+  --control-h-lg: 48px;
+  --row-min-h: 48px;
+  --icon-sm: 14px;
+  --icon: 18px;
+  --icon-lg: 22px;
+  --icon-tile: 44px;            /* stat card icon tile */
+  --status-dot: 8px;
+  --avatar: 40px;
+
+  /* ---------------------------------------------------------------------
+     11. RADII (loan-ui: soft, large)
+     --------------------------------------------------------------------- */
+  --radius-none: 0px;
+  --radius-chip: 6px;           /* status pills, trend chips */
+  --radius-mark: 8px;           /* icon tile, small marks */
+  --radius-control: 12px;       /* inputs, selects, search */
+  --radius-card: 16px;          /* cards, panels */
+  --radius-panel: 28px;         /* main content panel top-left */
+  --radius-overlay: 20px;       /* modal, drawer edge, popover */
+  --radius-pill: 9999px;        /* nav item, buttons, chips */
+  --radius-full: 9999px;        /* avatar, toggle */
+
+  /* ---------------------------------------------------------------------
+     12. ELEVATION (flat, hairlines; overlays kept quiet)
+     --------------------------------------------------------------------- */
+  --shadow-none: none;
+  --shadow-button: 0 1px 2px rgba(16, 40, 35, 0.06);
+  --shadow-seg: 0 1px 2px rgba(16, 40, 35, 0.08);
+  --shadow-card: 0 1px 2px rgba(16, 40, 35, 0.03);
+  --shadow-document: 0 3px 10px rgba(16, 40, 35, 0.14);
+  --shadow-popover: 0 0 0 1px rgba(16, 40, 35, 0.06), 0 6px 18px rgba(16, 40, 35, 0.10);
+  --shadow-drawer: 0 0 0 1px rgba(16, 40, 35, 0.06), -8px 0 24px rgba(16, 40, 35, 0.12);
+  --shadow-modal: 0 0 0 1px rgba(16, 40, 35, 0.06), 0 16px 40px rgba(16, 40, 35, 0.20);
+
+  /* ---------------------------------------------------------------------
+     13. MOTION
+     --------------------------------------------------------------------- */
+  --duration-instant: 0ms;
+  --duration-fast: 120ms;
+  --duration-base: 160ms;
+  --duration-slow: 220ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---------------------------------------------------------------------
+     14. Z-INDEX
+     --------------------------------------------------------------------- */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-header: 20;
+  --z-rail: 30;
+  --z-drawer: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+
+  /* ---------------------------------------------------------------------
+     15. LAYOUT (breakpoints live in tailwind-preset.js `screens`)
+       mobile <768 | tablet 768–1023 | laptop 1024–1279 | desktop ≥1280
+     --------------------------------------------------------------------- */
+  --layout-sidebar-w: 260px;    /* ≥1280 */
+  --layout-rail-w: 76px;        /* <1280 icon rail */
+  --layout-header-h: 88px;      /* TitleBar */
+  --layout-context-h: 64px;
+  --layout-tabs-h: 44px;
+  --layout-stage-w: 186px;
+  --layout-props-w: 300px;
+  --layout-drawer-w: 300px;     /* mobile nav drawer */
+  --layout-peek-w: min(1080px, 92vw);
+  --layout-form-max: 880px;
+  --layout-portal-max: 560px;
+  --layout-auth-max: 1040px;    /* sign-in split card */
+  --layout-search-w: 360px;
+  --layout-modal-w: 480px;
+}
+
+/* --------------------------------------------------------------------------
+   Base layer
+   -------------------------------------------------------------------------- */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--font-weight-regular);
+  -webkit-font-smoothing: antialiased;
+}
+:focus { outline: none; }
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+[data-surface="brand"] :focus-visible { outline-color: var(--focus-ring-color-on-brand); }
+::selection { background: var(--color-selection); color: var(--color-text-primary); }
+[data-scroll-container] { scroll-padding-top: calc(var(--layout-header-h) + var(--space-2)); }
+
+.tabular { font-variant-numeric: tabular-nums; }
+.ref {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  letter-spacing: var(--tracking-ref);
+  font-variant-numeric: tabular-nums slashed-zero;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible { outline: 2px solid CanvasText; }
+}

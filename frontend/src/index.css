@@ -1,0 +1,18 @@
+/* Tokens first (single source of truth), then Tailwind layers. */
+@import './design-tokens/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: var(--color-bg-page);
+  }
+  h1, h2, h3 {
+    margin: 0;
+  }
+  dialog::backdrop {
+    background: var(--color-bg-overlay);
+  }
+}

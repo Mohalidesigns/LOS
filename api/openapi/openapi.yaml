@@ -48,6 +48,7 @@ tags:
 - name: Products
 - name: Parties
 - name: Applications
+- name: Compliance
 # <<< generated: tags
 paths:
   /health:
@@ -3280,6 +3281,458 @@ paths:
       security:
         - sessionCookie: []
         - bearerToken: []
+  '/api/v1/parties/{id}/consents':
+    get:
+      summary: 'Current consents and full history'
+      operationId: listPartyConsents
+      tags:
+        - Parties
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      current:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            status:
+                              type: string
+                              enum:
+                                - granted
+                                - withdrawn
+                            since:
+                              type: string
+                            channel:
+                              type: string
+                            terms_version:
+                              type: string
+                          required:
+                            - status
+                            - since
+                            - channel
+                            - terms_version
+                      history:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            purpose:
+                              type: string
+                            action:
+                              type: string
+                              enum:
+                                - grant
+                                - withdraw
+                            channel:
+                              type: string
+                            terms_version:
+                              type: string
+                            evidence_ref:
+                              type:
+                                - string
+                                - 'null'
+                            application_id:
+                              type:
+                                - string
+                                - 'null'
+                              format: uuid
+                            recorded_by:
+                              type: string
+                            recorded_at:
+                              type: string
+                          required:
+                            - purpose
+                            - action
+                            - channel
+                            - terms_version
+                            - recorded_by
+                            - recorded_at
+                    required:
+                      - current
+                      - history
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Grant or withdraw consent for a purpose'
+      operationId: recordPartyConsent
+      tags:
+        - Parties
+      x-permission: 'party:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purpose:
+                  type: string
+                  enum:
+                    - data_processing
+                    - credit_bureau
+                    - credit_reporting
+                    - marketing
+                    - third_party_sharing
+                action:
+                  type: string
+                  enum:
+                    - grant
+                    - withdraw
+                channel:
+                  type: string
+                  enum:
+                    - branch
+                    - digital
+                    - call_centre
+                    - agent
+                    - api
+                terms_version:
+                  type: string
+                evidence_ref:
+                  type:
+                    - string
+                    - 'null'
+                application_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+              required:
+                - purpose
+                - action
+                - channel
+                - terms_version
+      responses:
+        201:
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      current:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            status:
+                              type: string
+                              enum:
+                                - granted
+                                - withdrawn
+                            since:
+                              type: string
+                            channel:
+                              type: string
+                            terms_version:
+                              type: string
+                          required:
+                            - status
+                            - since
+                            - channel
+                            - terms_version
+                      history:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            purpose:
+                              type: string
+                            action:
+                              type: string
+                              enum:
+                                - grant
+                                - withdraw
+                            channel:
+                              type: string
+                            terms_version:
+                              type: string
+                            evidence_ref:
+                              type:
+                                - string
+                                - 'null'
+                            application_id:
+                              type:
+                                - string
+                                - 'null'
+                              format: uuid
+                            recorded_by:
+                              type: string
+                            recorded_at:
+                              type: string
+                          required:
+                            - purpose
+                            - action
+                            - channel
+                            - terms_version
+                            - recorded_by
+                            - recorded_at
+                    required:
+                      - current
+                      - history
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/parties/{id}/identities/{type}/actions/verify':
+    post:
+      summary: 'Verify a recorded identity number through the identity port'
+      operationId: verifyPartyIdentity
+      tags:
+        - Parties
+      x-permission: 'party:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - bvn
+              - nin
+              - passport
+              - drivers_licence
+              - voters_card
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: 'Verification recorded (verified or failed)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Party'
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/applications/{id}/kyc':
+    get:
+      summary: 'KYC / CDD gate status with screening evidence'
+      operationId: applicationKyc
+      tags:
+        - Compliance
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/KycStatus'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/kyc/actions/rescreen':
+    post:
+      summary: 'Re-run screening for every party on the application'
+      operationId: rescreenApplication
+      tags:
+        - Compliance
+      x-permission: 'screening:review'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: Screened
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/KycStatus'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/screening-alerts:
+    get:
+      summary: 'Screening alerts in scope'
+      operationId: listScreeningAlerts
+      tags:
+        - Compliance
+      x-permission: 'screening:review'
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageAfter'
+        - name: 'filter[status]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'Comma-separated: open, pending_confirmation, cleared, confirmed_match'
+        - name: 'filter[application_id]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Application
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScreeningAlert'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                  - data
+                  - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/screening-alerts/{id}':
+    get:
+      summary: 'Get a screening alert'
+      operationId: getScreeningAlert
+      tags:
+        - Compliance
+      x-permission: 'screening:review'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ScreeningAlert'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/screening-alerts/{id}/actions/{step}':
+    post:
+      summary: 'Four-eyes disposition: propose (screening:review) then confirm by a different officer (screening:clear)'
+      operationId: dispositionScreeningAlert
+      tags:
+        - Compliance
+      x-permission: 'screening:review'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: step
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - propose
+              - confirm
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type:
+                    - string
+                    - 'null'
+                  enum:
+                    - clear
+                    - true_match
+                    - null
+                reason:
+                  type: string
+                evidence_ref:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - reason
+      responses:
+        200:
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ScreeningAlert'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
 # <<< generated: paths
 components:
   securitySchemes:
@@ -5307,4 +5760,177 @@ components:
         - occurred_at
         - actor
         - payload
+    ScreeningAlert:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        party_id:
+          type: string
+          format: uuid
+        party_name:
+          type:
+            - string
+            - 'null'
+        category:
+          type: string
+          enum:
+            - sanction
+            - pep
+            - adverse_media
+            - watchlist
+        list_name:
+          type: string
+        list_version:
+          type: string
+        entry_id:
+          type: string
+        matched_name:
+          type: string
+        score:
+          type: string
+        status:
+          type: string
+          enum:
+            - open
+            - pending_confirmation
+            - cleared
+            - confirmed_match
+        proposed_decision:
+          type:
+            - string
+            - 'null'
+        proposed_reason:
+          type:
+            - string
+            - 'null'
+        evidence_ref:
+          type:
+            - string
+            - 'null'
+        proposed_by:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        proposed_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        confirmed_by:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        confirmed_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        confirmation_note:
+          type:
+            - string
+            - 'null'
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - party_id
+        - category
+        - list_name
+        - list_version
+        - entry_id
+        - matched_name
+        - score
+        - status
+        - created_at
+    KycStatus:
+      type: object
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        outcome:
+          type: string
+          enum:
+            - clear
+            - pending
+            - blocked
+        risk:
+          type: string
+          enum:
+            - standard
+            - enhanced
+        gate_version:
+          type: string
+        conditions:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              met:
+                type: boolean
+              detail:
+                type: string
+            required:
+              - code
+              - met
+              - detail
+        screening_runs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              party_id:
+                type: string
+                format: uuid
+              subject_name:
+                type: string
+              trigger:
+                type: string
+              list_version:
+                type: string
+              provider_reference:
+                type: string
+              hit_count:
+                type: integer
+              screened_at:
+                type: string
+            required:
+              - id
+              - party_id
+              - subject_name
+              - trigger
+              - list_version
+              - provider_reference
+              - hit_count
+              - screened_at
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScreeningAlert'
+      required:
+        - application_id
+        - status
+        - outcome
+        - risk
+        - gate_version
+        - conditions
+        - screening_runs
+        - alerts
 # <<< generated: schemas

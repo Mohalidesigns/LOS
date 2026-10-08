@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use Fundly\Integration\Runtime\Models\AdapterBinding;
+use Fundly\Integration\Runtime\Outbox\OutboxDispatcher;
 use Fundly\Modules\Access\Domain\Permission;
 use Tests\TestCase;
 
@@ -103,5 +105,27 @@ final class LendingFixtures
             'type' => 'individual', 'first_name' => $first, 'last_name' => $last, 'date_of_birth' => '1980-05-17', 'gender' => 'female',
             'nationality' => 'NG', 'phone' => '0802'.substr($bvn, -7), 'identities' => [['type' => 'bvn', 'value' => $bvn]], 'org_unit_id' => $orgUnitId,
         ])->assertCreated()->json('data');
+    }
+
+    /** Bind the identity and screening simulators for the current tenant (UAT posture, D-037). */
+    public static function bindSimulators(array $screeningConfig = []): void
+    {
+        foreach ([['identity_verification', 'identity-simulator', []], ['screening', 'screening-simulator', $screeningConfig]] as [$port, $key, $config]) {
+            AdapterBinding::query()->create(['port' => $port, 'adapter_key' => $key, 'adapter_version' => '1.0.0', 'config' => $config, 'processing_location' => 'on_prem:simulator', 'status' => 'active']);
+        }
+    }
+
+    /** Run due outbox messages now (the scheduler does this every minute). */
+    public static function drainOutbox(TestCase $t): array
+    {
+        return app(OutboxDispatcher::class)->dispatchDue($t->currentTenantFixture()->id);
+    }
+
+    /** @param list<string> $purposes */
+    public static function consent(TestCase $t, array $party, array $purposes = ['data_processing', 'credit_bureau']): void
+    {
+        foreach ($purposes as $purpose) {
+            $t->api('POST', "/api/v1/parties/{$party['id']}/consents", ['purpose' => $purpose, 'action' => 'grant', 'channel' => 'branch', 'terms_version' => 'T&C-2026.1', 'evidence_ref' => 'signed-form-001'])->assertCreated();
+        }
     }
 }

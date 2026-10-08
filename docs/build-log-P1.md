@@ -85,3 +85,57 @@ strings only) and the read catalogue.
 - Dynamic schema-driven forms (FR-APP-002), SLA clocks (APP-03), reminder
   nudges (CHN-03), CBA pre-population and BVN verification (CUS-02).
 - The local run used PostgreSQL 17; CI pins 16. Nothing here is 17-specific.
+
+## Milestone 2 — KYC, screening and the staff SPA foundation (2026-10-08)
+
+**Gate results:** Pest **209 passed, 0 failed** (9,341 assertions). Larastan L8
+0 errors, Pint pass. Frontend `npm run verify`: tsc strict, ESLint (0
+warnings), Vitest 38 passed, contrast 116 pairs / 0 failing, production build.
+CI gains a `frontend` job that also fails on API-client drift.
+
+### Journey now supported (demo steps 4–7)
+Capture company + directors + guarantor → verify BVNs → record consents →
+submit → **automatic** pre-qualification → KycScreening → intake screening
+(outbox, off the request path) → alert → four-eyes disposition →
+**automatic** move to Documentation when the CDD gate is clear.
+
+### Architecture
+- **New ports** `identity_verification` and `screening` with deterministic
+  simulators (`integration:bind-simulators` for non-production). Modules call
+  them only through `IntegrationGateway` (breaker, inline read retries,
+  masked call log).
+- **M18 Compliance** (new): screening runs (append-only evidence with list
+  version and provider reference), alerts, `FourEyes` and `KycGate` (pure
+  domain), `KycProgression` listener.
+- **M10 Workflow** (new, slice): `IntakeAutomation` — Submitted → PreQualified
+  (no auto-decline, D-038b) → KycScreening.
+- Cross-module flow is entirely event-driven (D-043):
+  `ApplicationStatusChanged` → Workflow / Compliance; `PartyKycChanged`,
+  `ApplicationScreened`, `ScreeningAlertResolved` → gate re-evaluation →
+  `ApplicationLifecycle::advance` as `system:workflow`. Listener failures are
+  logged and never undo the triggering change.
+- New system identity `system:workflow` (FR-AUD-005 attribution).
+
+### Requirements
+| ID | Status | Evidence |
+|---|---|---|
+| FR-CUS-002 / 003 | Partial: verification via port (simulator); CBA pre-population in CUS-02 | `KycFlowTest` |
+| FR-CUS-005 | Done for intake (applicants, directors, signatories, UBOs); pre-disbursement re-screen in CPR-01 | `KycFlowTest` |
+| FR-CUS-007 | Partial: MVP rule table in code (`cdd-mvp-1`); tenant tables with the jurisdiction pack | `KycFlowTest` |
+| FR-CUS-008, FR-CMP-010/021/032 | Done | `KycFlowTest` |
+| FR-CMP-011 / 013 / 014 / 017 | Done (simulator lists) | `KycFlowTest` |
+
+### Frontend (P0-UX-01 / P0-FE-01)
+`frontend/`: React 19 + TS strict + Vite, TanStack Query, generated
+`openapi-fetch` client, Tailwind preset from the re-themed tokens (D-042),
+self-hosted Plus Jakarta Sans. Sign-in, MFA, enrolment, step-up retry, session
+expiry and permission-driven navigation run against the real API. The
+dashboard reproduces the loan-ui layout on mock data (`TODO(P1-RPT-01)`).
+Local dev: `deploy/dev/bootstrap-local.sh` (synthetic dev accounts only).
+
+### Gaps carried forward
+- Confirmed PEP holds the gate until the EDD / source-of-funds workflow
+  (FR-CMP-015, D-038a) ships.
+- ProblemRenderer returns `http-error` for Laravel's 419; give it
+  `csrf-token-mismatch` (small backend fix).
+- Tailwind v3 dev-dependency advisories (build-time only) clear with Tailwind v4.

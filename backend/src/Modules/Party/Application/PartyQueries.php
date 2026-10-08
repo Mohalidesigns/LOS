@@ -17,6 +17,7 @@ use Fundly\Shared\Security\Principal;
 use Fundly\Shared\Security\ResourceAttributes;
 use Fundly\Shared\Security\ScopeColumns;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 final class PartyQueries
 {
@@ -88,6 +89,33 @@ final class PartyQueries
     {
         /** @var array{name?: ?string, phone?: ?string, email?: ?string, tin?: ?string, registration_number?: ?string, identities?: list<array{type: string, value: string}>} $probe */
         return ['data' => $this->matcher->match($probe)];
+    }
+
+    /**
+     * Current consent per purpose plus the full history (FR-CMP-021).
+     *
+     * @return array{current: array<string, array{status: string, since: string, channel: string, terms_version: string}>, history: list<array<string, mixed>>}
+     */
+    public function consents(string $partyId): array
+    {
+        $rows = DB::table('party_consents')->where('party_id', $partyId)->orderBy('recorded_at')->orderBy('id')->get();
+        $current = [];
+        $history = [];
+        foreach ($rows as $r) {
+            $entry = ['purpose' => (string) $r->purpose, 'action' => (string) $r->action, 'channel' => (string) $r->channel, 'terms_version' => (string) $r->terms_version,
+                'evidence_ref' => $r->evidence_ref === null ? null : (string) $r->evidence_ref, 'application_id' => $r->application_id === null ? null : (string) $r->application_id,
+                'recorded_by' => (string) $r->recorded_by, 'recorded_at' => (new \DateTimeImmutable((string) $r->recorded_at))->format('Y-m-d\\TH:i:s.u\\Z')];
+            $history[] = $entry;
+            $current[$entry['purpose']] = ['status' => $entry['action'] === 'grant' ? 'granted' : 'withdrawn', 'since' => $entry['recorded_at'], 'channel' => $entry['channel'], 'terms_version' => $entry['terms_version']];
+        }
+
+        return ['current' => $current, 'history' => $history];
+    }
+
+    /** @return array{data: array{current: array<string, array{status: string, since: string, channel: string, terms_version: string}>, history: list<array<string, mixed>>}} */
+    public function consentView(string $id, Principal $principal): array
+    {
+        return ['data' => $this->consents($this->authorized($id, $principal)->id)];
     }
 
     /** @return array<string, mixed> */

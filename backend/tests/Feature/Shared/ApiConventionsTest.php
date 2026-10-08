@@ -18,7 +18,8 @@ it('accepts or generates a correlation id and echoes it on every response, inclu
     $err = $this->api('GET', '/api/v1/users/00000000-0000-7000-8000-000000000000', [], ['X-Correlation-Id' => 'err-corr-0001']);
     $err->assertNotFound()->assertHeader('X-Correlation-Id', 'err-corr-0001')->assertJsonPath('correlation_id', 'err-corr-0001');
     // malformed ids are replaced, not echoed
-    expect($this->api('GET', '/api/v1/me', [], ['X-Correlation-Id' => "bad\nvalue"])->headers->get('X-Correlation-Id'))->not->toContain('bad');
+    // an unsafe value is replaced by a generated id (assert the shape: a random UUID can itself contain the hex "bad")
+    expect($this->api('GET', '/api/v1/me', [], ['X-Correlation-Id' => "bad\nvalue"])->headers->get('X-Correlation-Id'))->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/');
 })->group('FR-CBA-016');
 
 it('requires an Idempotency-Key on effectful POSTs, replays the stored response, and rejects key reuse with another body', function () {
