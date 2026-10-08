@@ -12,7 +12,8 @@
 #   deploy/dev/bootstrap-local.sh login EMAIL sign in via the API (smoke test, needs a running server)
 #   deploy/dev/bootstrap-local.sh reset-mfa EMAIL  clear an admin's MFA so the next login re-enrols
 #   deploy/dev/bootstrap-local.sh reset --yes drop ALL tables in the dev DB, forget licence + MFA secrets
-#   deploy/dev/bootstrap-local.sh seed-demo  demo org, product, business users + roles, parties, applications
+#   deploy/dev/bootstrap-local.sh seed-demo  demo org, product, rule set, business users + roles, parties,
+#                                            applications (two in Assessment for the Credit tab)
 #                                            (needs a running API: run 'serve' in another terminal first)
 #
 # Prerequisites: PHP 8.4 + composer deps in backend/vendor, PostgreSQL with the
@@ -59,6 +60,9 @@ DEMO_CMP1_NAME="${DEMO_CMP1_NAME:-Chidi Compliance}"
 DEMO_CMP1_EMAIL="${DEMO_CMP1_EMAIL:-chidi@fundly.test}"
 DEMO_CMP2_NAME="${DEMO_CMP2_NAME:-Ngozi Compliance}"
 DEMO_CMP2_EMAIL="${DEMO_CMP2_EMAIL:-ngozi@fundly.test}"
+DEMO_CA_NAME="${DEMO_CA_NAME:-Tunde Analyst}"
+DEMO_CA_EMAIL="${DEMO_CA_EMAIL:-tunde@fundly.test}"
+DEMO_RULE_SET_KEY="${DEMO_RULE_SET_KEY:-sme-policy}"
 
 LICENCE_MODULES="${LICENCE_MODULES:-*}"
 LICENCE_MAX_USERS="${LICENCE_MAX_USERS:-200}"
@@ -90,7 +94,7 @@ password_for() {
   case "$1" in
     "$ADMIN1_EMAIL") printf '%s' "$ADMIN1_PASSWORD" ;;
     "$ADMIN2_EMAIL") printf '%s' "$ADMIN2_PASSWORD" ;;
-    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
+    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL"|"$DEMO_CA_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
     *) local v="${FUNDLY_DEV_PASSWORD:-}"; [[ -n "$v" ]] || die "no password known for $1 (set FUNDLY_DEV_PASSWORD)"; printf '%s' "$v" ;;
   esac
 }
@@ -664,6 +668,141 @@ seed_submit() { # application id
   ok "submitted $(jq -r '.data.reference' <<<"$BODY")"
 }
 
+# ---------------------------------------------------------------- credit demo (P1-FE-03)
+# credit.rule_set 'sme-policy' (the product binds rule_set: sme-policy). Same maker-checker
+# flow as the product: ada authors + submits, bo approves, ada requests activation, bo approves.
+RULE_SET_CONTENT='{"evaluator_version":"1.0.0",
+ "formulas":[{"name":"instalment","expression":"pmt(facility.rate_percent / 1200, facility.tenor_months, facility.amount)"},
+             {"name":"dsr","expression":"percent(coalesce(bureau.monthly_obligations, 0) + formulas.instalment, applicant.monthly_income)"}],
+ "knockouts":{"hit_policy":"COLLECT","rows":[{"when":"bureau.has_write_off","reason":{"code":"KO_WRITE_OFF"}},
+   {"when":"applicant.type == '"'"'limited_company'"'"' and coalesce(applicant.years_trading, 0) < 1","reason":{"code":"KO_TRADING_HISTORY"}}]},
+ "policy":{"hit_policy":"COLLECT","rows":[{"when":"bureau.max_dpd_12m > 30","reason":{"code":"POL_DPD_30"}},
+   {"when":"bureau.enquiries_6m > 5","reason":{"code":"POL_ENQUIRIES"}},
+   {"when":"bureau.score != null and bureau.score < 550","reason":{"code":"POL_LOW_SCORE"}}]},
+ "grade":{"hit_policy":"FIRST","rows":[{"when":"bureau.score >= 720","outputs":{"risk_grade":"A"},"reason":{"code":"GRADE_A"}},
+   {"when":"bureau.score >= 640","outputs":{"risk_grade":"B"},"reason":{"code":"GRADE_B"}},
+   {"when":"bureau.score >= 550","outputs":{"risk_grade":"C"},"reason":{"code":"GRADE_C"}},
+   {"when":"true","outputs":{"risk_grade":"D"},"reason":{"code":"GRADE_D"}}]},
+ "affordability":{"max_dsr_percent":"40","income_fact":"applicant.monthly_income","dsr_formula":"dsr"},
+ "pricing":{"hit_policy":"FIRST","rows":[{"when":"decision.risk_grade == '"'"'A'"'"'","outputs":{"rate_percent":"22.5"}},
+   {"when":"true","outputs":{"rate_percent":"=facility.rate_percent"}}]}}'
+
+seed_rule_set() { # needs ADA_JAR + BO_JAR
+  local type=credit.rule_set key="$DEMO_RULE_SET_KEY"
+  local base="/api/v1/config-artifacts/$type" art active ver vstatus cr
+  heading "Rule set $type/$key (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
+  JAR="$ADA_JAR"
+  api GET "$base?page%5Bsize%5D=100" ''; expect 200 "list rule sets"
+  art="$(jq -r --arg k "$key" '.data[] | select(.key==$k) | .id' <<<"$BODY" | head -1)"
+  active="$(jq -r --arg k "$key" '.data[] | select(.key==$k) | .active_version_id // empty' <<<"$BODY" | head -1)"
+  if [[ -n "$active" ]]; then info "already active (version $active)"; return; fi
+  if [[ -z "$art" ]]; then
+    apost "$base" "$(jq -nc --arg k "$key" '{key:$k,name:"SME credit policy",description:"Knock-outs, policy, grade, affordability (DSR <= 40%) and pricing (seed-demo)"}')"
+    expect 201 "create rule set artefact"; art="$(jq -r '.data.id' <<<"$BODY")"
+  fi
+  api GET "$base/$art/versions?page%5Bsize%5D=100" ''; expect 200 "list rule set versions"
+  ver="$(jq -r '[.data[] | select(.status=="draft" or .status=="in_review" or .status=="submitted" or .status=="approved")] | last | .id // empty' <<<"$BODY")"
+  vstatus="$(jq -r --arg v "$ver" '.data[] | select(.id==$v) | .status' <<<"$BODY")"
+  if [[ -z "$ver" ]]; then
+    apost "$base/$art/versions" "$(jq -c '{content: ., notes: "seed-demo"}' <<<"$RULE_SET_CONTENT")"
+    if [[ "$HTTP_STATUS" == 422 ]]; then
+      printf '%s\n' "$BODY" | jq . >&2 || printf '%s\n' "$BODY" >&2
+      die "the rule set content was rejected (validation errors above)"
+    fi
+    expect 201 "create rule set version"; ver="$(jq -r '.data.id' <<<"$BODY")"; vstatus=draft; ok "version $ver drafted"
+  fi
+  if [[ "$vstatus" == draft ]]; then
+    apost "$base/$art/versions/$ver/actions/submit" '{"reason":"seed-demo"}'
+    [[ "$HTTP_STATUS" == 422 ]] && { jq . <<<"$BODY" >&2; die "rule set submit rejected (errors above)"; }
+    expect 200 "submit rule set version"; vstatus=submitted
+  fi
+  if [[ "$vstatus" != approved ]]; then
+    JAR="$BO_JAR"; apost "$base/$art/versions/$ver/actions/approve" '{"reason":"seed-demo review"}'; expect 200 "approve rule set version"
+  fi
+  JAR="$ADA_JAR"
+  api GET '/api/v1/change-requests?filter%5Bstatus%5D=pending&page%5Bsize%5D=100' ''; expect 200 "list change requests"
+  cr="$(jq -r --arg v "$ver" '.data[] | select((.payload|tostring)|contains($v)) | .id' <<<"$BODY" | head -1)"
+  if [[ -z "$cr" ]]; then
+    apost "$base/$art/versions/$ver/actions/activate" '{"reason":"seed-demo go-live"}'
+    [[ "$HTTP_STATUS" == 422 ]] && { jq . <<<"$BODY" >&2; die "rule set activation rejected (errors above)"; }
+    expect 202 "request rule set activation"; cr="$(jq -r '.data.id' <<<"$BODY")"
+  fi
+  JAR="$BO_JAR"; approve_cr "$cr"; expect 200 "approve rule set activation"; JAR="$ADA_JAR"
+  ok "rule set $key is live (change request $cr)"
+}
+
+seed_consent() { # party_id purpose   (current $JAR needs party:manage)
+  api GET "/api/v1/parties/$1/consents" ''; expect 200 "list consents"
+  if [[ "$(jq -r --arg p "$2" '.data.current[$p].status // empty' <<<"$BODY")" == granted ]]; then return; fi
+  apost "/api/v1/parties/$1/consents" "$(jq -nc --arg p "$2" '{purpose:$p,action:"grant",channel:"branch",terms_version:"T&C-2026.1",evidence_ref:"signed-form-001"}')"
+  expect 201 "consent $2"; ok "consent $2 granted for party $1"
+}
+
+APP_ETAG=""
+app_get() { # application id -> $BODY + $APP_ETAG (no subshell, so both survive)
+  api GET "/api/v1/applications/$1" '' -D "$DEV_DIR/seed-headers"; expect 200 "get application"
+  APP_ETAG="$(awk 'tolower($1)=="etag:"{print $2}' "$DEV_DIR/seed-headers" | tr -d '\r')"
+}
+
+seed_app_data() { # application id, json object merged into data (as an originator)
+  app_get "$1"; local etag="$APP_ETAG"
+  if jq -e --argjson want "$2" '(.data.data // {}) as $d | [$want | to_entries[] | $d[.key] == .value] | all' <<<"$BODY" >/dev/null; then
+    info "$(jq -r '.data.reference' <<<"$BODY"): data already set"; return
+  fi
+  local merged; merged="$(jq -c --argjson want "$2" '(.data.data // {}) + $want' <<<"$BODY")"
+  api PATCH "/api/v1/applications/$1" "$(jq -nc --argjson d "$merged" '{data:$d,source:"staff"}')" -H "If-Match: $etag"
+  expect 200 "set application data"; ok "$(jq -r '.data.reference' <<<"$BODY"): data $(jq -c . <<<"$2")"
+}
+
+
+# Upload (lola) + verify (ngozi: a different officer) every mandatory item that is not yet satisfied.
+seed_complete_checklist() { # application id  (needs LOLA_JAR + NGOZI_JAR)
+  local pdf="$DEV_DIR/seed-demo.pdf" item id code status
+  [[ -f "$pdf" ]] || printf '%%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%%%EOF\n' >"$pdf"
+  JAR="$LOLA_JAR"
+  api GET "/api/v1/applications/$1/checklist" ''; expect 200 "get checklist"
+  while IFS= read -r item; do
+    [[ -n "$item" ]] || continue
+    id="$(jq -r '.id' <<<"$item")"; code="$(jq -r '.code' <<<"$item")"; status="$(jq -r '.status' <<<"$item")"
+    if [[ "$status" == not_received || "$status" == rejected || "$status" == expired ]]; then
+      JAR="$LOLA_JAR"
+      api POST "/api/v1/applications/$1/documents" '' -H "Idempotency-Key: $(idem)" \
+        -F "file=@$pdf;type=application/pdf;filename=$code.pdf" -F "document_type=$code" -F "checklist_item_id=$id" -F "title=$code (seed-demo)"
+      expect 201 "upload $code"; info "uploaded $code"
+    fi
+    JAR="$NGOZI_JAR"
+    apost "/api/v1/checklist-items/$id/actions/verify" '{"reason":null}'; expect 200 "verify $code"; ok "$code verified by $DEMO_CMP2_EMAIL"
+  done < <(jq -c '.data.items[] | select(.mandatory and .status != "verified" and .status != "waived")' <<<"$BODY")
+}
+
+seed_credit_demo() { # app ids...  (as lola + ngozi; needs LOLA_JAR + NGOZI_JAR)
+  local app status pid try
+  for app in "$@"; do
+    JAR="$LOLA_JAR"; app_get "$app"; status="$(jq -r '.data.status' <<<"$BODY")"; pid="$(jq -r '.data.primary_applicant.party_id' <<<"$BODY")"
+    seed_consent "$pid" credit_bureau
+    app_get "$app"; status="$(jq -r '.data.status' <<<"$BODY")"
+    if [[ "$status" == kyc_screening ]]; then
+      # The KYC gate needs the primary's BVN verified (simulator); the gate then moves the case on.
+      api GET "/api/v1/parties/$pid" ''; expect 200 "get party"
+      if jq -e '.data.identities[] | select(.type=="bvn" and .verification_status != "verified")' <<<"$BODY" >/dev/null; then
+        apost "/api/v1/parties/$pid/identities/bvn/actions/verify" '{}'; expect 200 "verify BVN"; ok "BVN verified for party $pid"
+      fi
+      for try in 1 2 3; do # the gate re-evaluates from the outbox; give the worker a few passes
+        artisan schedule:run >/dev/null 2>&1 || true
+        artisan queue:work --stop-when-empty --tries=3 >/dev/null 2>&1 || true
+        app_get "$app"
+        [[ "$(jq -r '.data.status' <<<"$BODY")" == kyc_screening ]] || break
+        sleep 2
+      done
+    fi
+    if [[ "$status" == documentation ]]; then
+      seed_complete_checklist "$app"
+      JAR="$LOLA_JAR"; app_get "$app"; status="$(jq -r '.data.status' <<<"$BODY")"
+    fi
+    ok "$(jq -r '.data.reference' <<<"$BODY") ($(jq -r '.data.primary_applicant.display_name' <<<"$BODY")): $status"
+  done
+}
+
 cmd_seed_demo() {
   require_tools
   command -v uuidgen >/dev/null || die "'uuidgen' is required"
@@ -678,19 +817,24 @@ cmd_seed_demo() {
   login "$ADMIN1_EMAIL"; ADA_JAR="$JAR"
   seed_org
   heading "Demo users and roles (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
-  local lola chidi ngozi r_lo r_doc r_cmp r_bm
+  local lola chidi ngozi tunde r_lo r_doc r_cmp r_bm r_sca
   lola="$(seed_user "$DEMO_LO_EMAIL" "$DEMO_LO_NAME")"
   chidi="$(seed_user "$DEMO_CMP1_EMAIL" "$DEMO_CMP1_NAME")"
   ngozi="$(seed_user "$DEMO_CMP2_EMAIL" "$DEMO_CMP2_NAME")"
+  tunde="$(seed_user "$DEMO_CA_EMAIL" "$DEMO_CA_NAME")"
   r_lo="$(seed_role demo_loan_officer 'Loan Officer (demo)' loan_officer legal_entity:read org_unit:read)"
   r_doc="$(seed_role demo_documentation_officer 'Documentation Officer (demo)' documentation_officer)"
   r_cmp="$(seed_role demo_compliance_officer 'Compliance Officer (demo)' compliance_officer)"
   r_bm="$(seed_role demo_branch_manager 'Branch Manager (demo)' branch_manager)"
+  r_sca="$(seed_role demo_senior_credit_analyst 'Senior Credit Analyst (demo)' senior_credit_analyst)"
   seed_assignment "$lola" "$r_lo" "lola: loan officer"
   seed_assignment "$lola" "$r_doc" "lola: documentation officer"
   seed_assignment "$chidi" "$r_cmp" "chidi: compliance officer"
   seed_assignment "$chidi" "$r_bm" "chidi: branch manager"
   seed_assignment "$ngozi" "$r_cmp" "ngozi: compliance officer"
+  # ngozi also verifies documents lola uploaded (a different officer must verify an upload).
+  seed_assignment "$ngozi" "$r_doc" "ngozi: documentation officer"
+  seed_assignment "$tunde" "$r_sca" "tunde: senior credit analyst"
 
   JAR="$ADA_JAR"; seed_product_author
   JAR="$BO_JAR"; seed_product_review
@@ -699,6 +843,7 @@ cmd_seed_demo() {
     JAR="$BO_JAR"; approve_cr "$PRODUCT_CR"; expect 200 "approve product activation"
     ok "product $DEMO_PRODUCT_KEY is live"
   fi
+  seed_rule_set
   rm -f "$ADA_JAR" "$BO_JAR"
 
   heading "Parties and applications (as $DEMO_LO_EMAIL)"
@@ -723,15 +868,32 @@ cmd_seed_demo() {
   pep="$(seed_party 'Emeka Obi' "$(jq -nc --arg ou "$LAGOS_ID" '{type:"individual",first_name:"Emeka",last_name:"Obi",date_of_birth:"1970-01-15",gender:"male",nationality:"NG",phone:"08033330001",identities:[{type:"bvn",value:"22211122233"}],org_unit_id:$ou}')")"
   app3="$(seed_application "$pep" '5000000.00' 12 'Equipment purchase')"
   seed_submit "$app3"
+  # Bureau simulator outcome by identifier suffix: BVN ending 13 = write-off + DPD (the decision refers).
+  local bola app4
+  bola="$(seed_party 'Bola Adeyemi' "$(jq -nc --arg ou "$LAGOS_ID" '{type:"individual",first_name:"Bola",last_name:"Adeyemi",date_of_birth:"1985-07-21",gender:"female",nationality:"NG",phone:"08037770013",email:"bola.adeyemi@example.ng",identities:[{type:"bvn",value:"22233344413"}],org_unit_id:$ou}')")"
+  app4="$(seed_application "$bola" '3000000.00' 12 'Restocking a pharmacy')"
+  seed_submit "$app4"
+  heading "Credit facts on the demo applications (data.monthly_income, data.years_trading)"
+  seed_app_data "$app1" '{"monthly_income":"3500000.00","years_trading":11}'
+  seed_app_data "$app2" '{"monthly_income":"3500000.00","years_trading":6}'
+  seed_app_data "$app4" '{"monthly_income":"2500000.00","years_trading":4}'
+
   heading "Running due outbox jobs (screening runs asynchronously)"
   # The scheduler's outbox.dispatch pushes a DispatchOutboxJob onto the database queue; a worker runs it.
   artisan schedule:run >/dev/null 2>&1 || info "schedule:run reported an error"
   artisan queue:work --stop-when-empty --tries=3 >/dev/null 2>&1 || info "queue:work reported an error (see storage/logs)"
-  rm -f "$JAR" "$DEV_DIR/seed-headers"
+  LOLA_JAR="$JAR"
+
+  heading "Credit demo: credit_bureau consent + complete the checklist so cases reach Assessment"
+  login "$DEMO_CMP2_EMAIL"; NGOZI_JAR="$JAR"
+  seed_credit_demo "$app2" "$app4"
+  artisan schedule:run >/dev/null 2>&1 || true
+  artisan queue:work --stop-when-empty --tries=3 >/dev/null 2>&1 || true
+  rm -f "$LOLA_JAR" "$NGOZI_JAR" "$DEV_DIR/seed-headers"
 
   heading "MFA enrolment for the compliance demo users"
   local who
-  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL"; do
+  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL"; do
     if [[ -f "$(secret_file_for "$who")" && -n "$(sql_value "select coalesce(mfa_confirmed_at::text, '') from users where lower(email) = lower('$who')" "$tid")" ]]; then
       info "$who: enrolled, secret on file"
     else login "$who"; rm -f "$JAR"; fi
@@ -742,10 +904,14 @@ cmd_seed_demo() {
     Sign in to the SPA as (password $DEMO_PASSWORD, TOTP via '$0 totp <email>'):
       $DEMO_LO_EMAIL     Loan Officer + Documentation Officer (create, submit, upload, verify)
       $DEMO_CMP1_EMAIL    Compliance Officer + Branch Manager (propose alert dispositions, recommend, approve waivers)
-      $DEMO_CMP2_EMAIL    Compliance Officer (confirm dispositions proposed by chidi)
+      $DEMO_CMP2_EMAIL    Compliance Officer + Documentation Officer (confirm dispositions, verify lola's uploads)
+      $DEMO_CA_EMAIL    Senior Credit Analyst (pull bureau, run decision, exceptions, credit memo, recommend)
     Draft application:      Adebayo Foods Limited, NGN 12.5M / 24 months  ($app1)
     Submitted application:  Chinedu Eze, NGN 2M / 12 months               ($app2)
     Screening alert:        Emeka Obi (synthetic PEP), NGN 5M             ($app3)
+    Credit (Assessment):    Chinedu Eze NGN 2M (clean bureau -> approve; lower data.monthly_income to
+                            e.g. 150000.00 for a counter-offer), Bola Adeyemi NGN 3M (BVN ..13: write-off -> refer)  ($app4)
+    Rule set:               credit.rule_set/$DEMO_RULE_SET_KEY (evaluator 1.0.0)
     Screening runs asynchronously (outbox -> database queue). seed-demo drains it once; for live
     updates keep both running in backend/:  php artisan schedule:work   and   php artisan queue:work
 EOF

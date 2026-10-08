@@ -55,13 +55,27 @@ what earlier runs created. It:
    Adebayo), Chinedu Eze and Emeka Obi with consents, one draft and two
    submitted applications, then runs the scheduler + queue once so screening
    happens (Emeka Obi is on the simulator's synthetic PEP list → an open alert);
-6. signs chidi and ngozi in once so their MFA secrets are on file.
+6. activates the `credit.rule_set` artefact `sme-policy` (the product binds
+   `rule_set: sme-policy`) with the same maker-checker flow as the product;
+7. sets `data.monthly_income` / `data.years_trading` on the demo applications
+   (PATCH with If-Match), makes sure every primary applicant has the
+   `credit_bureau` consent, and moves Chinedu Eze and Bola Adeyemi into
+   **Assessment** (BVN verified, mandatory checklist uploaded by lola and
+   verified by ngozi);
+8. signs chidi, ngozi and tunde in once so their MFA secrets are on file.
+
+Bureau simulator outcomes follow the identifier suffix: `…00` no hit (thin file),
+`…13` write-off + DPD (refer), `…77` many enquiries (refer), anything else a clean
+score of 600–799. Bola Adeyemi's BVN ends in 13. For a counter-offer, lower
+Chinedu Eze's `data.monthly_income` (e.g. `1600000.00`) and run the decision
+again: the DSR passes 40 % and the engine recommends a smaller amount.
 
 | User | Roles (cloned templates) | Use it for |
 |---|---|---|
 | `lola@fundly.test` | Loan Officer (+ `legal_entity:read`, `org_unit:read`), Documentation Officer | new application wizard, submit, KYC verify/consents, upload, verify, waiver request |
 | `chidi@fundly.test` | Compliance Officer, Branch Manager | propose alert dispositions, recommend, approve waivers |
-| `ngozi@fundly.test` | Compliance Officer | confirm dispositions chidi proposed (four-eyes) |
+| `ngozi@fundly.test` | Compliance Officer, Documentation Officer | confirm dispositions chidi proposed (four-eyes), verify lola's uploads |
+| `tunde@fundly.test` | Senior Credit Analyst | Credit tab: pull bureau, run decision, replay, exceptions, credit memo, recommend |
 
 The admins (tenant administrator) deliberately hold no application permissions.
 TOTP for any of them: `../deploy/dev/bootstrap-local.sh totp <email>`.
@@ -228,9 +242,44 @@ The dashboard has 3 columns at ≥ 1280 px, 2 at ≥ 1024 px and 1 below that.
 |---|---|---|
 | `/applications`, `/pipeline` | WRK-03 / WRK-02 | stat tiles from `applicationStats`, status-group chips, search, "Mine only", cursor "Load more"; filters live in the URL |
 | `/applications/new` | APP-01..03 | product cards → find/create applicant (Zod mirrors backend rules, live `matchParties` dedupe, `possible_duplicates` card, inline directors for companies) → legal entity/branch + terms validated against the product range → review → `createApplication` (one Idempotency-Key per review) |
-| `/applications/:id` (+ `/kyc`, `/documents`, `/timeline`) | APP-04..10 | context bar with the status/permission-chosen primary action, Actions menu (hold, return, withdraw, cancel, recommend) with reason codes, 12-step stage tracker, route tabs (arrow keys). Every mutation sends `If-Match`; a 412 shows "This application changed — reload" and keeps typed input. KYC gate and the case header poll every 10 s while screening is pending |
+| `/applications/:id` (+ `/kyc`, `/documents`, `/credit`, `/timeline`) | APP-04..10 | context bar with the status/permission-chosen primary action, Actions menu (hold, return, withdraw, cancel, recommend) with reason codes, 12-step stage tracker, route tabs (arrow keys). Every mutation sends `If-Match`; a 412 shows "This application changed — reload" and keeps typed input. KYC gate and the case header poll every 10 s while screening is pending |
 | `/compliance/alerts` | CMP-01/02 | status chips, drawer via `?alert=` (deep-linkable from the KYC tab), propose / confirm with the four-eyes rules and the server's refusal shown verbatim |
 | `/parties`, `/parties/:id` | PTY-01 lite | search, masked identifiers + Verify, consents grant/withdraw + history, directors/owners, the customer's applications |
+
+### Credit tab (P1-FE-03, SCR-CRD-01..04)
+
+`/applications/:id/credit` (between Documents and Timeline), code in
+`features/applications/credit/` (pure logic in `domain.ts`, tested) and
+`api/credit.ts`:
+
+- **Credit bureau**: party chooser (primary first), Pull / Pull again
+  (`bureau:pull`), latest report with validity and hit/no-hit pills, score on a
+  five-band ramp (bands align with the sme-policy grade table), summary tiles
+  (flagged tiles for DPD > 30, delinquency, enquiries > 5, write-off),
+  facilities table, earlier reports collapsed. A 422 `bureau-consent-missing`
+  shows "Bureau enquiry blocked" with a link to
+  `/applications/:id/kyc?party=…#consents` (the KYC tab preselects the party and
+  scrolls to the consents panel).
+- **Decision**: Run decision (`credit:analyse`, needs Assessment and a valid
+  primary report; the server's problem detail is shown verbatim), a forest hero
+  card (outcome chip, grade badge, recommended amount and terms), ordered
+  reason codes with stage, requested → recommended terms, affordability with a
+  DSR meter (lime allowed zone up to the max, forest fill, danger fill when over),
+  versions + Replay ("Replayed with evaluator 1.0.0 and rule set v1: identical"
+  or the differences), "How this was decided" trace (decision-table rows with
+  Hit/No), facts as a dotted key/value table, earlier decisions collapsed, and
+  an "Inputs changed after this decision" warning when income/amount/tenor
+  changed since the snapshot.
+- **Exceptions** (`exception:raise`): reason code from the decision's codes,
+  justification (≥ 20 chars), evidence ref, severity; the list notes that each
+  one escalates approval authority.
+- **Credit memo** (`credit:analyse`): auto-populated sections as read-only
+  cards, recommendation / amount / tenor / narrative (≥ 30 chars) / conditions
+  editor (react-hook-form + `memoSchema`), "Save as vN", version history.
+- **Ready to recommend**: Bureau report ✓ · Decision ✓ (on the current report) ·
+  Memo ✓ (references the latest decision). The Recommend dialog shows the same
+  checklist and the server's 422 `blockers` (strings or `{code, message}`).
+- Outside Assessment the tab is read-only with an info banner.
 
 Permission-aware actions stay visible but inert (`aria-disabled`, reason as
 tooltip and screen-reader text) via `Button disabledReason`.

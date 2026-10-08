@@ -186,3 +186,54 @@ response carries the party name; 419 renders `csrf-token-mismatch`.
 Submit response reflects the pre-automation state (UI refetches); timeline has
 no actor display names; screening needs a queue worker locally
 (`php artisan queue:work`); PII unmask endpoint and resumable uploads.
+
+## Milestone 4 — Rules engine and credit decisioning (2026-10-08)
+
+**Gate results:** Pest **231 passed, 0 failed** (13,125 assertions); Larastan
+L8 0 errors; Pint pass. Frontend `npm run verify`: 134 tests, contrast 138
+pairs / 0 failing, build OK.
+
+### Rules engine (P1-CRD-01, D-020)
+`Shared/Rules`: an in-house V1 lexer, Pratt parser and evaluator instead of
+symfony/expression-language, because the latter parses `0.4` as a float.
+Every number is an exact brick/math decimal (division 10 dp, half-even);
+only whitelisted pure functions; missing facts are null with defined
+semantics; `DecisionTable` with UNIQUE / FIRST / PRIORITY / COLLECT and a
+per-row trace; `EvaluatorRegistry` keeps released evaluators loadable for
+replay. Rule sets are `credit.rule_set` configuration (maker-checker
+activation); the validator checks fact roots, functions and reason codes,
+and rows cannot set the outcome, so P1 never auto-declines (D-038b).
+
+### Credit (M08, P1-CRD-02..04)
+- `CreditBureauPort` + deterministic simulator; pull requires the party's
+  `credit_bureau` consent (`bureau-consent-missing`), stores the canonical
+  profile with a 30-day validity window.
+- Decision flow: formulas → knock-out → policy → grade → affordability →
+  pricing → outcome (approve / refer / counter_offer at the maximum
+  affordable amount); immutable `decision_snapshots` with facts, rule-set
+  and evaluator versions, outputs and trace; replay compares against the
+  recorded versions.
+- Policy exceptions tied to the decision's own reason codes (severity feeds
+  approval escalation via the `CreditFile` contract).
+- Versioned credit memo with frozen auto-populated sections.
+- `TransitionGuard` (Application contract, dependency inversion): Credit
+  blocks `recommend` until bureau + decision + memo exist.
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-CRD-001 | Done | `EvaluatorTest`, `CreditDecisionTest` |
+| FR-CRD-002 | Partial: tables + expressions; decision trees and simulation P3 | `EvaluatorTest` |
+| FR-CRD-003 | Partial: one bureau (simulator); live adapters P4 | `CreditDecisionTest` |
+| FR-CRD-004 / 008 / 010 / 011 / 013 / 014 / 015 | Done | `CreditDecisionTest` |
+| FR-CMP-020 / 027 / 043, LOS-CON-006 | Done | `CreditDecisionTest` |
+
+### Frontend (P1-FE-03 slice)
+Credit tab: bureau pull per applicant with profile, decision card (outcome,
+grade, reason codes, terms, DSR meter), replay with result banner and
+expandable trace, exceptions, memo editor with version history, and a
+"ready to recommend" checklist mirrored in the Recommend dialog. Seed adds
+the `sme-policy` rule set, analyst user tunde and cases in Assessment.
+
+### Gaps carried forward
+Actor display names on credit records; tighter OpenAPI types for `facts` /
+`trace`; approval matrix and voting (P1-APV-01/02) are next.

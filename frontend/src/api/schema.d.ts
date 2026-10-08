@@ -1274,6 +1274,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/applications/{id}/bureau-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bureau reports pulled for an application */
+        get: operations["listBureauReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/bureau-reports/actions/pull": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pull a credit bureau report (requires the party's credit_bureau consent) */
+        post: operations["pullBureauReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Decision snapshots for an application, newest first */
+        get: operations["listDecisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/decisions/actions/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run the bound rule set (knock-out → policy → grade → affordability → pricing → outcome) and store an immutable snapshot */
+        post: operations["runDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/decisions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a decision snapshot (inputs, versions, outputs, trace) */
+        get: operations["getDecision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/decisions/{id}/actions/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay a snapshot with its recorded rule-set version and evaluator version */
+        post: operations["replayDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/decisions/{id}/exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a policy exception / override against a decision (escalates approval authority) */
+        post: operations["raiseException"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Policy exceptions on an application */
+        get: operations["listExceptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/credit-memo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Credit memo: latest version, all versions, and a draft of the auto-populated sections */
+        get: operations["getCreditMemo"];
+        put?: never;
+        /** Save a new memo version (sections auto-populated from the latest decision, plus the analyst narrative and recommendation) */
+        post: operations["saveCreditMemo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2127,6 +2281,135 @@ export interface components {
                 outstanding: string[];
                 complete: boolean;
             };
+        };
+        BureauReport: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            /** Format: uuid */
+            party_id: string;
+            party_name?: string;
+            bureau: string;
+            report_reference: string;
+            /** Format: date-time */
+            pulled_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            is_valid: boolean;
+            hit: boolean;
+            profile: {
+                score: number | null;
+                active_facilities: number;
+                total_outstanding: components["schemas"]["Money"];
+                monthly_obligations: components["schemas"]["Money"];
+                max_dpd_12m: number;
+                delinquent_facilities: number;
+                enquiries_6m: number;
+                has_write_off: boolean;
+                facilities: {
+                    lender: string;
+                    type: string;
+                    outstanding: components["schemas"]["Money"];
+                    monthly_instalment: components["schemas"]["Money"];
+                    dpd: number;
+                    status: string;
+                }[];
+            };
+            pulled_by: string;
+        };
+        Decision: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            sequence: number;
+            /** @enum {string} */
+            outcome: "approve" | "refer" | "decline" | "counter_offer";
+            risk_grade: string;
+            requested_terms: {
+                amount: components["schemas"]["Money"];
+                tenor_months: number;
+                rate_percent: string;
+                monthly_instalment: components["schemas"]["Money"] | null;
+            };
+            recommended_terms: {
+                amount: components["schemas"]["Money"];
+                tenor_months: number;
+                rate_percent: string;
+                monthly_instalment: components["schemas"]["Money"] | null;
+            };
+            reason_codes: {
+                code: string;
+                text_key: string;
+                /** @enum {string} */
+                stage: "knockout" | "policy" | "grade" | "affordability" | "pricing" | "outcome";
+            }[];
+            affordability: {
+                monthly_income?: components["schemas"]["Money"] | null;
+                existing_obligations?: components["schemas"]["Money"] | null;
+                new_instalment?: components["schemas"]["Money"] | null;
+                dsr_percent: string | null;
+                max_dsr_percent: string | null;
+                passed: boolean | null;
+                max_affordable_amount?: components["schemas"]["Money"] | null;
+            };
+            rule_set: {
+                key: string;
+                /** Format: uuid */
+                version_id: string;
+                version_no: number;
+            };
+            evaluator_version: string;
+            /** Format: uuid */
+            bureau_report_id: string | null;
+            facts: Record<string, never>;
+            trace: Record<string, never>[];
+            exceptions: components["schemas"]["PolicyException"][];
+            decided_by: string;
+            /** Format: date-time */
+            decided_at: string;
+            is_latest: boolean;
+        };
+        PolicyException: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            /** Format: uuid */
+            decision_id: string;
+            reason_code: string;
+            justification: string;
+            evidence_ref?: string | null;
+            /** @enum {string} */
+            severity: "low" | "medium" | "high";
+            raised_by: string;
+            /** Format: date-time */
+            raised_at: string;
+        };
+        MemoSection: {
+            key: string;
+            title: string;
+            content: Record<string, never>;
+        };
+        CreditMemo: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            version_no: number;
+            /** Format: uuid */
+            decision_id: string;
+            sections: components["schemas"]["MemoSection"][];
+            narrative: string;
+            /** @enum {string} */
+            recommendation: "approve" | "decline" | "counter_offer";
+            recommended_amount: components["schemas"]["Money"] | null;
+            recommended_tenor_months: number | null;
+            conditions: string[];
+            authored_by: string;
+            /** Format: date-time */
+            authored_at: string;
         };
     };
     responses: {
@@ -5196,6 +5479,326 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ChangeRequest"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listBureauReports: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BureauReport"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    pullBureauReport: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description Defaults to the primary applicant
+                     */
+                    party_id?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Pulled and parsed into the canonical profile */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BureauReport"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listDecisions: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Decision"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    runDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Decision recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Decision"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDecision: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Decision"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    replayDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Replay result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            identical: boolean;
+                            evaluator_version: string;
+                            /** Format: uuid */
+                            rule_set_version_id: string;
+                            differences: {
+                                path: string;
+                                recorded?: unknown;
+                                replayed?: unknown;
+                            }[];
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    raiseException: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason_code: string;
+                    justification: string;
+                    evidence_ref?: string | null;
+                    /** @enum {string} */
+                    severity: "low" | "medium" | "high";
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PolicyException"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listExceptions: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PolicyException"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getCreditMemo: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            latest: components["schemas"]["CreditMemo"] | null;
+                            versions: components["schemas"]["CreditMemo"][];
+                            draft_sections: components["schemas"]["MemoSection"][];
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveCreditMemo: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    narrative: string;
+                    /** @enum {string} */
+                    recommendation: "approve" | "decline" | "counter_offer";
+                    recommended_amount?: string | null;
+                    recommended_tenor_months?: number | null;
+                    conditions?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Saved */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CreditMemo"];
                     };
                 };
             };

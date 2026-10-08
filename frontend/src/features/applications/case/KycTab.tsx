@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Circle, Loader2, RefreshCw } from 'lucide-react';
 import { applicationsApi, type KycStatus } from '@/api/lending';
@@ -36,7 +36,9 @@ export const ALERT_STATUS: Record<string, { label: string; tone: Tone }> = {
 
 export function KycTab() {
   const { app, permissions } = useCase();
-  const [partyId, setPartyId] = useState(app.applicants[0]?.party_id ?? app.primary_applicant.party_id);
+  const [params] = useSearchParams();
+  const requested = params.get('party');
+  const [partyId, setPartyId] = useState(app.applicants.some((a) => a.party_id === requested) && requested ? requested : (app.applicants[0]?.party_id ?? app.primary_applicant.party_id));
   const current = app.applicants.find((a) => a.party_id === partyId) ?? app.applicants[0];
   const canManage = permissions.has(PERM.partyManage);
 
@@ -75,12 +77,29 @@ function PartyKyc({ partyId, canManage, applicationId }: { partyId: string; canM
   return (
     <div className="grid gap-6 xl:grid-cols-2">
       <IdentitiesPanel party={party.data} canManage={canManage} />
-      <ConsentsPanel partyId={partyId} canManage={canManage} applicationId={applicationId} />
+      <ConsentsAnchor>
+        <ConsentsPanel partyId={partyId} canManage={canManage} applicationId={applicationId} />
+      </ConsentsAnchor>
       {party.data.type === 'limited_company' && (
         <div className="xl:col-span-2">
           <DirectorsEditor companyId={partyId} canManage={canManage} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** `#consents` target (the Credit tab links here when a bureau pull is blocked for lack of consent). */
+function ConsentsAnchor({ children }: { children: React.ReactNode }) {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash !== '#consents') return;
+    const el = document.getElementById('consents');
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'start' });
+  }, [hash]);
+  return (
+    <div id="consents" tabIndex={-1} className="scroll-mt-4 focus:outline-none">
+      {children}
     </div>
   );
 }

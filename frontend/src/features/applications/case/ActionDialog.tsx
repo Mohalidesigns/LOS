@@ -4,6 +4,7 @@ import { applicationsApi, type ApplicationAction } from '@/api/lending';
 import { isApiProblem } from '@/api/problem';
 import { Banner, Button, ErrorSummary, Modal, Select, TextArea, TextInput, useToast } from '@/components';
 import { statusMeta } from '@/components/StatusBadge';
+import { ReadinessList, useReadiness } from '../credit/ReadinessChecklist';
 import { ACTION_LABEL, REASON_REQUIRED, returnTargets } from '../domain/actions';
 import { isStaleProblem, useIfMatchMutation } from '../queries';
 import type { CaseContextValue } from './CaseContext';
@@ -47,7 +48,20 @@ const CONSEQUENCE: Record<ApplicationAction, string> = {
 export function blockersOf(e: unknown): string[] {
   if (!isApiProblem(e)) return [];
   const b = e.extensions.blockers;
-  return Array.isArray(b) ? b.filter((x): x is string => typeof x === 'string') : [];
+  if (!Array.isArray(b)) return [];
+  // Strings, or { code, message } objects (credit recommend guard).
+  return b
+    .map((x: unknown) => {
+      if (typeof x === 'string') return x;
+      if (typeof x === 'object' && x !== null) {
+        const r = x as Record<string, unknown>;
+        if (typeof r.message === 'string') return r.message;
+        if (typeof r.detail === 'string') return r.detail;
+        if (typeof r.code === 'string') return r.code;
+      }
+      return null;
+    })
+    .filter((x): x is string => x !== null);
 }
 
 export function ActionDialog({ action, ctx, onClose }: { action: ApplicationAction; ctx: CaseContextValue; onClose: () => void }) {
@@ -143,6 +157,7 @@ export function ActionDialog({ action, ctx, onClose }: { action: ApplicationActi
             messages={blockers.length > 0 ? blockers : problem ? undefined : [mutation.error.message]}
           />
         )}
+        {action === 'recommend' && <RecommendReadiness ctx={ctx} />}
         {action === 'return' && (
           <Select label="Return to stage" required value={target} onChange={(e) => setTarget(e.target.value)} options={targets.map((t) => ({ value: t, label: statusMeta(t).label }))} />
         )}
@@ -155,5 +170,17 @@ export function ActionDialog({ action, ctx, onClose }: { action: ApplicationActi
         <TextArea label={needsReason ? 'Note' : 'Note (optional)'} value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} error={textError} />
       </div>
     </Modal>
+  );
+}
+
+/** Pre-empts the server's credit guard: shows what is still missing before Recommend is pressed. */
+function RecommendReadiness({ ctx }: { ctx: CaseContextValue }) {
+  const { loading, result } = useReadiness(ctx.app);
+  if (loading || !result) return null;
+  return (
+    <section aria-label="Credit readiness" className="rounded-card bg-muted p-3">
+      <p className="mb-2 text-body-sm font-semibold text-primary">{result.ready ? 'Credit work is complete' : 'Credit work still to do'}</p>
+      <ReadinessList items={result.items} compact />
+    </section>
   );
 }

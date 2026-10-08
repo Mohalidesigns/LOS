@@ -1,5 +1,6 @@
 import { infiniteQueryOptions, queryOptions, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { applicationsApi, documentsApi, productsApi, type Application, type ApplicationFilters, type WithEtag } from '@/api/lending';
+import { creditApi } from '@/api/credit';
 import { isApiProblem, type ApiProblem } from '@/api/problem';
 
 export const appKeys = {
@@ -13,6 +14,10 @@ export const appKeys = {
   timeline: (id: string) => ['applications', 'case', id, 'timeline'] as const,
   checklist: (id: string) => ['applications', 'case', id, 'checklist'] as const,
   documents: (id: string) => ['applications', 'case', id, 'documents'] as const,
+  bureau: (id: string) => ['applications', 'case', id, 'bureau'] as const,
+  decisions: (id: string) => ['applications', 'case', id, 'decisions'] as const,
+  exceptions: (id: string) => ['applications', 'case', id, 'exceptions'] as const,
+  memo: (id: string) => ['applications', 'case', id, 'memo'] as const,
 };
 
 export const statsQuery = queryOptions({ queryKey: appKeys.stats, queryFn: () => applicationsApi.stats(), staleTime: 30_000 });
@@ -32,6 +37,10 @@ export const applicationQuery = (id: string) => queryOptions({ queryKey: appKeys
 export const kycQuery = (id: string) => queryOptions({ queryKey: appKeys.kyc(id), queryFn: () => applicationsApi.kyc(id) });
 export const timelineQuery = (id: string) => queryOptions({ queryKey: appKeys.timeline(id), queryFn: () => applicationsApi.timeline(id) });
 export const checklistQuery = (id: string) => queryOptions({ queryKey: appKeys.checklist(id), queryFn: () => documentsApi.checklist(id) });
+export const bureauQuery = (id: string) => queryOptions({ queryKey: appKeys.bureau(id), queryFn: () => creditApi.bureauReports(id) });
+export const decisionsQuery = (id: string) => queryOptions({ queryKey: appKeys.decisions(id), queryFn: () => creditApi.decisions(id) });
+export const exceptionsQuery = (id: string) => queryOptions({ queryKey: appKeys.exceptions(id), queryFn: () => creditApi.exceptions(id) });
+export const memoQuery = (id: string) => queryOptions({ queryKey: appKeys.memo(id), queryFn: () => creditApi.memo(id) });
 export const documentsQuery = (id: string) => queryOptions({ queryKey: appKeys.documents(id), queryFn: () => documentsApi.list(id) });
 
 /** A 412 on If-Match: someone else changed the application since it was read. */
