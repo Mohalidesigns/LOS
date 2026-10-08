@@ -64,7 +64,7 @@ it('does not let the subject of a change approve it, nor a checker without the c
 it('enforces checker ≠ maker in the database as well', function () {
     $this->login($this->maker);
     $cr = requestAssignment($this)->json('data');
-    expect(fn () => DB::table('change_requests')->where('id', $cr['id'])->update(['checker_id' => $this->maker->id]))
+    expect(fn () => DB::transaction(fn () => DB::table('change_requests')->where('id', $cr['id'])->update(['checker_id' => $this->maker->id])))
         ->toThrow(QueryException::class, 'change_requests_four_eyes_chk');
 })->group('FR-SEC-007');
 

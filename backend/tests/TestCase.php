@@ -222,7 +222,8 @@ abstract class TestCase extends BaseTestCase
         $this->app['session']->forgetDrivers();
         $this->app->forgetInstance('session.store');
         $this->flushHeaders();
-        $response = $this->withCredentials()->withUnencryptedCookies($this->jar)->withHeaders($headers)->json($method, $url, $data);
+        $this->unencryptedCookies = $this->jar; // replace, never merge, the cookies sent
+        $response = $this->withCredentials()->withHeaders($headers)->json($method, $url, $data);
         foreach ($response->headers->getCookies() as $cookie) {
             if ($cookie->getValue() === null || $cookie->getValue() === '' || $cookie->isCleared()) {
                 unset($this->jar[$cookie->getName()]);
