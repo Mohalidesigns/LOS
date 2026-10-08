@@ -61,7 +61,7 @@ final readonly class ProductView
      * applicant type, segment, channel and amount band).
      *
      * @param  list<string>  $applicantTypes
-     * @return list<array{code: string, name: string, mandatory: bool}>
+     * @return list<array{code: string, name: string, mandatory: bool, waiver_authority: string, validity_days: ?int}>
      */
     public function checklistFor(array $applicantTypes, string $channel, Money $amount): array
     {
@@ -88,7 +88,13 @@ final readonly class ProductView
             if (isset($applies['amount_max']) && is_string($applies['amount_max']) && $value->isGreaterThan(BigDecimal::of($applies['amount_max']))) {
                 continue;
             }
-            $out[] = ['code' => (string) ($item['code'] ?? ''), 'name' => (string) ($item['name'] ?? ''), 'mandatory' => (bool) ($item['mandatory'] ?? false)];
+            $out[] = [
+                'code' => (string) ($item['code'] ?? ''),
+                'name' => (string) ($item['name'] ?? ''),
+                'mandatory' => (bool) ($item['mandatory'] ?? false),
+                'waiver_authority' => is_string($item['waiver_authority'] ?? null) ? $item['waiver_authority'] : 'document:waive_approve',
+                'validity_days' => is_int($item['validity_days'] ?? null) ? $item['validity_days'] : null,
+            ];
         }
 
         return $out;

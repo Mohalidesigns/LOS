@@ -29,13 +29,13 @@ final class RoleLibrary
                 Permission::ApplicationView, Permission::DocumentUpload, Permission::DocumentVerify,
             ]],
             'branch_manager' => ['name' => 'Branch Manager', 'description' => 'Oversees branch pipeline, reassigns work.', 'permissions' => [
-                Permission::ApplicationView, Permission::ApplicationRecommend, Permission::TaskReassign, Permission::ReportView, Permission::DelegationCreate,
+                Permission::ApplicationView, Permission::ApplicationRecommend, Permission::TaskReassign, Permission::ReportView, Permission::DelegationCreate, Permission::DocumentWaiveApprove,
             ]],
             'credit_analyst' => ['name' => 'Credit Analyst', 'description' => 'Assesses credit risk and prepares the credit memo.', 'permissions' => [
                 Permission::ApplicationView, Permission::CreditAnalyse, Permission::BureauPull,
             ]],
             'senior_credit_analyst' => ['name' => 'Senior Credit Analyst', 'description' => 'Reviews analysis, recommends and raises exceptions.', 'permissions' => [
-                Permission::ApplicationView, Permission::CreditAnalyse, Permission::BureauPull, Permission::ApplicationRecommend, Permission::ExceptionRaise,
+                Permission::ApplicationView, Permission::CreditAnalyse, Permission::BureauPull, Permission::ApplicationRecommend, Permission::ExceptionRaise, Permission::DocumentWaiveApprove,
             ]],
             'credit_approver' => ['name' => 'Credit Approver', 'description' => 'Approves within delegated authority (tiered via scope max amount).', 'permissions' => [
                 Permission::ApplicationView, Permission::ApplicationApprove, Permission::DelegationCreate,

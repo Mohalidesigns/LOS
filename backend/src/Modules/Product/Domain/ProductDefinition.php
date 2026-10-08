@@ -37,6 +37,9 @@ final class ProductDefinition
 
     public const CHANNELS = ['staff', 'api', 'portal', 'partner'];
 
+    /** Who may approve a waiver of a checklist item (FR-DOC-008); the default is document:waive_approve. */
+    public const WAIVER_AUTHORITIES = ['document:waive_approve', 'application:approve'];
+
     /** @var array<string, list<string>> */
     private array $errors = [];
 
@@ -149,6 +152,12 @@ final class ProductDefinition
             $this->text("{$p}.name", $item['name'] ?? null);
             if (! is_bool($item['mandatory'] ?? null)) {
                 $this->fail("{$p}.mandatory", 'mandatory must be true or false.');
+            }
+            if (isset($item['waiver_authority']) && ! in_array($item['waiver_authority'], self::WAIVER_AUTHORITIES, true)) {
+                $this->fail("{$p}.waiver_authority", 'waiver_authority must be one of: '.implode(', ', self::WAIVER_AUTHORITIES).'.');
+            }
+            if (isset($item['validity_days'])) {
+                $this->int("{$p}.validity_days", $item['validity_days'], 1, 3650);
             }
             $applies = $item['applies_to'] ?? [];
             if (! is_array($applies)) {

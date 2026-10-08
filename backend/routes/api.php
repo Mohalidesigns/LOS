@@ -14,6 +14,7 @@ use Fundly\Modules\Access\Http\Controllers\UserController;
 use Fundly\Modules\Application\Http\Controllers\ApplicationController;
 use Fundly\Modules\Audit\Http\Controllers\AuditController;
 use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
+use Fundly\Modules\Document\Http\Controllers\DocumentController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
 use Fundly\Modules\Party\Http\Controllers\PartyController;
 use Fundly\Modules\Platform\Http\Controllers\ConfigController;
@@ -102,6 +103,15 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
         ->where('action', 'submit|withdraw|cancel|hold|resume|return|resubmit|recommend')->name('applications.act');
     Route::get('applications/{id}/timeline', [ApplicationController::class, 'timeline'])->middleware('authz:application:view')->name('applications.timeline');
     Route::get('applications/{id}/as-at', [ApplicationController::class, 'asAt'])->middleware('authz:application:view')->name('applications.as-at');
+
+    // Documents (FR-DOC-001..009)
+    Route::get('applications/{id}/documents', [DocumentController::class, 'index'])->middleware('authz:application:view')->name('documents.index');
+    Route::post('applications/{id}/documents', [DocumentController::class, 'store'])->middleware(['authz:document:upload', 'idempotent'])->name('documents.store');
+    Route::get('applications/{id}/checklist', [DocumentController::class, 'checklist'])->middleware('authz:application:view')->name('checklist.show');
+    Route::get('documents/{id}', [DocumentController::class, 'show'])->middleware('authz:application:view')->name('documents.show');
+    Route::get('documents/{id}/versions/{versionId}/content', [DocumentController::class, 'content'])->middleware('authz:application:view')->name('documents.content');
+    Route::post('checklist-items/{id}/actions/{action}', [DocumentController::class, 'actOnItem'])->middleware(['authz:document:verify', 'idempotent'])
+        ->where('action', 'verify|reject|waive')->name('checklist-items.act');
 
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
     Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');

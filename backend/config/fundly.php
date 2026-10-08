@@ -92,6 +92,18 @@ return [
         ],
     ],
 
+    // Documents (FR-DOC-002/005): content store disk, size limit and accepted types (sniffed, not trusted from the client).
+    'documents' => [
+        'disk' => env('FUNDLY_DOCUMENTS_DISK', 'documents'),
+        'max_bytes' => (int) env('FUNDLY_DOCUMENTS_MAX_BYTES', 20 * 1024 * 1024),
+        'mime_types' => [
+            'application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/tiff' => 'tif', 'image/heic' => 'heic', 'image/heif' => 'heif',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'application/msword' => 'doc', 'application/vnd.ms-excel' => 'xls', 'text/csv' => 'csv', 'text/plain' => 'txt',
+        ],
+    ],
+
     'crypto' => [
         // Local keyfile KEK (KeyManagementPort, MVP adapter). 32 random bytes, base64.
         // Supplied by a root-owned 0400 file or a secret store, never committed.

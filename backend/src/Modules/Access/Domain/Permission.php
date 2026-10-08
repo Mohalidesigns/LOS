@@ -62,6 +62,7 @@ enum Permission: string
     case PiiUnmask = 'pii:unmask';
     case DocumentUpload = 'document:upload';
     case DocumentVerify = 'document:verify';
+    case DocumentWaiveApprove = 'document:waive_approve';
     case CreditAnalyse = 'credit:analyse';
     case BureauPull = 'bureau:pull';
     case ExceptionRaise = 'exception:raise';

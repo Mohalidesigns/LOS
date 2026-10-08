@@ -49,6 +49,7 @@ tags:
 - name: Parties
 - name: Applications
 - name: Compliance
+- name: Documents
 # <<< generated: tags
 paths:
   /health:
@@ -3733,6 +3734,245 @@ paths:
         - sessionCookie: []
         - bearerToken: []
       x-idempotency-key: required
+  '/api/v1/applications/{id}/documents':
+    get:
+      summary: 'Documents on an application'
+      operationId: listApplicationDocuments
+      tags:
+        - Documents
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Upload a document (multipart). Hashed before storage, scanned before anyone can read it; infected files are quarantined.'
+      operationId: uploadDocument
+      tags:
+        - Documents
+      x-permission: 'document:upload'
+      x-idempotency-key: required
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                document_type:
+                  type: string
+                checklist_item_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+                party_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+                title:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - file
+                - document_type
+      responses:
+        201:
+          description: 'Stored (scan_status clean) or quarantined (scan_status infected)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Document'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/documents/{id}':
+    get:
+      summary: 'Get a document with all versions'
+      operationId: getDocument
+      tags:
+        - Documents
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Document'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/documents/{id}/versions/{versionId}/content':
+    get:
+      summary: 'Download a clean version (read access is audited). Quarantined versions are never served (423).'
+      operationId: getDocumentContent
+      tags:
+        - Documents
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: 'The file'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/checklist':
+    get:
+      summary: 'Document checklist derived from the pinned product'
+      operationId: getChecklist
+      tags:
+        - Documents
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Checklist'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/checklist-items/{id}/actions/{action}':
+    post:
+      summary: 'Verify, reject or waive a checklist item. Waive raises a maker-checker request (202).'
+      operationId: actOnChecklistItem
+      tags:
+        - Documents
+      x-permission: 'document:verify'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - verify
+              - reject
+              - waive
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type:
+                    - string
+                    - 'null'
+                note:
+                  type:
+                    - string
+                    - 'null'
+                valid_until:
+                  type:
+                    - string
+                    - 'null'
+                  format: date
+      responses:
+        200:
+          description: 'Updated (verify, reject)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChecklistItem'
+                required:
+                  - data
+        202:
+          description: 'Waiver requested; awaits the configured authority'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+      description: "verify/reject need document:verify; waive needs document:verify to request and the item's waiver authority to approve. reject and waive need a reason."
 # <<< generated: paths
 components:
   securitySchemes:
@@ -5933,4 +6173,280 @@ components:
         - conditions
         - screening_runs
         - alerts
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        checklist_item_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        party_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        document_type:
+          type: string
+        title:
+          type: string
+        latest_version:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                version_no:
+                  type: integer
+                filename:
+                  type: string
+                mime_type:
+                  type: string
+                size_bytes:
+                  type: integer
+                sha256:
+                  type: string
+                  pattern: '^[0-9a-f]{64}$'
+                scan_status:
+                  type: string
+                  enum:
+                    - clean
+                    - infected
+                scan_signature:
+                  type:
+                    - string
+                    - 'null'
+                scanner:
+                  type: string
+                uploaded_by:
+                  type: string
+                uploaded_at:
+                  type: string
+                  format: date-time
+                duplicates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      document_id:
+                        type: string
+                        format: uuid
+                      application_id:
+                        type: string
+                        format: uuid
+                      application_reference:
+                        type: string
+                      same_application:
+                        type: boolean
+                    required:
+                      - document_id
+                      - application_id
+                      - application_reference
+                      - same_application
+              required:
+                - id
+                - version_no
+                - filename
+                - mime_type
+                - size_bytes
+                - sha256
+                - scan_status
+                - scan_signature
+                - uploaded_by
+                - uploaded_at
+                - duplicates
+            - type: 'null'
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              version_no:
+                type: integer
+              filename:
+                type: string
+              mime_type:
+                type: string
+              size_bytes:
+                type: integer
+              sha256:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
+              scan_status:
+                type: string
+                enum:
+                  - clean
+                  - infected
+              scan_signature:
+                type:
+                  - string
+                  - 'null'
+              scanner:
+                type: string
+              uploaded_by:
+                type: string
+              uploaded_at:
+                type: string
+                format: date-time
+              duplicates:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    document_id:
+                      type: string
+                      format: uuid
+                    application_id:
+                      type: string
+                      format: uuid
+                    application_reference:
+                      type: string
+                    same_application:
+                      type: boolean
+                  required:
+                    - document_id
+                    - application_id
+                    - application_reference
+                    - same_application
+            required:
+              - id
+              - version_no
+              - filename
+              - mime_type
+              - size_bytes
+              - sha256
+              - scan_status
+              - scan_signature
+              - uploaded_by
+              - uploaded_at
+              - duplicates
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - application_id
+        - checklist_item_id
+        - party_id
+        - document_type
+        - title
+        - latest_version
+        - versions
+        - created_at
+    ChecklistItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        mandatory:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - not_received
+            - received
+            - under_review
+            - verified
+            - rejected
+            - waived
+            - expired
+        document_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        latest_version_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        valid_until:
+          type:
+            - string
+            - 'null'
+          format: date
+        rejection_reason:
+          type:
+            - string
+            - 'null'
+        waiver_reason:
+          type:
+            - string
+            - 'null'
+        waiver_change_request_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        waiver_authority:
+          type: string
+        verified_by:
+          type:
+            - string
+            - 'null'
+        verified_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - application_id
+        - code
+        - name
+        - mandatory
+        - status
+        - document_id
+        - valid_until
+        - waiver_authority
+        - updated_at
+    Checklist:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChecklistItem'
+        summary:
+          type: object
+          properties:
+            mandatory_total:
+              type: integer
+            mandatory_satisfied:
+              type: integer
+            outstanding:
+              type: array
+              items:
+                type: string
+            complete:
+              type: boolean
+          required:
+            - mandatory_total
+            - mandatory_satisfied
+            - outstanding
+            - complete
+      required:
+        - items
+        - summary
 # <<< generated: schemas

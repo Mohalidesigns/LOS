@@ -21,6 +21,7 @@ use Fundly\Shared\Tenancy\TenantContext;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\OpenApiValidator;
@@ -230,7 +231,11 @@ abstract class TestCase extends BaseTestCase
         $this->app->forgetInstance('session.store');
         $this->flushHeaders();
         $this->unencryptedCookies = $this->jar; // replace, never merge, the cookies sent
-        $response = $this->withCredentials()->withHeaders($headers)->json($method, $url, $data);
+        // Data carrying UploadedFile values goes as multipart/form-data (document uploads).
+        $multipart = array_filter($data, static fn ($v): bool => $v instanceof UploadedFile) !== [];
+        $response = $multipart
+            ? $this->withCredentials()->withHeaders($headers)->call($method, $url, array_filter($data, static fn ($v): bool => ! $v instanceof UploadedFile && $v !== null), $this->unencryptedCookies, array_filter($data, static fn ($v): bool => $v instanceof UploadedFile), $this->transformHeadersToServerVars($headers))
+            : $this->withCredentials()->withHeaders($headers)->json($method, $url, $data);
         foreach ($response->headers->getCookies() as $cookie) {
             if ($cookie->getValue() === null || $cookie->getValue() === '' || $cookie->isCleared()) {
                 unset($this->jar[$cookie->getName()]);

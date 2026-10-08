@@ -32,6 +32,17 @@ return [
 
     'disks' => [
 
+        // Document content store (FR-DOC-005). Local disk for single-node/UAT; an
+        // S3-compatible store with Object Lock (MinIO) is configured by setting
+        // FUNDLY_DOCUMENTS_DISK=documents_s3 in production.
+        'documents' => [
+            'driver' => 'local',
+            'root' => env('FUNDLY_DOCUMENTS_ROOT', storage_path('app/documents')),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

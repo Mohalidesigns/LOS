@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Fundly\Integration;
 
+use Fundly\Integration\Adapters\Clamav\ClamdScanner;
 use Fundly\Integration\Ports\CoreBanking\CoreBankingPort;
 use Fundly\Integration\Ports\Identity\IdentityVerificationPort;
+use Fundly\Integration\Ports\MalwareScan\MalwareScanPort;
 use Fundly\Integration\Ports\Screening\ScreeningPort;
 use Fundly\Integration\Runtime\AdapterDefinition;
 use Fundly\Integration\Runtime\AdapterRegistry;
@@ -28,6 +30,7 @@ use Fundly\Integration\Simulators\CoreBanking\CbaSimulator;
 use Fundly\Integration\Simulators\CoreBanking\FaultScript;
 use Fundly\Integration\Simulators\CoreBanking\SimulatorStore;
 use Fundly\Integration\Simulators\Identity\IdentitySimulator;
+use Fundly\Integration\Simulators\MalwareScan\MalwareScanSimulator;
 use Fundly\Integration\Simulators\Screening\ScreeningSimulator;
 use Fundly\Shared\Audit\AuditTrail;
 use Fundly\Shared\Clock\Clock;
@@ -103,6 +106,22 @@ final class IntegrationServiceProvider extends ServiceProvider
             manifest: ScreeningSimulator::capabilities(),
             factory: static fn (AdapterBinding $binding): ScreeningSimulator => new ScreeningSimulator($binding->config),
             isSimulator: true,
+        ));
+
+        $adapters->register(new AdapterDefinition(
+            key: MalwareScanSimulator::KEY,
+            port: MalwareScanPort::PORT,
+            version: MalwareScanSimulator::VERSION,
+            manifest: MalwareScanSimulator::capabilities(),
+            factory: static fn (AdapterBinding $binding): MalwareScanSimulator => new MalwareScanSimulator,
+            isSimulator: true,
+        ));
+        $adapters->register(new AdapterDefinition(
+            key: ClamdScanner::KEY,
+            port: MalwareScanPort::PORT,
+            version: ClamdScanner::VERSION,
+            manifest: ClamdScanner::capabilities(),
+            factory: static fn (AdapterBinding $binding): ClamdScanner => new ClamdScanner($binding->config),
         ));
 
         if ($this->app->runningInConsole()) {
