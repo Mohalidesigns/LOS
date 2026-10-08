@@ -34,8 +34,9 @@ it('requires authentication on every non-public route, and only auth bootstrap a
     expect($public)->toEqualCanonicalizing(['api/v1/auth/csrf-cookie', 'api/v1/auth/login', 'api/v1/auth/mfa/verify', 'health', 'ready']);
 })->group('FR-SEC-014');
 
-it('requires an Idempotency-Key on every effectful POST except interactive auth', function () {
-    $exempt = ['api/v1/auth/login', 'api/v1/auth/mfa/verify', 'api/v1/auth/step-up', 'api/v1/auth/logout'];
+it('requires an Idempotency-Key on every effectful POST except interactive auth and read-only queries', function () {
+    // parties/actions/match is a read-only search that is a POST only so identity numbers never appear in a URL.
+    $exempt = ['api/v1/auth/login', 'api/v1/auth/mfa/verify', 'api/v1/auth/step-up', 'api/v1/auth/logout', 'api/v1/parties/actions/match'];
     $missing = [];
     foreach (apiRoutes() as $route) {
         if (in_array('POST', $route->methods(), true) && ! in_array($route->uri(), $exempt, true) && ! in_array('idempotent', $route->gatherMiddleware(), true)) {

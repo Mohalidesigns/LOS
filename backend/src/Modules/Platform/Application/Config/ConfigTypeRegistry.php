@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fundly\Modules\Platform\Application\Config;
 
 use Closure;
+use Fundly\Modules\Platform\Contracts\ConfigTypeCatalogue;
 use Fundly\Shared\Exceptions\ValidationFailed;
 use Illuminate\Contracts\Validation\Factory;
 
@@ -12,7 +13,7 @@ use Illuminate\Contracts\Validation\Factory;
  * Code-defined configuration artefact types and their content validators
  * (FR-CFG-002 groundwork). Unknown types are rejected.
  */
-final class ConfigTypeRegistry
+final class ConfigTypeRegistry implements ConfigTypeCatalogue
 {
     /** @var array<string, array{description: string, rules: array<string, mixed>|Closure(array<string, mixed>): void}> */
     private array $types = [];

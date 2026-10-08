@@ -9,8 +9,11 @@ use Fundly\Modules\Platform\Application\Config\ActivateConfigVersionAction;
 use Fundly\Modules\Platform\Application\Config\ConfigTypeRegistry;
 use Fundly\Modules\Platform\Console\ProvisionTenantCommand;
 use Fundly\Modules\Platform\Contracts\ActiveConfiguration;
+use Fundly\Modules\Platform\Contracts\ConfigTypeCatalogue;
+use Fundly\Modules\Platform\Contracts\OrganisationDirectory;
 use Fundly\Modules\Platform\Contracts\TenantDirectory;
 use Fundly\Modules\Platform\Infrastructure\DatabaseActiveConfiguration;
+use Fundly\Modules\Platform\Infrastructure\DatabaseOrganisationDirectory;
 use Fundly\Modules\Platform\Infrastructure\DatabaseTenantDirectory;
 use Fundly\Modules\Platform\Infrastructure\Models\ConfigVersion;
 use Fundly\Modules\Platform\Infrastructure\Models\OrgUnit;
@@ -26,7 +29,9 @@ final class PlatformServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TenantDirectory::class, fn (Application $app) => new DatabaseTenantDirectory($app->make('db')->connection(), (string) config('fundly.tenancy.resolution', 'single')));
         $this->app->scoped(ActiveConfiguration::class, DatabaseActiveConfiguration::class);
+        $this->app->scoped(OrganisationDirectory::class, DatabaseOrganisationDirectory::class);
         $this->app->singleton(ConfigTypeRegistry::class);
+        $this->app->alias(ConfigTypeRegistry::class, ConfigTypeCatalogue::class);
     }
 
     public function boot(ResourceResolver $resources): void

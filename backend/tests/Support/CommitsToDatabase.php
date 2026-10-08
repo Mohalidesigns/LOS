@@ -30,7 +30,8 @@ trait CommitsToDatabase
     {
         $owner = DB::connection('pgsql_owner');
         $tables = array_map(static fn ($r) => $r->tablename, $owner->select("select tablename from pg_tables where schemaname = 'public' and tablename not in ('migrations', 'permissions')"));
-        $immutable = ['audit_events', 'audit_checkpoints', 'licence_events'];
+        // every append-only table (PostgresSchema::immutable adds a "<table>_no_truncate" trigger)
+        $immutable = array_map(static fn ($r) => $r->table_name, $owner->select("select distinct c.relname as table_name from pg_trigger t join pg_class c on c.oid = t.tgrelid where t.tgname like '%\\_no\\_truncate' and not t.tgisinternal"));
         foreach ($immutable as $t) {
             $owner->statement("alter table {$t} disable trigger user");
         }

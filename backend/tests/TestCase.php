@@ -75,6 +75,11 @@ abstract class TestCase extends BaseTestCase
         return $this->app->make(TenantContext::class);
     }
 
+    public function currentTenantFixture(): TenantFixture
+    {
+        return $this->currentTenant ?? throw new \LogicException('No tenant fixture in use; call provisionTenant() first.');
+    }
+
     public function useTenant(TenantFixture|string $tenant): void
     {
         $id = $tenant instanceof TenantFixture ? $tenant->id : $tenant;

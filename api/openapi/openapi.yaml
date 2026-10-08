@@ -44,6 +44,11 @@ tags:
 - name: Audit
 - name: Licensing
 - name: Integration
+# >>> generated: tags
+- name: Products
+- name: Parties
+- name: Applications
+# <<< generated: tags
 paths:
   /health:
     get:
@@ -2471,6 +2476,811 @@ paths:
       security:
       - sessionCookie: []
       - bearerToken: []
+# >>> generated: paths
+  /api/v1/products:
+    get:
+      summary: 'List active products (capture catalogue)'
+      operationId: listProducts
+      tags:
+        - Products
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductSummary'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/products/{key}':
+    get:
+      summary: 'Get the active version of a product'
+      operationId: getProduct
+      tags:
+        - Products
+      x-permission: 'application:view'
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Product'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  /api/v1/parties:
+    get:
+      summary: 'List parties in scope'
+      operationId: listParties
+      tags:
+        - Parties
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageAfter'
+        - name: 'filter[type]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'individual | limited_company'
+        - name: 'filter[q]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'Name (fuzzy) or registration number'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PartySummary'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                  - data
+                  - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Create a party (individual or limited company)'
+      operationId: createParty
+      tags:
+        - Parties
+      x-permission: 'party:manage'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyCreate'
+      responses:
+        201:
+          description: 'Created; possible_duplicates lists intake dedupe candidates (FR-CHN-007)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/Party'
+                      - type: object
+                        properties:
+                          possible_duplicates:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/PartyMatch'
+                        required:
+                          - possible_duplicates
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/parties/actions/match:
+    post:
+      summary: 'Find existing parties matching identity, contact or name (dedupe)'
+      operationId: matchParties
+      tags:
+        - Parties
+      x-permission: 'party:manage'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                phone:
+                  type: string
+                email:
+                  type: string
+                tin:
+                  type: string
+                registration_number:
+                  type: string
+                identities:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      value:
+                        type: string
+                    required:
+                      - type
+                      - value
+      responses:
+        200:
+          description: Candidates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PartyMatch'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/parties/{id}':
+    get:
+      summary: 'Get a party (PII masked)'
+      operationId: getParty
+      tags:
+        - Parties
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Party'
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/parties/{id}/relationships':
+    get:
+      summary: 'Directors, shareholders, signatories and look-through beneficial owners'
+      operationId: listPartyRelationships
+      tags:
+        - Parties
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      relationships:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PartyRelationship'
+                      beneficial_owners:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BeneficialOwner'
+                    required:
+                      - relationships
+                      - beneficial_owners
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Record a relationship on a company'
+      operationId: addPartyRelationship
+      tags:
+        - Parties
+      x-permission: 'party:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                related_party_id:
+                  type: string
+                  format: uuid
+                role:
+                  type: string
+                  enum:
+                    - director
+                    - shareholder
+                    - beneficial_owner
+                    - signatory
+                    - company_secretary
+                ownership_percent:
+                  type:
+                    - string
+                    - 'null'
+                notes:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - related_party_id
+                - role
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PartyRelationship'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/applications:
+    get:
+      summary: 'List applications in scope'
+      operationId: listApplications
+      tags:
+        - Applications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageAfter'
+        - name: 'filter[status]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'Comma-separated canonical statuses'
+        - name: 'filter[open]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'true: exclude terminal'
+        - name: 'filter[mine]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'true: originated by me'
+        - name: 'filter[product_key]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'Product key'
+        - name: 'filter[party_id]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'Applications with this party'
+        - name: 'filter[q]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'Reference or applicant name'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApplicationSummary'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                  - data
+                  - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Create a draft application'
+      operationId: createApplication
+      tags:
+        - Applications
+      x-permission: 'application:originate'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationCreate'
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Application'
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/applications/stats:
+    get:
+      summary: 'Application counts by canonical status in scope'
+      operationId: applicationStats
+      tags:
+        - Applications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      by_status:
+                        type: object
+                        additionalProperties:
+                          type: integer
+                      open:
+                        type: integer
+                      total:
+                        type: integer
+                    required:
+                      - by_status
+                      - open
+                      - total
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}':
+    get:
+      summary: 'Get an application'
+      operationId: getApplication
+      tags:
+        - Applications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Application'
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    patch:
+      summary: 'Amend captured fields before approval (field history + provenance)'
+      operationId: amendApplication
+      tags:
+        - Applications
+      x-permission: 'application:originate'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requested_amount:
+                  type:
+                    - string
+                    - 'null'
+                tenor_months:
+                  type:
+                    - integer
+                    - 'null'
+                purpose:
+                  type:
+                    - string
+                    - 'null'
+                repayment_frequency:
+                  type:
+                    - string
+                    - 'null'
+                data:
+                  type: object
+                source:
+                  type: string
+                  enum:
+                    - cba
+                    - extraction
+                    - self_service
+                    - staff
+                    - partner
+                  default: staff
+                source_ref:
+                  type:
+                    - string
+                    - 'null'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Application'
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/applicants':
+    post:
+      summary: 'Add a joint applicant, guarantor or co-signer'
+      operationId: addApplicant
+      tags:
+        - Applications
+      x-permission: 'application:originate'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                party_id:
+                  type: string
+                  format: uuid
+                role:
+                  type: string
+                  enum:
+                    - joint
+                    - guarantor
+                    - co_signer
+              required:
+                - party_id
+                - role
+      responses:
+        201:
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Application'
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/applications/{id}/applicants/{partyId}':
+    delete:
+      summary: 'Remove a non-primary applicant'
+      operationId: removeApplicant
+      tags:
+        - Applications
+      x-permission: 'application:originate'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Application'
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/actions/{action}':
+    post:
+      summary: 'Lifecycle action (submit, recommend, hold, resume, return, resubmit, withdraw, cancel)'
+      operationId: actOnApplication
+      tags:
+        - Applications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - submit
+              - withdraw
+              - cancel
+              - hold
+              - resume
+              - return
+              - resubmit
+              - recommend
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason_code:
+                  type:
+                    - string
+                    - 'null'
+                  pattern: '^[A-Z0-9_]{2,64}$'
+                reason_text:
+                  type:
+                    - string
+                    - 'null'
+                return_to:
+                  type:
+                    - string
+                    - 'null'
+      responses:
+        200:
+          description: Transitioned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Application'
+                required:
+                  - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+      description: 'The command checks the action-specific permission: application:originate (submit, hold, resume, resubmit, withdraw, cancel) or application:recommend (recommend, return). withdraw, cancel, hold and return need reason_code.'
+  '/api/v1/applications/{id}/timeline':
+    get:
+      summary: 'Event timeline (the event-sourced history)'
+      operationId: applicationTimeline
+      tags:
+        - Applications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApplicationEvent'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/as-at':
+    get:
+      summary: 'Reconstruct the application state at an instant (replay)'
+      operationId: applicationAsAt
+      tags:
+        - Applications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: t
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      as_at:
+                        type: string
+                      state:
+                        type:
+                          - object
+                          - 'null'
+                    required:
+                      - as_at
+                      - state
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+# <<< generated: paths
 components:
   securitySchemes:
     sessionCookie:
@@ -3772,3 +4582,729 @@ components:
       required:
       - status
       - checks
+# >>> generated: schemas
+    ProductSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        name:
+          type: string
+        version_id:
+          type: string
+          format: uuid
+        version_no:
+          type: integer
+        category:
+          type: string
+        segment:
+          type: string
+        currency:
+          type: string
+        amount:
+          type: object
+          properties:
+            min:
+              $ref: '#/components/schemas/Money'
+            max:
+              $ref: '#/components/schemas/Money'
+          required:
+            - min
+            - max
+        tenor_months:
+          type: object
+          properties:
+            min:
+              type: integer
+            max:
+              type: integer
+          required:
+            - min
+            - max
+        applicant_types:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - key
+        - name
+        - version_id
+        - version_no
+        - category
+        - segment
+        - currency
+        - amount
+        - tenor_months
+        - applicant_types
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/ProductSummary'
+        - type: object
+          properties:
+            definition:
+              type: object
+              description: 'Full product definition (see the `product` configuration type)'
+          required:
+            - definition
+    PartySummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - individual
+            - limited_company
+        display_name:
+          type: string
+        org_unit_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        status:
+          type: string
+        registration_number:
+          type:
+            - string
+            - 'null'
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - display_name
+        - org_unit_id
+        - status
+        - registration_number
+        - created_at
+    Party:
+      allOf:
+        - $ref: '#/components/schemas/PartySummary'
+        - type: object
+          properties:
+            cba_customer_id:
+              type:
+                - string
+                - 'null'
+            first_name:
+              type:
+                - string
+                - 'null'
+            middle_name:
+              type:
+                - string
+                - 'null'
+            last_name:
+              type:
+                - string
+                - 'null'
+            gender:
+              type:
+                - string
+                - 'null'
+            date_of_birth_masked:
+              type:
+                - string
+                - 'null'
+            nationality:
+              type:
+                - string
+                - 'null'
+            incorporation_date:
+              type:
+                - string
+                - 'null'
+            sector:
+              type:
+                - string
+                - 'null'
+            phone_masked:
+              type:
+                - string
+                - 'null'
+            email_masked:
+              type:
+                - string
+                - 'null'
+            tin_masked:
+              type:
+                - string
+                - 'null'
+            address:
+              type:
+                - object
+                - 'null'
+            identities:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  type:
+                    type: string
+                  value_masked:
+                    type: string
+                  verification_status:
+                    type: string
+                    enum:
+                      - unverified
+                      - verified
+                      - failed
+                  verified_at:
+                    type:
+                      - string
+                      - 'null'
+                    format: date-time
+                  provider:
+                    type:
+                      - string
+                      - 'null'
+                  match_score:
+                    type:
+                      - string
+                      - 'null'
+                required:
+                  - id
+                  - type
+                  - value_masked
+                  - verification_status
+            updated_at:
+              type: string
+              format: date-time
+          required:
+            - identities
+            - phone_masked
+            - email_masked
+    PartyCreate:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - individual
+            - limited_company
+        org_unit_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        first_name:
+          type:
+            - string
+            - 'null'
+        middle_name:
+          type:
+            - string
+            - 'null'
+        last_name:
+          type:
+            - string
+            - 'null'
+        gender:
+          type:
+            - string
+            - 'null'
+        date_of_birth:
+          type:
+            - string
+            - 'null'
+          format: date
+        nationality:
+          type:
+            - string
+            - 'null'
+        company_name:
+          type:
+            - string
+            - 'null'
+        registration_number:
+          type:
+            - string
+            - 'null'
+        incorporation_date:
+          type:
+            - string
+            - 'null'
+          format: date
+        sector:
+          type:
+            - string
+            - 'null'
+        phone:
+          type:
+            - string
+            - 'null'
+        email:
+          type:
+            - string
+            - 'null'
+        tin:
+          type:
+            - string
+            - 'null'
+        cba_customer_id:
+          type:
+            - string
+            - 'null'
+        address:
+          type:
+            - object
+            - 'null'
+          properties:
+            line1:
+              type: string
+            city:
+              type: string
+            state:
+              type: string
+            country:
+              type: string
+        identities:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum:
+                  - bvn
+                  - nin
+                  - passport
+                  - drivers_licence
+                  - voters_card
+              value:
+                type: string
+            required:
+              - type
+              - value
+      required:
+        - type
+    PartyMatch:
+      type: object
+      properties:
+        party_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        type:
+          type: string
+        matched_fields:
+          type: array
+          items:
+            type: string
+        name_similarity:
+          type:
+            - string
+            - 'null'
+      required:
+        - party_id
+        - display_name
+        - type
+        - matched_fields
+        - name_similarity
+    PartyRelationship:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+        ownership_percent:
+          type:
+            - string
+            - 'null'
+        notes:
+          type:
+            - string
+            - 'null'
+        party:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            type:
+              type: string
+            display_name:
+              type: string
+          required:
+            - id
+            - type
+            - display_name
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - role
+        - ownership_percent
+        - party
+        - created_at
+    BeneficialOwner:
+      type: object
+      properties:
+        party_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        effective_percent:
+          type: string
+        source:
+          type: string
+          enum:
+            - look_through
+            - declared
+      required:
+        - party_id
+        - display_name
+        - effective_percent
+        - source
+    ApplicationCreate:
+      type: object
+      properties:
+        legal_entity_id:
+          type: string
+          format: uuid
+        org_unit_id:
+          type: string
+          format: uuid
+        product_key:
+          type: string
+        primary_party_id:
+          type: string
+          format: uuid
+        channel:
+          type: string
+          enum:
+            - staff
+            - api
+          default: staff
+        requested_amount:
+          type:
+            - string
+            - 'null'
+        tenor_months:
+          type:
+            - integer
+            - 'null'
+        purpose:
+          type:
+            - string
+            - 'null'
+        repayment_frequency:
+          type:
+            - string
+            - 'null'
+        data:
+          type: object
+          description: 'Product-specific captured fields (flat, scalar values)'
+      required:
+        - legal_entity_id
+        - org_unit_id
+        - product_key
+        - primary_party_id
+    ApplicationSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        status:
+          type: string
+          enum:
+            - draft
+            - submitted
+            - pre_qualified
+            - kyc_screening
+            - documentation
+            - assessment
+            - recommended
+            - approval
+            - approved
+            - counter_offered
+            - offer_issued
+            - accepted
+            - conditions_precedent
+            - ready_for_disbursement
+            - disbursing
+            - booked
+            - declined
+            - expired
+            - on_hold
+            - returned_for_rework
+            - withdrawn
+            - cancelled
+        product:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            key:
+              type: string
+            name:
+              type: string
+            version_id:
+              type: string
+              format: uuid
+          required:
+            - id
+            - key
+            - name
+            - version_id
+        segment:
+          type: string
+        channel:
+          type: string
+        primary_applicant:
+          type: object
+          properties:
+            party_id:
+              type: string
+              format: uuid
+            display_name:
+              type: string
+          required:
+            - party_id
+            - display_name
+        requested_amount:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        currency:
+          type: string
+        tenor_months:
+          type:
+            - integer
+            - 'null'
+        legal_entity_id:
+          type: string
+          format: uuid
+        org_unit_id:
+          type: string
+          format: uuid
+        originator_id:
+          type: string
+          format: uuid
+        submitted_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        status_changed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
+      required:
+        - id
+        - reference
+        - status
+        - product
+        - segment
+        - channel
+        - primary_applicant
+        - requested_amount
+        - currency
+        - tenor_months
+        - legal_entity_id
+        - org_unit_id
+        - originator_id
+        - submitted_at
+        - status_changed_at
+        - created_at
+        - version
+    Application:
+      allOf:
+        - $ref: '#/components/schemas/ApplicationSummary'
+        - type: object
+          properties:
+            purpose:
+              type:
+                - string
+                - 'null'
+            repayment_frequency:
+              type:
+                - string
+                - 'null'
+            data:
+              type: object
+            resume_to:
+              type:
+                - string
+                - 'null'
+              enum:
+                - draft
+                - submitted
+                - pre_qualified
+                - kyc_screening
+                - documentation
+                - assessment
+                - recommended
+                - approval
+                - approved
+                - counter_offered
+                - offer_issued
+                - accepted
+                - conditions_precedent
+                - ready_for_disbursement
+                - disbursing
+                - booked
+                - declined
+                - expired
+                - on_hold
+                - returned_for_rework
+                - withdrawn
+                - cancelled
+                - null
+            return_to:
+              type:
+                - string
+                - 'null'
+              enum:
+                - draft
+                - submitted
+                - pre_qualified
+                - kyc_screening
+                - documentation
+                - assessment
+                - recommended
+                - approval
+                - approved
+                - counter_offered
+                - offer_issued
+                - accepted
+                - conditions_precedent
+                - ready_for_disbursement
+                - disbursing
+                - booked
+                - declined
+                - expired
+                - on_hold
+                - returned_for_rework
+                - withdrawn
+                - cancelled
+                - null
+            closed_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+            close_reason_code:
+              type:
+                - string
+                - 'null'
+            expires_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+            applicants:
+              type: array
+              items:
+                type: object
+                properties:
+                  party_id:
+                    type: string
+                    format: uuid
+                  role:
+                    type: string
+                    enum:
+                      - primary
+                      - joint
+                      - guarantor
+                      - co_signer
+                  party_type:
+                    type: string
+                  display_name:
+                    type: string
+                required:
+                  - party_id
+                  - role
+                  - party_type
+                  - display_name
+            completeness:
+              type: object
+              properties:
+                percent:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                missing:
+                  type: array
+                  items:
+                    type: string
+                checklist:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      mandatory:
+                        type: boolean
+                    required:
+                      - code
+                      - name
+                      - mandatory
+              required:
+                - percent
+                - missing
+                - checklist
+          required:
+            - purpose
+            - data
+            - applicants
+            - completeness
+    ApplicationEvent:
+      type: object
+      properties:
+        version:
+          type: integer
+        type:
+          type: string
+        occurred_at:
+          type: string
+        actor:
+          type: object
+          properties:
+            type:
+              type: string
+            id:
+              type: string
+          required:
+            - type
+            - id
+        correlation_id:
+          type:
+            - string
+            - 'null'
+        payload:
+          type: object
+      required:
+        - version
+        - type
+        - occurred_at
+        - actor
+        - payload
+# <<< generated: schemas

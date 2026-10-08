@@ -16,7 +16,7 @@ Requirement IDs marked ◐→Pn are partial in that task and completed in phase 
 | Phase | Gate status | Tasks | Not started | In progress | In review | Done | Blocked | Phase traceability (reqs with passing tests / reqs in phase) |
 |---|---|---|---|---|---|---|---|---|
 | P0 Foundation | Open (build started) | 24 | 0 | 24 | 0 | 0 | 0 | 0 / 53 |
-| P1 MVP origination | Not open | 51 | 51 | 0 | 0 | 0 | 0 | 0 / 155 |
+| P1 MVP origination | Open (build started 2026-10-08) | 51 | 46 | 3 | 2 | 0 | 0 | 0 / 155 |
 | P2 Documents & IDP | Not open | 13 | 13 | 0 | 0 | 0 | 0 | 0 / 24 |
 | P3 Decisioning & workflow depth | Not open | 21 | 21 | 0 | 0 | 0 | 0 | 0 / 25 |
 | P4 Live integrations & channels | Not open | 21 | 21 | 0 | 0 | 0 | 0 | 0 / 27 |
@@ -59,15 +59,15 @@ Requirement IDs marked ◐→Pn are partial in that task and completed in phase 
 | P1-PLT-01 | Reference data, calendars, FX rates, multi-currency, effective-dated prudential paramet… | `FR-TEN-006`, `FR-TEN-007`, `LOS-FR-307`, `LOS-FR-310`, `NFR-017` | BE Platform & Access | Not started | — | — | |
 | P1-PLT-02 | Admin console API for layers 1–4 (products, rules, matrices, users, workflow JSON), con… | `FR-CFG-001` ◐→P5, `FR-CFG-002`, `NFR-012` | BE Platform & Access | Not started | — | — | |
 | P1-SEC-01 | LDAP/AD bind + group mapping (DirectoryPort), Auditor role (read-only, unrestricted scope) | `LOS-FR-305`, `LOS-FR-279` | BE Platform & Access | Not started | — | — | |
-| P1-PRD-01 | Product factory | `FR-PRD-001`, `FR-PRD-002`, `FR-PRD-003`, `FR-PRD-004`, `FR-PRD-005`, `FR-PRD-006` | BE Origination & Application | Not started | — | — | |
+| P1-PRD-01 | Product factory | `FR-PRD-001`, `FR-PRD-002`, `FR-PRD-003`, `FR-PRD-004`, `FR-PRD-005`, `FR-PRD-006` | BE Origination & Application | In progress | — | `tests/Feature/Origination`, `tests/Unit/Application` (local PG17 run, 204 passed) | M1: `product` config type + validator (FR-PRD-001..006), catalogue API, pinning; simulate endpoint and availability rules pending |
 | P1-PRD-02 | CBA product/GL/branch/currency/customer-type mapping per binding (maker-checker) | `FR-PRD-009`, `FR-CBA-012` | Integration | Not started | — | — | |
-| P1-CHN-01 | Staff-assisted channel + API capture, channel attribution, save-and-resume with expiry,… | `FR-CHN-001` ◐→P4, `FR-CHN-002`, `FR-CHN-003`, `FR-CHN-007` | BE Origination & Application | Not started | — | — | |
-| P1-CUS-01 | Party model | `FR-CUS-001` ◐→P3, `FR-CUS-006` | BE Origination & Application | Not started | — | — | |
+| P1-CHN-01 | Staff-assisted channel + API capture, channel attribution, save-and-resume with expiry,… | `FR-CHN-001` ◐→P4, `FR-CHN-002`, `FR-CHN-003`, `FR-CHN-007` | BE Origination & Application | In progress | — | `tests/Feature/Origination`, `tests/Unit/Application` (local PG17 run, 204 passed) | M1: staff + API channel attribution, draft expiry, intake dedupe (flag policy); reminder nudges pending |
+| P1-CUS-01 | Party model | `FR-CUS-001` ◐→P3, `FR-CUS-006` | BE Origination & Application | In review | — | `tests/Feature/Origination`, `tests/Unit/Application` (local PG17 run, 204 passed) | M1: individual + limited company, encrypted PII + blind index, relationships, look-through UBO; sole prop/partnership/group are P3 |
 | P1-CUS-02 | CBA pre-population, BVN/NIN via IdentityVerificationPort (stub), customer 360 via simul… | `FR-CUS-002`, `FR-CUS-003` ◐→P4, `FR-CUS-009` ◐→P4, `FR-CUS-011` | BE Origination & Application | Not started | — | — | |
 | P1-CUS-03 | Risk-based CDD rule table + progression gate, granular consent with withdrawal and hist… | `FR-CUS-007`, `FR-CUS-008`, `FR-CMP-010`, `FR-CMP-021`, `FR-CMP-032` | BE Origination & Application | Not started | — | — | |
 | P1-CMP-01 | ScreeningPort (stub) | `FR-CUS-005` ◐→P4, `FR-CMP-011`, `FR-CMP-013` ◐→P4, `FR-CMP-014`, `FR-CMP-017` | BE Decisioning & Approvals | Not started | — | — | |
-| P1-APP-01 | Event-sourced application aggregate, human reference, canonical state machine + cross-c… | `FR-APP-001`, `FR-APP-006`, `LOS-FR-282`, `LOS-FR-283` | BE Origination & Application | Not started | — | — | |
-| P1-APP-02 | Schema-driven dynamic forms, multiple applicants/guarantors, pre-approval amendment wit… | `FR-APP-002`, `FR-APP-004`, `FR-APP-005`, `FR-APP-008`, `LOS-FR-301`, `NFR-013` | BE Origination & Application | Not started | — | — | |
+| P1-APP-01 | Event-sourced application aggregate, human reference, canonical state machine + cross-c… | `FR-APP-001`, `FR-APP-006`, `LOS-FR-282`, `LOS-FR-283` | BE Origination & Application | In review | — | `tests/Feature/Origination`, `tests/Unit/Application` (local PG17 run, 204 passed) | M1: event-sourced aggregate, gap-free `{LE}-{YYYY}-{SEQ:6}` reference, canonical state machine + cross-cutting, ETag/If-Match, as-at replay, projection verify |
+| P1-APP-02 | Schema-driven dynamic forms, multiple applicants/guarantors, pre-approval amendment wit… | `FR-APP-002`, `FR-APP-004`, `FR-APP-005`, `FR-APP-008`, `LOS-FR-301`, `NFR-013` | BE Origination & Application | In progress | — | `tests/Feature/Origination`, `tests/Unit/Application` (local PG17 run, 204 passed) | M1: multiple applicants/guarantors, pre-approval amendment with field history, provenance; schema-driven forms pending |
 | P1-APP-03 | Application- and stage-level SLA clocks over the tenant calendar with pause/resume | `FR-APP-009` | BE Origination & Application | Not started | — | — | |
 | P1-DOC-01 | Upload API (web + API, tus resumable), format/size policy, ClamAV gate, SHA-256 before … | `FR-DOC-001` ◐→P4, `FR-DOC-002`, `FR-DOC-004`, `FR-DOC-005`, `FR-DOC-006` | BE Origination & Application | Not started | — | — | |
 | P1-DOC-02 | Per-application checklist with statuses, waivers via authority, expiry tracking, manual… | `FR-DOC-007`, `FR-DOC-008`, `FR-DOC-009` | BE Origination & Application | Not started | — | — | |

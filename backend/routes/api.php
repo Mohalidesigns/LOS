@@ -11,11 +11,14 @@ use Fundly\Modules\Access\Http\Controllers\MeController;
 use Fundly\Modules\Access\Http\Controllers\RoleController;
 use Fundly\Modules\Access\Http\Controllers\SodController;
 use Fundly\Modules\Access\Http\Controllers\UserController;
+use Fundly\Modules\Application\Http\Controllers\ApplicationController;
 use Fundly\Modules\Audit\Http\Controllers\AuditController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
+use Fundly\Modules\Party\Http\Controllers\PartyController;
 use Fundly\Modules\Platform\Http\Controllers\ConfigController;
 use Fundly\Modules\Platform\Http\Controllers\LegalEntityController;
 use Fundly\Modules\Platform\Http\Controllers\OrgUnitController;
+use Fundly\Modules\Product\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 
@@ -69,6 +72,31 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
         Route::post('{artifact}/versions/{version}/actions/{action}', [ConfigController::class, 'transition'])
             ->middleware(['authz:config:read', 'stepup', 'idempotent'])->where('action', 'submit|approve|reject|activate|rollback')->name('config.versions.transition');
     });
+
+    // Products: read-only catalogue for capture (FR-PRD-001); authoring is /config-artifacts/product
+    Route::get('products', [ProductController::class, 'index'])->middleware('authz:application:view')->name('products.index');
+    Route::get('products/{key}', [ProductController::class, 'show'])->middleware('authz:application:view')->where('key', '[a-z0-9][a-z0-9_.-]*')->name('products.show');
+
+    // Parties (FR-CUS-001/006, FR-CHN-007)
+    Route::get('parties', [PartyController::class, 'index'])->middleware('authz:application:view')->name('parties.index');
+    Route::post('parties', [PartyController::class, 'store'])->middleware(['authz:party:manage', 'idempotent'])->name('parties.store');
+    Route::post('parties/actions/match', [PartyController::class, 'match'])->middleware('authz:party:manage')->name('parties.match');
+    Route::get('parties/{id}', [PartyController::class, 'show'])->middleware('authz:application:view')->name('parties.show');
+    Route::get('parties/{id}/relationships', [PartyController::class, 'relationships'])->middleware('authz:application:view')->name('parties.relationships.index');
+    Route::post('parties/{id}/relationships', [PartyController::class, 'addRelationship'])->middleware(['authz:party:manage', 'idempotent'])->name('parties.relationships.store');
+
+    // Applications (FR-APP-*, LOS-FR-282/283/301)
+    Route::get('applications', [ApplicationController::class, 'index'])->middleware('authz:application:view')->name('applications.index');
+    Route::get('applications/stats', [ApplicationController::class, 'stats'])->middleware('authz:application:view')->name('applications.stats');
+    Route::post('applications', [ApplicationController::class, 'store'])->middleware(['authz:application:originate', 'idempotent'])->name('applications.store');
+    Route::get('applications/{id}', [ApplicationController::class, 'show'])->middleware('authz:application:view')->name('applications.show');
+    Route::patch('applications/{id}', [ApplicationController::class, 'update'])->middleware('authz:application:originate')->name('applications.update');
+    Route::post('applications/{id}/applicants', [ApplicationController::class, 'addApplicant'])->middleware(['authz:application:originate', 'idempotent'])->name('applications.applicants.store');
+    Route::delete('applications/{id}/applicants/{partyId}', [ApplicationController::class, 'removeApplicant'])->middleware('authz:application:originate')->name('applications.applicants.destroy');
+    Route::post('applications/{id}/actions/{action}', [ApplicationController::class, 'act'])->middleware(['authz:application:view', 'idempotent'])
+        ->where('action', 'submit|withdraw|cancel|hold|resume|return|resubmit|recommend')->name('applications.act');
+    Route::get('applications/{id}/timeline', [ApplicationController::class, 'timeline'])->middleware('authz:application:view')->name('applications.timeline');
+    Route::get('applications/{id}/as-at', [ApplicationController::class, 'asAt'])->middleware('authz:application:view')->name('applications.as-at');
 
     // Access: users, roles, permissions, assignments (FR-SEC-001..008, 011, 014)
     Route::get('users', [UserController::class, 'index'])->middleware('authz:user:read')->name('users.index');
