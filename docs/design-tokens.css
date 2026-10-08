@@ -1,0 +1,342 @@
+/* ==========================================================================
+   Fundly LOS — design tokens v1.0 (2026-10-08)
+   Single source of truth for colour, type, spacing, radii, elevation, focus,
+   motion, z-index and layout. Decision D-027 (Fundly v3 visual language on the
+   AuditPro component architecture), contrast-corrected per G-46 / NFR-014
+   (WCAG 2.2 AA). Every text pair is verified by contrast-check.py, which parses
+   THIS file; run it in CI.
+
+   Rules
+   - Components use SEMANTIC tokens (section 2+) only. Primitives (section 1)
+     exist so the semantic layer has one place to change a hue.
+   - No hex, rgba(), font name or px literal outside this file.
+   - Tokens marked [non-text] must never colour text. Tokens marked
+     [decorative] must never carry meaning on their own.
+   - Fonts are SELF-HOSTED (on-prem, air-gapped, CSP default-src 'self').
+     Install @fontsource-variable/archivo and @fontsource/roboto-mono (400, 500)
+     and import them once in the app entry. Never load Google Fonts.
+   ========================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------------
+     1. PRIMITIVES (do not use in components)
+     --------------------------------------------------------------------- */
+  --p-white: #ffffff;
+  --p-ink-900: #37352f;            /* v3 text primary */
+  --p-ink-700: #5f5e5b;            /* v3 text secondary */
+  --p-ink-600: #6b6a66;            /* NEW: replaces v3 #787774 (4.48:1) and #9b9a97 (2.81:1) for text */
+  --p-ink-500: #8b8a86;            /* NEW: 3:1 non-text (control borders, meaningful icons, pending markers) */
+  --p-ink-400: #9b9a97;            /* v3 muted; demoted: disabled text only (WCAG 1.4.3 exempt) */
+  --p-ink-300: #b3b1ad;            /* v3 faint; demoted: decorative marks only */
+  --p-sand-50: #fbfbfa;            /* v3 header / card-in-table fill */
+  --p-sand-100: #f7f7f5;           /* v3 sidebar / subtle fill */
+  --p-sand-200: #f1f0ef;           /* v3 neutral tag fill */
+
+  --p-blue-500: #2383e2;           /* v3 accent; demoted: non-text graphics only (3.88:1 on white) */
+  --p-blue-600: #1a6fc4;           /* v3 hover; PROMOTED to accent (5.10:1 with white) */
+  --p-blue-700: #155ea8;           /* NEW hover */
+  --p-blue-800: #124f8e;           /* NEW pressed */
+  --p-blue-900: #1a4d80;           /* v3 info text */
+  --p-blue-200: #a9cdf0;           /* v3 tracker connector / info banner edge */
+  --p-blue-100: #d3e5ef;           /* v3 info tag fill */
+  --p-blue-50: #f2f8fd;            /* v3 accent tint */
+
+  --p-green-700: #1c6c47;          /* v3 OK text */
+  --p-green-600: #4d7a5c;          /* v3 score band 2 */
+  --p-green-100: #dbeddb;          /* v3 OK fill */
+  --p-amber-800: #7a5d0d;          /* NEW warn text: replaces v3 #8a6a10 (4.34:1 on amber) */
+  --p-amber-700: #8a6a10;          /* v3 warn; kept as score band 3 [non-text] */
+  --p-amber-600: #b07a1e;          /* v3 score band 4 [non-text] */
+  --p-amber-100: #fdecc8;          /* v3 WARN fill */
+  --p-red-900: #6d2a24;            /* v3 danger body text */
+  --p-red-800: #8f1e18;            /* NEW danger hover */
+  --p-red-700: #b3261e;            /* v3 BAD text / fill */
+  --p-red-100: #ffe2dd;            /* v3 BAD fill */
+
+  /* ---------------------------------------------------------------------
+     2. SURFACES
+     --------------------------------------------------------------------- */
+  --color-bg: var(--p-white);                         /* page, cards, tables */
+  --color-bg-subtle: var(--p-sand-100);               /* sidebar, segmented track, side-peek doc pane */
+  --color-bg-muted: var(--p-sand-50);                 /* table header, nested card, property panel */
+  --color-bg-neutral: var(--p-sand-200);              /* neutral chip fill */
+  --color-bg-hover: rgba(55, 53, 47, 0.035);          /* row / list item hover (v3 .los-row) */
+  --color-bg-hover-nav: rgba(55, 53, 47, 0.06);       /* nav hover (v3 .los-nav) */
+  --color-bg-selected: rgba(55, 53, 47, 0.08);        /* active nav item, selected row */
+  --color-bg-pressed: rgba(55, 53, 47, 0.10);         /* NEW: pressed secondary button */
+  --color-bg-inverse: var(--p-ink-900);               /* brand mark, tooltip */
+  --color-bg-danger-wash: rgba(179, 38, 30, 0.04);    /* breached row, failed posting panel */
+  --color-bg-success-wash: rgba(44, 96, 71, 0.06);    /* acknowledged posting panel */
+  --color-bg-overlay: rgba(15, 15, 15, 0.40);         /* NEW: modal / drawer backdrop */
+
+  /* ---------------------------------------------------------------------
+     3. TEXT
+     --------------------------------------------------------------------- */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-700);
+  --color-text-tertiary: var(--p-ink-600);            /* meta, eyebrow, table header, inactive tab, nav count */
+  --color-text-placeholder: var(--p-ink-600);         /* placeholders are text: 4.5:1 applies */
+  --color-text-disabled: var(--p-ink-400);            /* ONLY inside disabled controls (exempt) */
+  --color-text-inverse: var(--p-white);
+  --color-text-on-accent: var(--p-white);
+  --color-text-on-danger: var(--p-white);
+  --color-text-link: var(--p-blue-600);
+  --color-text-link-hover: var(--p-blue-700);
+
+  /* ---------------------------------------------------------------------
+     4. ACCENT (one accent, for action, links, selection)
+     --------------------------------------------------------------------- */
+  --color-accent: var(--p-blue-600);                  /* primary button fill, selected chip, links */
+  --color-accent-hover: var(--p-blue-700);
+  --color-accent-pressed: var(--p-blue-800);
+  --color-accent-subtle: var(--p-blue-50);            /* tint fill: "awaiting my action" tile, info banner */
+  --color-accent-graphic: var(--p-blue-500);          /* [non-text] tracker dots, progress fill, region outline */
+  --color-accent-border: var(--p-blue-200);           /* [decorative] tracker connector, banner edge */
+  --color-selection: rgba(35, 131, 226, 0.20);        /* ::selection */
+  --color-region-fill: rgba(35, 131, 226, 0.14);      /* selected document region fill */
+
+  /* ---------------------------------------------------------------------
+     5. BORDERS
+     --------------------------------------------------------------------- */
+  --color-border: rgba(55, 53, 47, 0.09);             /* [decorative] hairline rules, panel edges */
+  --color-border-subtle: rgba(55, 53, 47, 0.06);      /* [decorative] table row rules */
+  --color-border-strong: rgba(55, 53, 47, 0.14);      /* [decorative] button edge, card edge, unselected chip */
+  --color-border-control: var(--p-ink-500);           /* inputs, selects, checkboxes, radios: 3:1 (WCAG 1.4.11) */
+  --color-border-control-hover: var(--p-ink-600);
+  --color-border-danger: rgba(179, 38, 30, 0.40);     /* [decorative] danger outline button edge */
+  --color-decorative: var(--p-ink-300);               /* [decorative] separators, bullets; never text, never state */
+  --color-indicator: var(--p-ink-500);                /* [non-text] pending stage marker, neutral meaningful icon */
+
+  /* ---------------------------------------------------------------------
+     6. STATUS TONES  (fg = text and indicator on bg; bg = chip/banner fill)
+     Colour never carries meaning alone: every tone use has a text label.
+     --------------------------------------------------------------------- */
+  --color-success-fg: var(--p-green-700);
+  --color-success-bg: var(--p-green-100);
+  --color-success-border: rgba(28, 108, 71, 0.30);
+
+  --color-warning-fg: var(--p-amber-800);
+  --color-warning-bg: var(--p-amber-100);
+  --color-warning-border: rgba(122, 93, 13, 0.30);
+
+  --color-danger-fg: var(--p-red-700);
+  --color-danger-bg: var(--p-red-100);
+  --color-danger-border: var(--p-red-700);
+  --color-danger-text-strong: var(--p-red-900);       /* body copy inside danger callouts */
+  --color-danger-fill: var(--p-red-700);              /* danger (destructive) button */
+  --color-danger-fill-hover: var(--p-red-800);
+
+  --color-info-fg: var(--p-blue-900);
+  --color-info-bg: var(--p-blue-100);
+  --color-info-border: var(--p-blue-200);
+
+  --color-neutral-fg: var(--p-ink-700);
+  --color-neutral-bg: var(--p-sand-200);
+
+  /* ---------------------------------------------------------------------
+     7. DATA: score/risk band ramp and chart series  [non-text, 3:1 on white]
+     Band 1 = lowest risk. Labels are always printed beside the colour.
+     --------------------------------------------------------------------- */
+  --color-score-1: var(--p-green-700);
+  --color-score-2: var(--p-green-600);
+  --color-score-3: var(--p-amber-700);
+  --color-score-4: var(--p-amber-600);
+  --color-score-5: var(--p-red-700);
+
+  --color-chart-1: var(--p-blue-600);
+  --color-chart-2: var(--p-blue-900);
+  --color-chart-3: var(--p-green-700);
+  --color-chart-4: var(--p-amber-600);
+  --color-chart-5: var(--p-ink-600);
+
+  /* ---------------------------------------------------------------------
+     8. FOCUS
+     --------------------------------------------------------------------- */
+  --focus-ring-color: var(--p-blue-600);              /* 5.10:1 on white, 4.76:1 on subtle */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  /* Box-shadow form for elements whose outline would be clipped (table rows,
+     inside overflow:hidden containers): inner gap in surface colour + 2px ring. */
+  --focus-ring-inset: inset 0 0 0 2px var(--p-blue-600);
+  --focus-ring-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--p-blue-600);
+
+  /* ---------------------------------------------------------------------
+     9. TYPOGRAPHY (Archivo; numeric data uses tabular figures)
+     --------------------------------------------------------------------- */
+  --font-sans: "Archivo Variable", "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --font-weight-regular: 400;
+  --font-weight-control: 450;                         /* v3 buttons */
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  /* size / line-height pairs. Floor is 11px (v3 used 10 and 10.5px). */
+  --text-micro: 11px;      --leading-micro: 16px;     /* eyebrow, count badge, chip meta */
+  --text-meta: 12px;       --leading-meta: 16px;      /* meta lines, table header, chips, filter chips */
+  --text-table: 12.5px;    --leading-table: 18px;     /* table body (v3) */
+  --text-body-sm: 13px;    --leading-body-sm: 18px;   /* secondary body, small buttons, side-peek fields */
+  --text-nav: 13.5px;      --leading-nav: 20px;       /* sidebar items (v3) */
+  --text-body: 14px;       --leading-body: 20px;      /* base body, inputs, buttons */
+  --text-title: 16px;      --leading-title: 22px;     /* panel, section and screen titles (600, -0.01em) */
+  --text-title-lg: 18px;   --leading-title-lg: 24px;  /* net figures, mobile page title (600) */
+  --text-heading: 22px;    --leading-heading: 28px;   /* portal page heading, empty-state headline (600) */
+  --text-metric: 30px;     --leading-metric: 32px;    /* stat tile value (600, -0.03em); large text */
+
+  --tracking-tight: -0.01em;
+  --tracking-tighter: -0.02em;
+  --tracking-metric: -0.03em;
+  --tracking-eyebrow: 0.03em;
+  --tracking-ref: 0.01em;                             /* reference numbers in mono */
+
+  /* ---------------------------------------------------------------------
+     10. SPACING (4px base + v3 half-steps)
+     --------------------------------------------------------------------- */
+  --space-0: 0px;
+  --space-px: 1px;
+  --space-0_5: 2px;
+  --space-1: 4px;
+  --space-1_5: 6px;
+  --space-2: 8px;
+  --space-2_5: 10px;
+  --space-3: 12px;
+  --space-3_5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* component spacing (v3 facts) */
+  --card-padding-y: 14px;
+  --card-padding-x: 16px;
+  --table-cell-py: 7px;
+  --table-cell-px: 10px;
+  --page-gutter: 20px;          /* desktop; 16px at <1024 */
+
+  /* sizing */
+  --target-min: 24px;           /* WCAG 2.2 2.5.8 floor, every pointer target */
+  --target-touch: 44px;         /* touch layouts (<1024) and applicant portal */
+  --control-h-sm: 28px;
+  --control-h: 32px;
+  --control-h-lg: 40px;
+  --row-min-h: 32px;
+  --icon-sm: 14px;
+  --icon: 16px;
+  --icon-lg: 20px;
+  --status-dot: 6px;            /* v3 square SLA dot */
+
+  /* ---------------------------------------------------------------------
+     11. RADII (v3)
+     --------------------------------------------------------------------- */
+  --radius-none: 0px;
+  --radius-chip: 3px;
+  --radius-mark: 4px;
+  --radius-control: 5px;
+  --radius-card: 6px;
+  --radius-overlay: 8px;        /* NEW: modal, drawer edge, popover */
+  --radius-full: 9999px;        /* avatar, toggle track only */
+
+  /* ---------------------------------------------------------------------
+     12. ELEVATION (v3 is flat; overlays are new and kept quiet)
+     --------------------------------------------------------------------- */
+  --shadow-none: none;
+  --shadow-button: 0 1px 2px rgba(15, 15, 15, 0.04);
+  --shadow-seg: 0 1px 2px rgba(15, 15, 15, 0.08);
+  --shadow-document: 0 3px 10px rgba(45, 43, 43, 0.16);   /* rendered document page in side-peek */
+  --shadow-popover: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 4px 12px rgba(15, 15, 15, 0.10);
+  --shadow-drawer: 0 0 0 1px rgba(15, 15, 15, 0.05), -8px 0 24px rgba(15, 15, 15, 0.10);
+  --shadow-modal: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 12px 32px rgba(15, 15, 15, 0.18);
+
+  /* ---------------------------------------------------------------------
+     13. MOTION
+     --------------------------------------------------------------------- */
+  --duration-instant: 0ms;
+  --duration-fast: 120ms;       /* hover, press, chip toggle */
+  --duration-base: 160ms;       /* popover, tooltip, tab indicator */
+  --duration-slow: 220ms;       /* drawer, side-peek, modal */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---------------------------------------------------------------------
+     14. Z-INDEX
+     --------------------------------------------------------------------- */
+  --z-base: 0;
+  --z-sticky: 10;               /* table header, tab row */
+  --z-header: 20;               /* app header, context bar */
+  --z-rail: 30;                 /* collapsed sidebar flyout */
+  --z-drawer: 40;               /* right-rail drawer, side-peek, mobile nav */
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+
+  /* ---------------------------------------------------------------------
+     15. LAYOUT (breakpoints live in design-tokens.tailwind.js `screens`;
+     CSS variables cannot be used inside @media)
+       mobile <768 | tablet 768–1023 | laptop 1024–1279 | desktop ≥1280
+     --------------------------------------------------------------------- */
+  --layout-sidebar-w: 216px;    /* desktop + laptop */
+  --layout-rail-w: 56px;        /* tablet icon rail */
+  --layout-header-h: 48px;      /* screen title bar */
+  --layout-context-h: 64px;     /* application context bar */
+  --layout-tabs-h: 40px;        /* sticky case tab row */
+  --layout-stage-w: 186px;      /* case grid: stage tracker */
+  --layout-props-w: 288px;      /* case grid: properties rail */
+  --layout-drawer-w: 320px;     /* properties rail as drawer (laptop) */
+  --layout-peek-w: min(1080px, 92vw);   /* document side-peek */
+  --layout-form-max: 880px;
+  --layout-portal-max: 560px;   /* applicant portal content column */
+}
+
+/* --------------------------------------------------------------------------
+   Base layer: the minimum global rules every screen relies on.
+   -------------------------------------------------------------------------- */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--font-weight-regular);
+}
+:focus { outline: none; }
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+::selection { background: var(--color-selection); }
+/* Sticky header + context bar + tab row must not hide the focused element (WCAG 2.2 2.4.11). */
+[data-scroll-container] { scroll-padding-top: calc(var(--layout-context-h) + var(--layout-tabs-h) + var(--space-2)); }
+
+.tabular { font-variant-numeric: tabular-nums; }
+.ref {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  letter-spacing: var(--tracking-ref);
+  font-variant-numeric: tabular-nums slashed-zero;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Windows High Contrast / forced colours: keep focus and chip edges visible. */
+@media (forced-colors: active) {
+  :focus-visible { outline: 2px solid CanvasText; }
+}
