@@ -47,7 +47,7 @@ final class PlatformPresenter
 
     public static function etag(LegalEntity|OrgUnit $m): string
     {
-        return ETag::of($m->id, $m->updated_at->format('Uu'));
+        return ETag::forRepresentation($m->id, $m instanceof LegalEntity ? self::legalEntity($m) : self::orgUnit($m));
     }
 
     public static function levelLabel(LegalEntity $le, int $depth): ?string

@@ -28,6 +28,6 @@ final class RolePresenter
 
     public static function etag(Role $role): string
     {
-        return ETag::of($role->id, $role->updated_at->format('Uu'));
+        return ETag::forRepresentation($role->id, self::present($role));
     }
 }

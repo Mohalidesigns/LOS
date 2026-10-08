@@ -12,6 +12,7 @@ use Fundly\Shared\Outbox\Outbox;
 use Fundly\Shared\Security\AccessDecision;
 use Fundly\Shared\Security\AccessDenied;
 use Fundly\Shared\Security\AuthorizationGate;
+use Fundly\Shared\Security\CurrentPrincipal;
 use Fundly\Shared\Security\Principal;
 use Fundly\Shared\Security\ResourceAttributes;
 use Fundly\Shared\Security\ResourceResolver;
@@ -42,10 +43,23 @@ final class CommandBus
         private readonly AuditTrail $audit,
         private readonly Outbox $outbox,
         private readonly Dispatcher $events,
+        private readonly CurrentPrincipal $current,
     ) {
     }
 
     public function dispatch(Command $command, Principal $principal): mixed
+    {
+        // The command runs as, and is audited as, the principal it was dispatched with.
+        $previous = $this->current->get();
+        $this->current->set($principal);
+        try {
+            return $this->run($command, $principal);
+        } finally {
+            $this->current->set($previous);
+        }
+    }
+
+    private function run(Command $command, Principal $principal): mixed
     {
         try {
             [$result, $context] = $this->db->transaction(function () use ($command, $principal): array {

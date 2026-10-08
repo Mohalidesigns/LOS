@@ -35,6 +35,6 @@ final class UserPresenter
 
     public static function etag(User $u): string
     {
-        return ETag::of($u->id, $u->updated_at->format('Uu'));
+        return ETag::forRepresentation($u->id, self::present($u) + ['auth_version' => $u->auth_version]);
     }
 }

@@ -71,7 +71,7 @@ final class RoleLibrary
                 Permission::RoleRead, Permission::RoleManage, Permission::RoleApprove, Permission::PermissionRead,
                 Permission::RoleAssignmentRead, Permission::RoleAssignmentRequest, Permission::RoleAssignmentApprove,
                 Permission::SodRuleRead, Permission::SodRuleManage, Permission::DelegationRead, Permission::DelegationCreate,
-                Permission::ChangeRequestRead, Permission::AuditRead, Permission::LicenceRead, Permission::LicenceImportRequest,
+                Permission::ChangeRequestRead, Permission::AuditRead, Permission::AuditVerify, Permission::LicenceRead, Permission::LicenceImportRequest,
                 Permission::LicenceImportApprove, Permission::IntegrationRead,
             ]],
             'auditor' => ['name' => 'Auditor', 'description' => 'Read-only, unrestricted scope, no operational actions.', 'permissions' => array_merge($read, [Permission::AuditVerify])],

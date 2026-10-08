@@ -66,6 +66,8 @@ return new class extends Migration
         }
         $pg->grantSequence('jobs_id_seq');
         $pg->grantSequence('failed_jobs_id_seq');
+        // Readiness probe compares applied migrations with the release (read-only).
+        $pg->grant('migrations', ['select']);
     }
 
     public function down(): void

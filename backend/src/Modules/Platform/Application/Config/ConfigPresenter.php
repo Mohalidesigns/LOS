@@ -53,6 +53,6 @@ final class ConfigPresenter
 
     public static function etag(ConfigVersion $v): string
     {
-        return ETag::of($v->id, $v->updated_at->format('Uu').'|'.$v->status);
+        return ETag::forRepresentation($v->id, self::version($v));
     }
 }
