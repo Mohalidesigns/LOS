@@ -14,9 +14,11 @@ interface LicenceEntitlements
      * Login enforcement: validity (beyond grace blocks) and the named-user cap.
      * Fail-safe (D-034): read-only auditor/regulator access is never blocked;
      * a user who can manage users may still sign in to bring the installation
-     * back under its cap.
+     * back under its cap; a user who can approve a licence import may still
+     * sign in so an expired or unlicensed installation can be recovered (the
+     * licence middleware confines that session to exempt/recovery routes).
      */
-    public function assertLoginAllowed(int $activeNamedUsers, bool $readOnlyPrincipal, bool $mayManageUsers): void;
+    public function assertLoginAllowed(int $activeNamedUsers, bool $readOnlyPrincipal, bool $mayManageUsers, bool $mayRecoverLicence = false): void;
 
     public function maxNamedUsers(): ?int;
 

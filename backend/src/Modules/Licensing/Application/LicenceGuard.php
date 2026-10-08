@@ -60,10 +60,15 @@ final class LicenceGuard implements LicenceEntitlements
         }
     }
 
-    public function assertLoginAllowed(int $activeNamedUsers, bool $readOnlyPrincipal, bool $mayManageUsers): void
+    public function assertLoginAllowed(int $activeNamedUsers, bool $readOnlyPrincipal, bool $mayManageUsers, bool $mayRecoverLicence = false): void
     {
         if ($readOnlyPrincipal) {
             return; // auditor / regulator read access is never blocked (D-034)
+        }
+        if ($mayRecoverLicence && ! $this->state()->permitsOperation()) {
+            // Recovery sign-in: without it nobody could approve the licence import
+            // that ends the outage. EnforceLicence still blocks every non-exempt route.
+            return;
         }
         $this->assertOperational();
         $max = $this->maxNamedUsers();

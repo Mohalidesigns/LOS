@@ -95,9 +95,11 @@ it('allows operation in grace with a warning header, and blocks after grace exce
 
 it('recovers from expiry: CLI raises the import request, a checker approves through the exempt route', function () {
     [$maker, $checker] = [$this->tenant->admin(0), $this->tenant->admin(1)];
-    $this->login($checker);
-    $checkerJar = $this->jar;
     replaceLicence($this, ['valid_from' => now()->subYear()->toAtomString(), 'valid_to' => now()->subDays(40)->toAtomString(), 'grace_days' => 30]);
+    // Beyond grace, a licence-import checker may still sign in (recovery); without
+    // this nobody could approve the import that ends the outage.
+    $this->login($checker)->assertOk();
+    $checkerJar = $this->jar;
 
     $path = storage_path('framework/testing/renewal.lic');
     file_put_contents($path, $this->signLicence(['valid_to' => now()->addYear()->toAtomString()])->toFileContents());

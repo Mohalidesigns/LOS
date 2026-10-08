@@ -276,7 +276,12 @@ final class AuthenticationService
         $activeNamed = User::query()->where('kind', User::KIND_HUMAN)->where('status', 'active')->count();
 
         try {
-            $this->licence->assertLoginAllowed($activeNamed, $readOnly, isset($permissions[Permission::UserManage->value]));
+            $this->licence->assertLoginAllowed(
+                $activeNamed,
+                $readOnly,
+                isset($permissions[Permission::UserManage->value]),
+                isset($permissions[Permission::LicenceImportApprove->value]),
+            );
         } catch (ProblemException $e) {
             $this->auditUser($user, 'auth.login.denied_by_licence', AuditOutcome::Denied, ['reason' => $e->type()]);
             throw $e;
