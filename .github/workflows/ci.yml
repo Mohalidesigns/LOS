@@ -1,0 +1,93 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # Superuser for the CI container only; the tests never use it.
+          # The app connects as fundly_app (NOSUPERUSER, NOBYPASSRLS).
+          POSTGRES_USER: ci_super
+          POSTGRES_PASSWORD: ci_super_pw
+          POSTGRES_DB: postgres
+        # phpunit.xml targets port 5433 (matches the local test cluster).
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U ci_super"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      PGPASSWORD: ci_super_pw
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, pgsql, sodium, intl, mbstring, bcmath, redis
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Provision database roles (two-role model, RLS enforced)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql -h 127.0.0.1 -p 5433 -U ci_super -d postgres \
+            -v owner_password=owner_dev_pw -v app_password=app_dev_pw -v db_name=fundly_test \
+            -f ../deploy/sql/00-provision-roles.sql
+          # The runtime role must never be able to bypass RLS.
+          test "$(psql -h 127.0.0.1 -p 5433 -U ci_super -d postgres -tAc \
+            "select rolsuper or rolbypassrls from pg_roles where rolname='fundly_app'")" = "f"
+
+      - name: Migrate as schema owner
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5433'
+          DB_DATABASE: fundly_test
+          DB_USERNAME: fundly_app
+          DB_PASSWORD: app_dev_pw
+          DB_OWNER_USERNAME: fundly_owner
+          DB_OWNER_PASSWORD: owner_dev_pw
+          FUNDLY_INSTALLATION_ENV: non_production
+        run: APP_KEY="base64:$(openssl rand -base64 32)" php artisan migrate --force --database=pgsql_owner
+
+      - name: Code style (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Static analysis (Larastan level 8, no baseline)
+        run: vendor/bin/phpstan analyse --memory-limit=2G --no-progress
+
+      - name: Tests (unit, feature, database, architecture) on PostgreSQL
+        run: vendor/bin/pest
+
+      - name: Dependency audit
+        run: composer audit

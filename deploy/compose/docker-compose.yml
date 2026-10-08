@@ -1,0 +1,200 @@
+# Fundly LOS: single-bank, on-prem reference topology (TRD §10).
+#
+#   docker compose -f deploy/compose/docker-compose.yml --env-file deploy/compose/.env up -d
+#
+# Secrets are files under deploy/compose/secrets/ (git-ignored; see README),
+# mounted at /run/secrets. Nothing secret is committed or baked into images.
+# For production, pin image digests and point the volumes at managed storage.
+
+name: fundly-los
+
+x-app: &app
+  image: ${FUNDLY_IMAGE:-fundly-los-api:local}
+  build:
+    context: ../..
+    dockerfile: deploy/docker/Dockerfile
+  env_file:
+    - ./env/app.env
+  environment:
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    REDIS_HOST: redis
+    APP_KEY_FILE: /run/secrets/app_key
+    DB_PASSWORD_FILE: /run/secrets/db_app_password
+    DB_OWNER_PASSWORD_FILE: /run/secrets/db_owner_password
+    REDIS_PASSWORD_FILE: /run/secrets/redis_password
+    FUNDLY_KEK_PATH: /run/secrets/fundly_kek
+  secrets:
+    - app_key
+    - db_app_password
+    - db_owner_password
+    - redis_password
+    - fundly_kek
+  volumes:
+    - app-storage:/var/www/fundly/storage/app
+  read_only: true
+  tmpfs:
+    - /tmp
+    - /var/www/fundly/storage/framework:uid=33,gid=33
+    - /var/www/fundly/bootstrap/cache:uid=33,gid=33
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  # backend is internal-only; egress lets api/worker reach the core banking
+  # system and other providers through the bank's firewall.
+  networks: [backend, egress]
+
+services:
+  # One-shot: provisions roles (first run) and migrates as the schema owner.
+  migrate:
+    <<: *app
+    command: ["php", "artisan", "migrate", "--force", "--database=pgsql_owner"]
+    restart: "no"
+
+  api:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "redis", "--sleep=1", "--tries=1", "--max-time=3600"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on: [api]
+    ports:
+      - "${FUNDLY_HTTPS_PORT:-443}:443"
+      - "${FUNDLY_HTTP_PORT:-80}:80"
+    volumes:
+      - ../docker/nginx/fundly.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../docker/nginx/fundly-fastcgi.conf:/etc/nginx/fundly-fastcgi.conf:ro
+      - ./tls:/etc/nginx/tls:ro
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run, /tmp]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [backend, edge]
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_super_password
+      POSTGRES_DB: postgres
+      FUNDLY_DB_NAME: fundly
+    secrets:
+      - db_super_password
+      - db_owner_password
+      - db_app_password
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ../sql/00-provision-roles.sql:/fundly/00-provision-roles.sql:ro
+      - ./initdb/10-fundly-roles.sh:/docker-entrypoint-initdb.d/10-fundly-roles.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fundly"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/redis_password)\" --appendonly yes"]
+    secrets: [redis_password]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/redis_password)\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  # Object storage (documents, audit checkpoint sink). P1 uses it; provisioned now.
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets: [minio_root_user, minio_root_password]
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [backend]
+
+  # Antivirus scanning of uploads (P1 documents).
+  clamav:
+    image: clamav/clamav:1.4
+    volumes:
+      - clamav-db:/var/lib/clamav
+    restart: unless-stopped
+    networks: [backend]
+
+  # Document rendering (offer letters etc., P1).
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    command: ["gotenberg", "--api-disable-health-check-logging", "--chromium-disable-javascript=true", "--chromium-allow-list=file:///tmp/.*"]
+    restart: unless-stopped
+    networks: [backend]
+
+secrets:
+  app_key:
+    file: ./secrets/app_key
+  db_super_password:
+    file: ./secrets/db_super_password
+  db_owner_password:
+    file: ./secrets/db_owner_password
+  db_app_password:
+    file: ./secrets/db_app_password
+  redis_password:
+    file: ./secrets/redis_password
+  fundly_kek:
+    file: ./secrets/fundly_kek
+  minio_root_user:
+    file: ./secrets/minio_root_user
+  minio_root_password:
+    file: ./secrets/minio_root_password
+
+volumes:
+  pg-data:
+  redis-data:
+  minio-data:
+  clamav-db:
+  app-storage:
+
+networks:
+  backend:
+    internal: true
+  edge:
+  egress:
