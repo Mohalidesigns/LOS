@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Fundly\Integration\Runtime\Http;
+namespace Fundly\Integration\Runtime\Queries;
 
 use Fundly\Integration\Runtime\AdapterRegistry;
 use Fundly\Integration\Runtime\Models\AdapterBinding;

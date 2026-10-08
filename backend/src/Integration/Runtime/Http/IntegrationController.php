@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Fundly\Integration\Runtime\Http;
 
+use Fundly\Integration\Runtime\Queries\IntegrationQueries;
+
 use Fundly\Shared\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

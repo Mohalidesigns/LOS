@@ -83,7 +83,7 @@ final class IntegrationGateway
         while (true) {
             $attempt++;
             $started = $this->clock->now();
-            $t0 = hrtime(true);
+            $t0 = (int) hrtime(true);
 
             if (! $this->breaker->allows($breakerKey)) {
                 $this->log->record($binding->id, $port, $operation, $definition->key, $definition->version, $manifest->contractVersion, $idempotencyKey, $attempt, $requestForLog, null, 'short_circuited', self::codePrefix($port).'.TRANSPORT.CIRCUIT_OPEN', $started, $this->clock->now(), 0);
@@ -115,7 +115,7 @@ final class IntegrationGateway
     }
 
     /** @param array<string, mixed> $requestForLog */
-    private function afterFailure(IntegrationException $e, string $breakerKey, string $bindingId, string $port, string $operation, AdapterDefinition $def, ?string $idempotencyKey, int $attempt, array $requestForLog, \DateTimeImmutable $started, int|float $t0): void
+    private function afterFailure(IntegrationException $e, string $breakerKey, string $bindingId, string $port, string $operation, AdapterDefinition $def, ?string $idempotencyKey, int $attempt, array $requestForLog, \DateTimeImmutable $started, int $t0): void
     {
         // Business rejections mean the provider is healthy; they do not trip the breaker.
         if ($e->errorClass() !== ErrorClass::BusinessRejection) {
@@ -130,8 +130,8 @@ final class IntegrationGateway
         return $port === CoreBankingPort::PORT ? 'CBA' : strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $port));
     }
 
-    private static function elapsedMs(int|float $t0): int
+    private static function elapsedMs(int $t0): int
     {
-        return intdiv((int) (hrtime(true) - $t0), 1_000_000);
+        return intdiv((int) hrtime(true) - $t0, 1_000_000);
     }
 }
