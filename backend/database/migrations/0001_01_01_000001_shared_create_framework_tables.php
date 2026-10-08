@@ -1,16 +1,31 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
+declare(strict_types=1);
+
+use Fundly\Shared\Database\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/*
+ * Framework infrastructure tables (cache, queue). They hold no tenant business
+ * data, so they carry no tenant_id and no RLS; the runtime role gets DML.
+ */
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->mediumText('value');
+            $table->bigInteger('expiration')->index();
+        });
+
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->bigInteger('expiration')->index();
+        });
+
         Schema::create('jobs', function (Blueprint $table) {
             $table->id();
             $table->string('queue')->index();
@@ -41,19 +56,22 @@ return new class extends Migration
             $table->string('queue');
             $table->longText('payload');
             $table->longText('exception');
-            $table->timestamp('failed_at')->useCurrent();
-
+            $table->timestampTz('failed_at')->useCurrent();
             $table->index(['connection', 'queue', 'failed_at']);
         });
+
+        $pg = $this->pg();
+        foreach (['cache', 'cache_locks', 'jobs', 'job_batches', 'failed_jobs'] as $t) {
+            $pg->grantCrud($t);
+        }
+        $pg->grantSequence('jobs_id_seq');
+        $pg->grantSequence('failed_jobs_id_seq');
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('jobs');
-        Schema::dropIfExists('job_batches');
-        Schema::dropIfExists('failed_jobs');
+        foreach (['failed_jobs', 'job_batches', 'jobs', 'cache_locks', 'cache'] as $t) {
+            Schema::dropIfExists($t);
+        }
     }
 };
