@@ -23,7 +23,7 @@ it('has no core banking vendor identifiers outside src/Integration/Adapters', fu
         }
     }
     expect($offenders)->toBe([]);
-})->group('FR-CBA-002');
+})->group('FR-CBA-002', 'LOS-FR-284');
 
 it('keeps the vendor scan honest (the pattern does catch identifiers)', function () {
     expect(preg_match('/finacle|flexcube|t24|temenos|bankone|fineract|mifos/i', 'new FinacleAdapter(); // T24 code'))->toBe(1);

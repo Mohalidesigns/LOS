@@ -40,7 +40,7 @@ it('runs draft → in_review → approved → active with maker-checker activati
     $done = activate($this, $artifact, $v);
     expect($done['execution_result']['active_version_id'])->toBe($v['id']);
     $this->api('GET', "{$this->base}/{$artifact['id']}/versions/{$v['id']}")->assertJsonPath('data.status', 'active')->assertJsonPath('data.activated_by', $this->reviewer->id);
-})->group('FR-TEN-009', 'FR-SEC-007');
+})->group('FR-TEN-009', 'FR-SEC-007', 'LOS-FR-284');
 
 it('validates content per type and only lets drafts be edited (with If-Match)', function () {
     $this->login($this->author);
@@ -53,7 +53,7 @@ it('validates content per type and only lets drafts be edited (with If-Match)', 
     $this->api('PATCH', "{$this->base}/{$artifact['id']}/versions/{$v->json('data.id')}", ['content' => ['idle_minutes' => 30, 'absolute_minutes' => 240, 'max_concurrent' => 1]], ['If-Match' => '*'])
         ->assertStatus(409)->assertJsonPath('code', 'config-version-immutable');
     $this->api('GET', '/api/v1/config-artifacts/unknown.type')->assertNotFound();
-})->group('FR-TEN-009');
+})->group('FR-TEN-009', 'LOS-FR-284');
 
 it('makes approved content immutable at the database, even for direct SQL', function () {
     [$artifact, $v] = draftAndApprove($this, ['idle_minutes' => 10, 'absolute_minutes' => 240, 'max_concurrent' => 1]);
@@ -106,4 +106,4 @@ it('applies the active session policy at runtime (config live without restart)',
     $this->login($this->author);
     $this->travel(6)->minutes();
     $this->api('GET', '/api/v1/me')->assertStatus(401)->assertJsonPath('code', 'session-expired');
-})->group('FR-TEN-009', 'FR-SEC-015');
+})->group('FR-TEN-009', 'FR-SEC-015', 'LOS-FR-284');

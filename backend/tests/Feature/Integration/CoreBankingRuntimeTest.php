@@ -246,4 +246,4 @@ it('resolves legal-entity specific bindings before the tenant default, and error
     AdapterBinding::query()->whereKey($this->binding->id)->update(['status' => 'inactive']);
     expect(fn () => cba()->coreBanking('reference.products', fn (CoreBankingPort $c) => $c->reference()->getProducts()))
         ->toThrow(NonRetryableError::class, 'No active adapter binding');
-})->group('FR-CBA-020');
+})->group('FR-CBA-020', 'LOS-FR-284');
