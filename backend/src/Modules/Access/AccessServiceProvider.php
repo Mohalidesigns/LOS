@@ -55,9 +55,9 @@ final class AccessServiceProvider extends ServiceProvider
     {
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
-        $registry->register($this->app->make(GrantRoleAssignmentAction::class));
-        $registry->register($this->app->make(RevokeRoleAssignmentAction::class));
-        $registry->register($this->app->make(SetRolePermissionsAction::class));
+        $registry->register(GrantRoleAssignmentAction::TYPE, GrantRoleAssignmentAction::class);
+        $registry->register(RevokeRoleAssignmentAction::TYPE, RevokeRoleAssignmentAction::class);
+        $registry->register(SetRolePermissionsAction::TYPE, SetRolePermissionsAction::class);
 
         $resources->register('user', static function (string $id): ?ResourceAttributes {
             $u = User::query()->find($id);

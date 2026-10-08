@@ -1,0 +1,3774 @@
+# Fundly LOS — OpenAPI 3.1 contract (source of truth, TRD §10.1). Generated layout; edit freely.
+openapi: 3.1.0
+info:
+  title: Fundly LOS API
+  version: 1.0.0-p0
+  summary: 'Loan origination system for Nigerian commercial banks: Phase 0 foundation.'
+  description: 'Design-first contract for /api/v1 (TRD §10). Conventions:
+
+
+    - **Auth**: staff use a same-origin Sanctum session cookie (+ XSRF token); service and partner principals use bearer tokens whose abilities
+    can only narrow their role assignments.
+
+    - **Idempotency-Key** is required on every POST that creates or causes an effect (`x-idempotency-key: required`). A replay returns the stored
+    response (header `Idempotent-Replayed: true`); the same key with a different body returns 409 `idempotency-key-reused`.
+
+    - **Concurrency**: resources carry `ETag`; PATCH requires `If-Match` (428 if missing, 412 if stale).
+
+    - **Errors**: RFC 9457 `application/problem+json` with `type` (URN), `code`, `correlation_id`, and `errors` for validation failures.
+
+    - **Lists**: cursor pagination with `page[size]` (≤ 100) and `page[after]`; scope filtering is always applied.
+
+    - **Tracing**: `X-Correlation-Id` is accepted or generated and always echoed.
+
+    - **Maker-checker** actions answer 202 with the change request; nothing changes until a different user approves it.
+
+    - `x-permission` names the permission checked at the route; `x-step-up` marks operations needing a re-authentication within 5 minutes.
+
+    '
+  license:
+    name: Proprietary (Atheris Limited)
+    identifier: LicenseRef-Atheris-Proprietary
+servers:
+- url: https://{host}
+  variables:
+    host:
+      default: los.bank.example
+tags:
+- name: Operations
+- name: Auth
+- name: Platform
+- name: Configuration
+- name: Access
+- name: Maker-checker
+- name: Audit
+- name: Licensing
+- name: Integration
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      operationId: health
+      tags:
+      - Operations
+      x-permission: public
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - ok
+                required:
+                - status
+        default:
+          $ref: '#/components/responses/Problem'
+      security: []
+  /ready:
+    get:
+      summary: Readiness probe
+      operationId: ready
+      tags:
+      - Operations
+      x-permission: public
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '503':
+          description: Not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        default:
+          $ref: '#/components/responses/Problem'
+      security: []
+  /api/v1/auth/csrf-cookie:
+    get:
+      summary: Issue the XSRF-TOKEN cookie (SPA bootstrap)
+      operationId: csrfCookie
+      tags:
+      - Auth
+      x-permission: public
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '204':
+          description: Cookie set
+        default:
+          $ref: '#/components/responses/Problem'
+      security: []
+  /api/v1/auth/login:
+    post:
+      summary: Sign in with email and password (first factor)
+      operationId: login
+      tags:
+      - Auth
+      x-permission: public
+      description: Rate limited and protected by account lockout with backoff. Errors never reveal whether the account exists.
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  maxLength: 254
+                password:
+                  type: string
+                  maxLength: 1024
+              required:
+              - email
+              - password
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LoginResult'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security: []
+  /api/v1/auth/mfa/verify:
+    post:
+      summary: Verify the TOTP code (completes sign-in, confirms enrolment)
+      operationId: verifyMfa
+      tags:
+      - Auth
+      x-permission: public
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: ^[0-9]{6}$
+              required:
+              - code
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LoginResult'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security: []
+  /api/v1/auth/step-up:
+    post:
+      summary: Re-authenticate for high-risk actions (FR-SEC-013)
+      operationId: stepUp
+      tags:
+      - Auth
+      x-permission: authenticated
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                code:
+                  type:
+                  - string
+                  - 'null'
+                  pattern: ^[0-9]{6}$
+              required:
+              - password
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      step_up_ref:
+                        type: string
+                        format: uuid
+                      valid_for_minutes:
+                        type: integer
+                    required:
+                    - step_up_ref
+                    - valid_for_minutes
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/auth/logout:
+    post:
+      summary: Sign out
+      operationId: logout
+      tags:
+      - Auth
+      x-permission: authenticated
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '204':
+          description: Signed out
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/me:
+    get:
+      summary: Current user
+      operationId: me
+      tags:
+      - Auth
+      x-permission: authenticated
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Me'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/me/effective-access:
+    get:
+      summary: What I can do, and why (FR-SEC-011)
+      operationId: myEffectiveAccess
+      tags:
+      - Auth
+      x-permission: authenticated
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/EffectiveAccess'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/legal-entities:
+    get:
+      summary: List legal entities (scope-filtered)
+      operationId: listLegalEntities
+      tags:
+      - Platform
+      x-permission: legal_entity:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LegalEntity'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: Create a legal entity
+      operationId: createLegalEntity
+      tags:
+      - Platform
+      x-permission: legal_entity:manage
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegalEntityCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LegalEntity'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/legal-entities/{id}:
+    get:
+      summary: Get a legal entity
+      operationId: getLegalEntity
+      tags:
+      - Platform
+      x-permission: legal_entity:read
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LegalEntity'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    patch:
+      summary: Update a legal entity
+      operationId: updateLegalEntity
+      tags:
+      - Platform
+      x-permission: legal_entity:manage
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                timezone:
+                  type: string
+                org_level_labels:
+                  type: array
+                  items:
+                    type: string
+                status:
+                  type: string
+                  enum:
+                  - active
+                  - inactive
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LegalEntity'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/org-units:
+    get:
+      summary: List org units (scope-filtered)
+      operationId: listOrgUnits
+      tags:
+      - Platform
+      x-permission: org_unit:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - name: filter[legal_entity_id]
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: filter[parent_id]
+        in: query
+        schema:
+          type: string
+        description: uuid, or "null" for roots
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrgUnit'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: Create an org unit
+      operationId: createOrgUnit
+      tags:
+      - Platform
+      x-permission: org_unit:manage
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                legal_entity_id:
+                  type: string
+                  format: uuid
+                parent_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+                code:
+                  type: string
+                name:
+                  type: string
+              required:
+              - legal_entity_id
+              - code
+              - name
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrgUnit'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/org-units/{id}:
+    get:
+      summary: Get an org unit
+      operationId: getOrgUnit
+      tags:
+      - Platform
+      x-permission: org_unit:read
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrgUnit'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    patch:
+      summary: Rename, change status or move an org unit (with its subtree)
+      operationId: updateOrgUnit
+      tags:
+      - Platform
+      x-permission: org_unit:manage
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                status:
+                  type: string
+                parent_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrgUnit'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/config-artifacts/{type}:
+    get:
+      summary: List configuration artefacts of a type
+      operationId: listConfigArtifacts
+      tags:
+      - Configuration
+      x-permission: config:read
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9_.]+$
+        description: Configuration type, e.g. security.session_policy
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConfigArtifact'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: Create a configuration artefact
+      operationId: createConfigArtifact
+      tags:
+      - Configuration
+      x-permission: config:author
+      x-idempotency-key: required
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9_.]+$
+        description: Configuration type, e.g. security.session_policy
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type:
+                  - string
+                  - 'null'
+              required:
+              - key
+              - name
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfigArtifact'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/config-artifacts/{type}/{artifact}:
+    get:
+      summary: Get a configuration artefact
+      operationId: getConfigArtifact
+      tags:
+      - Configuration
+      x-permission: config:read
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9_.]+$
+        description: Configuration type, e.g. security.session_policy
+      - name: artifact
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfigArtifact'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/config-artifacts/{type}/{artifact}/versions:
+    get:
+      summary: List versions
+      operationId: listConfigVersions
+      tags:
+      - Configuration
+      x-permission: config:read
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9_.]+$
+        description: Configuration type, e.g. security.session_policy
+      - name: artifact
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConfigVersion'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: Create a draft version
+      operationId: createConfigVersion
+      tags:
+      - Configuration
+      x-permission: config:author
+      x-idempotency-key: required
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9_.]+$
+        description: Configuration type, e.g. security.session_policy
+      - name: artifact
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: object
+                notes:
+                  type:
+                  - string
+                  - 'null'
+              required:
+              - content
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfigVersion'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/config-artifacts/{type}/{artifact}/versions/{version}:
+    get:
+      summary: Get a version
+      operationId: getConfigVersion
+      tags:
+      - Configuration
+      x-permission: config:read
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9_.]+$
+        description: Configuration type, e.g. security.session_policy
+      - name: artifact
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfigVersion'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    patch:
+      summary: Edit a draft version
+      operationId: updateConfigVersion
+      tags:
+      - Configuration
+      x-permission: config:author
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9_.]+$
+        description: Configuration type, e.g. security.session_policy
+      - name: artifact
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: object
+                notes:
+                  type:
+                  - string
+                  - 'null'
+              required:
+              - content
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfigVersion'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/config-artifacts/{type}/{artifact}/versions/{version}/actions/{action}:
+    post:
+      summary: 'Lifecycle action: submit, approve, reject (direct); activate, rollback (maker-checker, 202)'
+      operationId: transitionConfigVersion
+      tags:
+      - Configuration
+      x-permission: config:author | config:review | config:activate_request (per action)
+      x-idempotency-key: required
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9_.]+$
+        description: Configuration type, e.g. security.session_policy
+      - name: artifact
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - submit
+          - approve
+          - reject
+          - activate
+          - rollback
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type:
+                  - string
+                  - 'null'
+      responses:
+        '200':
+          description: Transitioned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfigVersion'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          description: Change request raised
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/users:
+    get:
+      summary: List users (scope-filtered)
+      operationId: listUsers
+      tags:
+      - Access
+      x-permission: user:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - name: filter[status]
+        in: query
+        schema:
+          type: string
+          enum:
+          - active
+          - disabled
+      - name: filter[kind]
+        in: query
+        schema:
+          type: string
+          enum:
+          - human
+          - service
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: Create a user (holds no roles until an assignment is approved)
+      operationId: createUser
+      tags:
+      - Access
+      x-permission: user:manage
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/users/{id}:
+    get:
+      summary: Get a user
+      operationId: getUser
+      tags:
+      - Access
+      x-permission: user:read
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    patch:
+      summary: Update a user (disable revokes sessions and tokens)
+      operationId: updateUser
+      tags:
+      - Access
+      x-permission: user:manage
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - active
+                  - disabled
+                home_org_unit_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/users/{id}/effective-access:
+    get:
+      summary: A user's effective access and the assignment that grants each permission
+      operationId: getUserEffectiveAccess
+      tags:
+      - Access
+      x-permission: user:read
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/EffectiveAccess'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/users/{id}/tokens:
+    post:
+      summary: Issue a scoped API token to a service account (shown once)
+      operationId: issueServiceToken
+      tags:
+      - Access
+      x-permission: user:manage_tokens
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                abilities:
+                  type: array
+                  items:
+                    type: string
+                expires_at:
+                  type: string
+                  format: date-time
+              required:
+              - name
+              - abilities
+              - expires_at
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/IssuedToken'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/roles:
+    get:
+      summary: List roles and library templates
+      operationId: listRoles
+      tags:
+      - Access
+      x-permission: role:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - name: filter[is_template]
+        in: query
+        schema:
+          type: string
+          enum:
+          - 'true'
+          - 'false'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: 'Create a role (starts empty: deny by default)'
+      operationId: createRole
+      tags:
+      - Access
+      x-permission: role:manage
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: ^[a-z][a-z0-9_]{1,63}$
+                name:
+                  type: string
+                description:
+                  type:
+                  - string
+                  - 'null'
+              required:
+              - code
+              - name
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Role'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/roles/{id}:
+    get:
+      summary: Get a role
+      operationId: getRole
+      tags:
+      - Access
+      x-permission: role:read
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Role'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    patch:
+      summary: Rename / describe a role
+      operationId: updateRole
+      tags:
+      - Access
+      x-permission: role:manage
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type:
+                  - string
+                  - 'null'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Role'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/roles/{id}/actions/clone:
+    post:
+      summary: Clone a template or role into a new role
+      operationId: cloneRole
+      tags:
+      - Access
+      x-permission: role:manage
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type:
+                  - string
+                  - 'null'
+              required:
+              - code
+              - name
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Role'
+                required:
+                - data
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/roles/{id}/permissions:
+    put:
+      summary: Replace a role's permissions (maker-checker, 202)
+      operationId: setRolePermissions
+      tags:
+      - Access
+      x-permission: role:manage
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                reason:
+                  type:
+                  - string
+                  - 'null'
+              required:
+              - permissions
+      responses:
+        '202':
+          description: Change request raised
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/permissions:
+    get:
+      summary: The code-defined permission catalogue
+      operationId: listPermissions
+      tags:
+      - Access
+      x-permission: permission:read
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/role-assignments:
+    get:
+      summary: List role assignments (scope-filtered)
+      operationId: listRoleAssignments
+      tags:
+      - Access
+      x-permission: role_assignment:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - name: filter[user_id]
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: filter[active]
+        in: query
+        schema:
+          type: string
+          enum:
+          - 'true'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoleAssignment'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: Request a role assignment (maker-checker, 202)
+      operationId: requestRoleAssignment
+      tags:
+      - Access
+      x-permission: role_assignment:request
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                role_id:
+                  type: string
+                  format: uuid
+                scope:
+                  $ref: '#/components/schemas/Scope'
+                valid_from:
+                  type: string
+                  format: date-time
+                valid_to:
+                  type:
+                  - string
+                  - 'null'
+                  format: date-time
+                reason:
+                  type:
+                  - string
+                  - 'null'
+              required:
+              - user_id
+              - role_id
+              - scope
+      responses:
+        '202':
+          description: Change request raised
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/role-assignments/{id}:
+    delete:
+      summary: Request revocation of an assignment (maker-checker, 202)
+      operationId: requestAssignmentRevocation
+      tags:
+      - Access
+      x-permission: role_assignment:request
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      responses:
+        '202':
+          description: Change request raised
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/sod-rules:
+    get:
+      summary: List SoD rules
+      operationId: listSodRules
+      tags:
+      - Access
+      x-permission: sod_rule:read
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SodRule'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: Create an SoD rule
+      operationId: createSodRule
+      tags:
+      - Access
+      x-permission: sod_rule:manage
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                  - permission_pair
+                  - role_pair
+                left:
+                  type: string
+                right:
+                  type: string
+                description:
+                  type: string
+              required:
+              - kind
+              - left
+              - right
+              - description
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SodRule'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/sod-rules/{id}:
+    delete:
+      summary: Delete an SoD rule
+      operationId: deleteSodRule
+      tags:
+      - Access
+      x-permission: sod_rule:manage
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      responses:
+        '204':
+          description: Deleted
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/sod-conflicts:
+    get:
+      summary: Existing SoD violations (report)
+      operationId: listSodConflicts
+      tags:
+      - Access
+      x-permission: sod_rule:read
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SodConflict'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/delegations:
+    get:
+      summary: Delegations I gave or received
+      operationId: listDelegations
+      tags:
+      - Access
+      x-permission: authenticated
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Delegation'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+    post:
+      summary: Delegate one of my assignments (mandatory expiry)
+      operationId: createDelegation
+      tags:
+      - Access
+      x-permission: delegation:create
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_assignment_id:
+                  type: string
+                  format: uuid
+                delegate_id:
+                  type: string
+                  format: uuid
+                valid_from:
+                  type: string
+                  format: date-time
+                valid_to:
+                  type: string
+                  format: date-time
+                reason:
+                  type: string
+              required:
+              - role_assignment_id
+              - delegate_id
+              - valid_to
+              - reason
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Delegation'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/delegations/{id}:
+    delete:
+      summary: Revoke a delegation I gave
+      operationId: revokeDelegation
+      tags:
+      - Access
+      x-permission: delegation:create
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Delegation'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/change-requests:
+    get:
+      summary: List change requests
+      operationId: listChangeRequests
+      tags:
+      - Maker-checker
+      x-permission: change_request:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - name: filter[status]
+        in: query
+        schema:
+          type: string
+      - name: filter[action_type]
+        in: query
+        schema:
+          type: string
+      - name: filter[maker_id]
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangeRequest'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/change-requests/{id}:
+    get:
+      summary: Get a change request
+      operationId: getChangeRequest
+      tags:
+      - Maker-checker
+      x-permission: change_request:read
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/change-requests/{id}/actions/approve:
+    post:
+      summary: Approve and execute (checker ≠ maker; re-validated; 409 if stale)
+      operationId: approveChangeRequest
+      tags:
+      - Maker-checker
+      x-permission: the action type's checker permission
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type:
+                  - string
+                  - 'null'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/change-requests/{id}/actions/reject:
+    post:
+      summary: Reject
+      operationId: rejectChangeRequest
+      tags:
+      - Maker-checker
+      x-permission: the action type's checker permission
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type:
+                  - string
+                  - 'null'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/change-requests/{id}/actions/cancel:
+    post:
+      summary: Cancel (maker)
+      operationId: cancelChangeRequest
+      tags:
+      - Maker-checker
+      x-permission: maker only
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type:
+                  - string
+                  - 'null'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/audit-events:
+    get:
+      summary: Search the audit trail
+      operationId: searchAuditEvents
+      tags:
+      - Audit
+      x-permission: audit:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - name: filter[entity_type]
+        in: query
+        schema:
+          type: string
+      - name: filter[entity_id]
+        in: query
+        schema:
+          type: string
+      - name: filter[actor_id]
+        in: query
+        schema:
+          type: string
+      - name: filter[action]
+        in: query
+        schema:
+          type: string
+      - name: filter[correlation_id]
+        in: query
+        schema:
+          type: string
+      - name: filter[outcome]
+        in: query
+        schema:
+          type: string
+      - name: filter[permission]
+        in: query
+        schema:
+          type: string
+      - name: filter[from]
+        in: query
+        schema:
+          type: string
+      - name: filter[to]
+        in: query
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/audit/verify:
+    get:
+      summary: Verify this tenant's hash chain
+      operationId: verifyAudit
+      tags:
+      - Audit
+      x-permission: audit:verify
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuditVerification'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/licence:
+    get:
+      summary: Licence status
+      operationId: getLicence
+      tags:
+      - Licensing
+      x-permission: licence:read
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LicenceStatus'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/licence/import:
+    post:
+      summary: Import a signed licence file (maker-checker, 202)
+      operationId: importLicence
+      tags:
+      - Licensing
+      x-permission: licence:import_request
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      x-step-up: required (default 5 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                licence:
+                  type: object
+                signature:
+                  type: string
+                reason:
+                  type:
+                  - string
+                  - 'null'
+              required:
+              - licence
+              - signature
+      responses:
+        '202':
+          description: Change request raised
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/licence/activation-request:
+    post:
+      summary: Offline activation request for the vendor
+      operationId: licenceActivationRequest
+      tags:
+      - Licensing
+      x-permission: licence:read
+      x-idempotency-key: required
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      installation_uuid:
+                        type: string
+                        format: uuid
+                      installation_fingerprint:
+                        type: string
+                      requested_at:
+                        type: string
+                        format: date-time
+                    required:
+                    - installation_uuid
+                    - installation_fingerprint
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/adapter-bindings:
+    get:
+      summary: Adapter bindings
+      operationId: listAdapterBindings
+      tags:
+      - Integration
+      x-permission: integration:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdapterBinding'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/adapter-bindings/{id}:
+    get:
+      summary: Adapter binding with its capability manifest
+      operationId: getAdapterBinding
+      tags:
+      - Integration
+      x-permission: integration:read
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdapterBindingDetail'
+                required:
+                - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+  /api/v1/integration-calls:
+    get:
+      summary: Integration call log (PII-masked)
+      operationId: listIntegrationCalls
+      tags:
+      - Integration
+      x-permission: integration:read
+      parameters:
+      - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/PageAfter'
+      - name: filter[operation]
+        in: query
+        schema:
+          type: string
+      - name: filter[outcome]
+        in: query
+        schema:
+          type: string
+      - name: filter[correlation_id]
+        in: query
+        schema:
+          type: string
+      - name: filter[idempotency_key]
+        in: query
+        schema:
+          type: string
+      - name: filter[binding_id]
+        in: query
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IntegrationCall'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                required:
+                - data
+                - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+      - sessionCookie: []
+      - bearerToken: []
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-fundly_session
+      description: Sanctum stateful SPA session (HttpOnly, Secure, SameSite=Strict) + X-XSRF-TOKEN header on unsafe methods.
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: Sanctum personal access token for service and partner accounts.
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9._:-]{8,255}$
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+      description: ETag from the last read
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9._:-]{8,64}$
+    PageSize:
+      name: page[size]
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    PageAfter:
+      name: page[after]
+      in: query
+      schema:
+        type: string
+      description: Opaque cursor from meta.page.next_cursor
+  headers:
+    ETag:
+      schema:
+        type: string
+      description: Entity tag for If-Match
+  responses:
+    Problem:
+      description: Error (RFC 9457)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+        correlation_id:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - type
+      - title
+      - status
+      - detail
+      - code
+      - correlation_id
+      description: RFC 9457 problem details. `type` is a URN from the problem catalogue.
+    PageMeta:
+      type: object
+      properties:
+        page:
+          type: object
+          properties:
+            size:
+              type: integer
+            next_cursor:
+              type:
+              - string
+              - 'null'
+            has_more:
+              type: boolean
+          required:
+          - size
+          - next_cursor
+          - has_more
+      required:
+      - page
+    Money:
+      type: object
+      properties:
+        amount:
+          type: string
+          pattern: ^-?[0-9]+\.[0-9]{4}$
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+      required:
+      - amount
+      - currency
+      description: Decimal string at scale 4 + ISO 4217 code. Never a float.
+    Scope:
+      type: object
+      properties:
+        legal_entity_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        org_unit_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        product_ids:
+          type: array
+          items:
+            type: string
+        currencies:
+          type: array
+          items:
+            type: string
+        max_amount:
+          oneOf:
+          - type: 'null'
+          - type: object
+            properties:
+              amount:
+                type: string
+              currency:
+                type: string
+            required:
+            - amount
+            - currency
+        segments:
+          type: array
+          items:
+            type: string
+        portfolio_tags:
+          type: array
+          items:
+            type: string
+      description: Assignment scope (FR-SEC-005). Empty dimension = unrestricted.
+    LoginResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - mfa_required
+          - mfa_enrollment_required
+          - authenticated
+        mfa_enrollment:
+          type: object
+          properties:
+            secret:
+              type: string
+            otpauth_uri:
+              type: string
+          required:
+          - secret
+          - otpauth_uri
+        user:
+          $ref: '#/components/schemas/Me'
+      required:
+      - status
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - human
+          - service
+        email:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+          - active
+          - disabled
+        home_legal_entity_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        home_org_unit_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        mfa_enrolled:
+          type: boolean
+        last_login_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - kind
+      - email
+      - name
+      - status
+      - mfa_enrolled
+      - created_at
+    Me:
+      allOf:
+      - $ref: '#/components/schemas/User'
+      - type: object
+        properties:
+          tenant_id:
+            type: string
+            format: uuid
+          roles:
+            type: array
+            items:
+              type: string
+        required:
+        - tenant_id
+        - roles
+    UserCreate:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - human
+          - service
+        email:
+          type: string
+        name:
+          type: string
+        password:
+          type: string
+          description: Humans only; 12+ chars, mixed case, digit, symbol
+        home_legal_entity_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        home_org_unit_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      required:
+      - kind
+      - email
+      - name
+    IssuedToken:
+      type: object
+      properties:
+        id:
+          type: string
+        token:
+          type: string
+          description: Shown once
+        abilities:
+          type: array
+          items:
+            type: string
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - token
+      - abilities
+      - expires_at
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+          - string
+          - 'null'
+        is_template:
+          type: boolean
+        template_key:
+          type:
+          - string
+          - 'null'
+        cloned_from_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        permissions:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - code
+      - name
+      - is_template
+      - permissions
+    Permission:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: ^[a-z_]+:[a-z_]+$
+        resource:
+          type: string
+        action:
+          type: string
+        module:
+          type: string
+        description:
+          type: string
+        is_sensitive:
+          type: boolean
+      required:
+      - code
+      - resource
+      - action
+      - module
+      - is_sensitive
+    RoleAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        role_id:
+          type: string
+          format: uuid
+        scope:
+          $ref: '#/components/schemas/Scope'
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        granted_by:
+          type: string
+        change_request_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - id
+      - user_id
+      - role_id
+      - scope
+      - valid_from
+      - granted_by
+    SodRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - permission_pair
+          - role_pair
+        left:
+          type: string
+        right:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+      required:
+      - id
+      - kind
+      - left
+      - right
+      - enabled
+    SodConflict:
+      type: object
+      properties:
+        rule_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        left:
+          type: string
+        right:
+          type: string
+        description:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+      required:
+      - rule_id
+      - kind
+      - left
+      - right
+      - user_id
+    Delegation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        delegator_id:
+          type: string
+          format: uuid
+        delegate_id:
+          type: string
+          format: uuid
+        role_assignment_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - id
+      - delegator_id
+      - delegate_id
+      - role_assignment_id
+      - valid_from
+      - valid_to
+    ChangeRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        action_type:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - executed
+          - rejected
+          - cancelled
+          - failed_stale
+          - failed
+        entity_type:
+          type:
+          - string
+          - 'null'
+        entity_id:
+          type:
+          - string
+          - 'null'
+        payload:
+          type: object
+        required_checker_permission:
+          type: string
+        maker_id:
+          type: string
+          format: uuid
+        maker_reason:
+          type:
+          - string
+          - 'null'
+        checker_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        decision_reason:
+          type:
+          - string
+          - 'null'
+        execution_result:
+          type:
+          - object
+          - 'null'
+        created_at:
+          type: string
+          format: date-time
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        executed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - id
+      - action_type
+      - status
+      - payload
+      - required_checker_permission
+      - maker_id
+      - created_at
+    EffectiveAccess:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        evaluated_at:
+          type: string
+          format: date-time
+        permissions:
+          type: array
+          items:
+            type: object
+            properties:
+              permission:
+                type: string
+              sensitive:
+                type: boolean
+              granted_by:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    assignment_id:
+                      type: string
+                      format: uuid
+                    role_code:
+                      type: string
+                    scope:
+                      $ref: '#/components/schemas/Scope'
+                    delegated_by:
+                      type:
+                      - string
+                      - 'null'
+                      format: uuid
+                    valid_to:
+                      type:
+                      - string
+                      - 'null'
+                      format: date-time
+                  required:
+                  - assignment_id
+                  - role_code
+                  - scope
+            required:
+            - permission
+            - granted_by
+        assignments:
+          type: array
+          items:
+            type: object
+            properties:
+              assignment_id:
+                type: string
+                format: uuid
+              role_id:
+                type: string
+                format: uuid
+              role_code:
+                type: string
+              scope:
+                $ref: '#/components/schemas/Scope'
+              valid_from:
+                type: string
+                format: date-time
+              valid_to:
+                type:
+                - string
+                - 'null'
+                format: date-time
+              active:
+                type: boolean
+              delegated_by:
+                type:
+                - string
+                - 'null'
+                format: uuid
+              delegation_id:
+                type:
+                - string
+                - 'null'
+                format: uuid
+            required:
+            - assignment_id
+            - role_code
+            - active
+      required:
+      - user_id
+      - permissions
+      - assignments
+    LegalEntityCreate:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        jurisdiction:
+          type: string
+          pattern: ^[A-Z]{2}$
+        licence_category:
+          type: string
+          enum:
+          - commercial_bank
+          - merchant_bank
+        base_currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        timezone:
+          type: string
+        org_level_labels:
+          type: array
+          items:
+            type: string
+      required:
+      - code
+      - name
+      - jurisdiction
+      - licence_category
+      - base_currency
+      - timezone
+      - org_level_labels
+    LegalEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        jurisdiction:
+          type: string
+        licence_category:
+          type: string
+        base_currency:
+          type: string
+        timezone:
+          type: string
+        org_level_labels:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - code
+      - name
+      - jurisdiction
+      - licence_category
+      - base_currency
+      - timezone
+      - org_level_labels
+      - status
+    OrgUnit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        legal_entity_id:
+          type: string
+          format: uuid
+        parent_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        depth:
+          type: integer
+          minimum: 0
+        level_label:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - legal_entity_id
+      - parent_id
+      - code
+      - name
+      - depth
+      - status
+    ConfigArtifact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        key:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+          - string
+          - 'null'
+        active_version_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - type
+      - key
+      - name
+      - active_version_id
+    ConfigVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        artifact_id:
+          type: string
+          format: uuid
+        version_no:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - draft
+          - in_review
+          - approved
+          - rejected
+          - active
+          - superseded
+        content:
+          type:
+          - object
+          - array
+        content_hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        notes:
+          type:
+          - string
+          - 'null'
+        created_by:
+          type: string
+          format: uuid
+        submitted_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        reviewed_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        reviewed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        review_reason:
+          type:
+          - string
+          - 'null'
+        activated_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        activated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        activation_change_request_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        superseded_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - artifact_id
+      - version_no
+      - status
+      - content
+      - content_hash
+      - created_by
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        actor_type:
+          type: string
+          enum:
+          - user
+          - service_account
+          - partner
+          - system
+          - anonymous
+        actor_id:
+          type: string
+        actor_roles:
+          type: array
+          items:
+            type: string
+        effective_permissions_hash:
+          type:
+          - string
+          - 'null'
+        on_behalf_of:
+          type:
+          - string
+          - 'null'
+        source_ip:
+          type:
+          - string
+          - 'null'
+        user_agent:
+          type:
+          - string
+          - 'null'
+        action:
+          type: string
+        permission:
+          type:
+          - string
+          - 'null'
+        outcome:
+          type: string
+          enum:
+          - success
+          - denied
+          - failure
+        entity_type:
+          type:
+          - string
+          - 'null'
+        entity_id:
+          type:
+          - string
+          - 'null'
+        before:
+          type:
+          - object
+          - array
+          - 'null'
+        after:
+          type:
+          - object
+          - array
+          - 'null'
+        reason_code:
+          type:
+          - string
+          - 'null'
+        reason_text:
+          type:
+          - string
+          - 'null'
+        correlation_id:
+          type:
+          - string
+          - 'null'
+        step_up_ref:
+          type:
+          - string
+          - 'null'
+        prev_hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+      required:
+      - id
+      - seq
+      - occurred_at
+      - actor_type
+      - actor_id
+      - action
+      - outcome
+      - prev_hash
+      - hash
+    AuditVerification:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        ok:
+          type: boolean
+        events_checked:
+          type: integer
+        checkpoints_checked:
+          type: integer
+        head_seq:
+          type: integer
+        head_hash:
+          type:
+          - string
+          - 'null'
+        breaks:
+          type: array
+          items:
+            type: object
+            properties:
+              seq:
+                type: integer
+              kind:
+                type: string
+                enum:
+                - missing
+                - link
+                - content
+                - checkpoint
+              detail:
+                type: string
+            required:
+            - seq
+            - kind
+            - detail
+      required:
+      - tenant_id
+      - ok
+      - events_checked
+      - breaks
+    Licence:
+      type: object
+      properties:
+        licence_id:
+          type: string
+        client:
+          type: string
+        installation_fingerprint:
+          type: string
+        edition:
+          type: string
+        modules:
+          type: array
+          items:
+            type: string
+        max_named_users:
+          type:
+          - integer
+          - 'null'
+        max_legal_entities:
+          type:
+          - integer
+          - 'null'
+        adapter_entitlements:
+          type: array
+          items:
+            type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        grace_days:
+          type: integer
+        support_tier:
+          type: string
+      required:
+      - licence_id
+      - client
+      - installation_fingerprint
+      - modules
+      - valid_from
+      - valid_to
+      - grace_days
+    LicenceStatus:
+      type: object
+      properties:
+        state:
+          type: string
+          enum:
+          - valid
+          - grace
+          - expired
+          - not_yet_valid
+          - not_installed
+          - invalid
+        installation_fingerprint:
+          type: string
+        licence:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/Licence'
+        days_until_expiry:
+          type:
+          - integer
+          - 'null'
+        named_users:
+          type: object
+          properties:
+            active:
+              type: integer
+            max:
+              type:
+              - integer
+              - 'null'
+          required:
+          - active
+          - max
+      required:
+      - state
+      - installation_fingerprint
+      - licence
+      - named_users
+    AdapterBinding:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        legal_entity_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        port:
+          type: string
+        adapter_key:
+          type: string
+        adapter_version:
+          type: string
+        processing_location:
+          type: string
+        status:
+          type: string
+        config:
+          type:
+          - object
+          - array
+        fault_script:
+          type:
+          - object
+          - array
+          - 'null'
+        allow_in_production:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - port
+      - adapter_key
+      - adapter_version
+      - processing_location
+      - status
+    CapabilityManifest:
+      type: object
+      properties:
+        adapter:
+          type: string
+        version:
+          type: string
+        cbi:
+          type: string
+        processing_location:
+          type: string
+        operations:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              support:
+                type: string
+                enum:
+                - native
+                - emulated
+                - unsupported
+              idempotency:
+                type: string
+              substitute:
+                type: string
+                enum:
+                - manual_task
+                - batch_file
+                - los_compute
+            required:
+            - support
+      required:
+      - adapter
+      - version
+      - cbi
+      - processing_location
+      - operations
+      description: Register §2.4
+    AdapterBindingDetail:
+      allOf:
+      - $ref: '#/components/schemas/AdapterBinding'
+      - type: object
+        properties:
+          manifest:
+            $ref: '#/components/schemas/CapabilityManifest'
+        required:
+        - manifest
+    IntegrationCall:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        binding_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        port:
+          type: string
+        operation:
+          type: string
+        adapter_key:
+          type: string
+        adapter_version:
+          type: string
+        contract_version:
+          type:
+          - string
+          - 'null'
+        idempotency_key:
+          type:
+          - string
+          - 'null'
+        correlation_id:
+          type:
+          - string
+          - 'null'
+        attempt:
+          type: integer
+        request:
+          type:
+          - object
+          - array
+          - 'null'
+        response:
+          type:
+          - object
+          - array
+          - 'null'
+        outcome:
+          type: string
+          enum:
+          - success
+          - retryable
+          - non_retryable
+          - requires_intervention
+          - business_rejection
+          - short_circuited
+        error_code:
+          type:
+          - string
+          - 'null'
+        latency_ms:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - port
+      - operation
+      - adapter_key
+      - outcome
+      - latency_ms
+    Readiness:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ready
+          - not_ready
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - status
+      - checks

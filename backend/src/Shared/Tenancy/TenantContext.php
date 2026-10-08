@@ -65,10 +65,20 @@ final class TenantContext
         $previous = $this->tenantId;
         $this->set($tenantId);
         try {
-            return $callback();
-        } finally {
-            $this->restore($previous);
+            $result = $callback();
+        } catch (\Throwable $e) {
+            // If the failure aborted the surrounding transaction, the restore
+            // statement fails too; never let that mask the original error.
+            try {
+                $this->restore($previous);
+            } catch (\Throwable) {
+                $this->tenantId = $previous;
+            }
+            throw $e;
         }
+        $this->restore($previous);
+
+        return $result;
     }
 
     public function restore(?string $previous): void

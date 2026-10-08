@@ -83,7 +83,7 @@ final class IntegrationServiceProvider extends ServiceProvider
             isSimulator: true,
         ));
 
-        $handlers->register($app->make(CreateLoanAccountHandler::class));
-        $handlers->register($app->make(DisburseHandler::class));
+        $handlers->register(CreateLoanAccountHandler::TOPIC, CreateLoanAccountHandler::class);
+        $handlers->register(DisburseHandler::TOPIC, DisburseHandler::class);
     }
 }

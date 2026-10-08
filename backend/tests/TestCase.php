@@ -131,7 +131,7 @@ abstract class TestCase extends BaseTestCase
         (new RoleAssignment)->forceFill([
             'user_id' => $user->id,
             'role_id' => $role->id,
-            'scope' => $scope,
+            'scope' => \Fundly\Modules\Access\Domain\Scope::fromArray($scope)->toArray(),
             'valid_from' => now()->subMinute(),
             'granted_by' => 'test-fixture',
         ])->save();
@@ -193,9 +193,17 @@ abstract class TestCase extends BaseTestCase
         $url = str_starts_with($uri, 'http') ? $uri : 'http://'.($tenant?->host ?? 'localhost').'/'.ltrim($uri, '/');
 
         $previousTenant = $this->tenantContext()->id();
+        // Like Octane between requests: fresh scoped services and controller instances.
         $this->app->forgetScopedInstances();
+        foreach ($this->app['router']->getRoutes() as $route) {
+            $route->flushController();
+        }
+        $this->app['auth']->forgetGuards();
+        $this->app->forgetInstance('auth.driver');
+        $this->app['session']->forgetDrivers();
+        $this->app->forgetInstance('session.store');
         $this->flushHeaders();
-        $response = $this->withUnencryptedCookies($this->jar)->withHeaders($headers)->json($method, $url, $data);
+        $response = $this->withCredentials()->withUnencryptedCookies($this->jar)->withHeaders($headers)->json($method, $url, $data);
         foreach ($response->headers->getCookies() as $cookie) {
             if ($cookie->getValue() === null || $cookie->getValue() === '' || $cookie->isCleared()) {
                 unset($this->jar[$cookie->getName()]);

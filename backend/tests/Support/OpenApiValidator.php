@@ -149,8 +149,9 @@ final class OpenApiValidator
         return $response;
     }
 
+    /** JSON Pointer escaping, then URI-encoding so the pointer is a valid URI fragment. */
     private static function escape(string $segment): string
     {
-        return str_replace(['~', '/'], ['~0', '~1'], $segment);
+        return rawurlencode(str_replace(['~', '/'], ['~0', '~1'], $segment));
     }
 }

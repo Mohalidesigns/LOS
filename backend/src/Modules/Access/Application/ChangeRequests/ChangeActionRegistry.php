@@ -6,24 +6,41 @@ namespace Fundly\Modules\Access\Application\ChangeRequests;
 
 use Fundly\Modules\Access\Contracts\ChangeAction;
 use Fundly\Shared\Exceptions\NotFound;
+use Illuminate\Contracts\Container\Container;
 use LogicException;
 
+/**
+ * Maps action types to action classes. Actions are resolved from the
+ * container on each use, so they always get the current request/job-scoped
+ * collaborators (never instances captured at boot).
+ */
 final class ChangeActionRegistry
 {
-    /** @var array<string, ChangeAction> */
+    /** @var array<string, class-string<ChangeAction>> */
     private array $actions = [];
 
-    public function register(ChangeAction $action): void
+    public function __construct(private readonly Container $container)
     {
-        if (isset($this->actions[$action->type()])) {
-            throw new LogicException("Change action {$action->type()} registered twice.");
+    }
+
+    /** @param class-string<ChangeAction> $class */
+    public function register(string $type, string $class): void
+    {
+        if (isset($this->actions[$type])) {
+            throw new LogicException("Change action {$type} registered twice.");
         }
-        $this->actions[$action->type()] = $action;
+        $this->actions[$type] = $class;
     }
 
     public function get(string $type): ChangeAction
     {
-        return $this->actions[$type] ?? throw new NotFound("Unknown change action type {$type}.");
+        $class = $this->actions[$type] ?? throw new NotFound("Unknown change action type {$type}.");
+        $action = $this->container->make($class);
+        if (! $action instanceof ChangeAction || $action->type() !== $type) {
+            throw new LogicException("{$class} is not the change action for {$type}.");
+        }
+
+        return $action;
     }
 
     /** @return list<string> */

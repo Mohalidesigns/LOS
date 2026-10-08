@@ -32,7 +32,7 @@ final class PlatformServiceProvider extends ServiceProvider
     public function boot(ResourceResolver $resources): void
     {
         // The Access module owns the maker-checker engine; Platform registers its action through it.
-        $this->app->make(ChangeActionRegistry::class)->register($this->app->make(ActivateConfigVersionAction::class));
+        $this->app->make(ChangeActionRegistry::class)->register(ActivateConfigVersionAction::TYPE, ActivateConfigVersionAction::class);
 
         $resources->register('legal_entity', static fn (string $id): ?ResourceAttributes => DB::table('legal_entities')->where('id', $id)->exists()
             ? new ResourceAttributes(legalEntityId: $id, entityType: 'legal_entity', entityId: $id) : null);

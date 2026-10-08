@@ -36,7 +36,7 @@ final class LicensingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->app->make(ChangeActionRegistry::class)->register($this->app->make(LicenceImportAction::class));
+        $this->app->make(ChangeActionRegistry::class)->register(LicenceImportAction::TYPE, LicenceImportAction::class);
         if ($this->app->runningInConsole()) {
             $this->commands([LicenceKeypairCommand::class, LicenceIssueCommand::class, LicenceImportCommand::class, LicenceCheckCommand::class]);
         }

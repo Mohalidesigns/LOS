@@ -6,16 +6,22 @@ namespace Fundly\Modules\Access\Application\Support;
 
 use Fundly\Modules\Access\Infrastructure\Models\User;
 use Fundly\Shared\Http\ETag;
+use Fundly\Shared\Pii\PiiMasker;
 
 final class UserPresenter
 {
-    /** @return array<string, mixed> */
-    public static function present(User $u): array
+    /**
+     * Field-level control (FR-SEC-001): the email address is a sensitive
+     * attribute, returned in clear only to principals allowed to see it.
+     *
+     * @return array<string, mixed>
+     */
+    public static function present(User $u, bool $revealSensitive = true): array
     {
         return [
             'id' => $u->id,
             'kind' => $u->kind,
-            'email' => $u->email,
+            'email' => $revealSensitive ? $u->email : PiiMasker::maskValue($u->email),
             'name' => $u->name,
             'status' => $u->status,
             'home_legal_entity_id' => $u->home_legal_entity_id,

@@ -6,6 +6,7 @@ namespace Fundly\Modules\Access\Application;
 
 use Fundly\Modules\Access\Contracts\AccessProvisioning;
 use Fundly\Modules\Access\Domain\RoleLibrary;
+use Fundly\Modules\Access\Domain\Scope;
 use Fundly\Modules\Access\Infrastructure\Models\Role;
 use Fundly\Modules\Access\Infrastructure\Models\RoleAssignment;
 use Fundly\Modules\Access\Infrastructure\Models\RolePermission;
@@ -86,7 +87,7 @@ final class AccessProvisioner implements AccessProvisioning
         $assignment->forceFill([
             'user_id' => $user->id,
             'role_id' => $role->id,
-            'scope' => [],
+            'scope' => Scope::unrestricted()->toArray(),
             'valid_from' => $this->clock->now(),
             'granted_by' => SystemIdentity::Installer->value,
         ])->save();

@@ -51,7 +51,10 @@ final class User extends TenantModel implements AuthenticatableContract
     protected $hidden = ['password', 'mfa_secret', 'remember_token'];
 
     /** Remember-me is disabled (session controls, FR-SEC-015). */
-    protected $rememberTokenName = '';
+    public function getRememberTokenName(): string
+    {
+        return '';
+    }
 
     protected function casts(): array
     {

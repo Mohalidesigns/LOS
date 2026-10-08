@@ -46,7 +46,9 @@ final class AccessQueries
             }
         }
 
-        return CursorPaginator::paginate($q, $request, static fn (User $u): array => UserPresenter::present($u));
+        $reveal = $this->revealsSensitiveUserFields($principal);
+
+        return CursorPaginator::paginate($q, $request, static fn (User $u): array => UserPresenter::present($u, $reveal));
     }
 
     /** @return array{data: array<string, mixed>, etag: string} */
@@ -58,7 +60,13 @@ final class AccessQueries
         }
         $this->gate->authorize($principal, Permission::UserRead->value, self::userAttributes($user));
 
-        return ['data' => UserPresenter::present($user), 'etag' => UserPresenter::etag($user)];
+        return ['data' => UserPresenter::present($user, $this->revealsSensitiveUserFields($principal) || $user->id === $principal->id), 'etag' => UserPresenter::etag($user)];
+    }
+
+    /** Field permission for sensitive user attributes (FR-SEC-001). */
+    private function revealsSensitiveUserFields(Principal $principal): bool
+    {
+        return $this->gate->check($principal, Permission::UserManage->value)->allowed;
     }
 
     public static function userAttributes(User $u): ResourceAttributes
