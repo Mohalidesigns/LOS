@@ -25,8 +25,8 @@ return new class extends Migration
             $table->unsignedSmallInteger('response_status')->nullable();
             $table->jsonb('response_headers')->nullable();
             $table->text('response_body')->nullable();
-            $table->timestampTz('created_at');
-            $table->timestampTz('expires_at')->index();
+            $table->timestampTz('created_at', 6);
+            $table->timestampTz('expires_at', 6)->index();
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->unique(['tenant_id', 'scope', 'principal_id', 'key']);
         });
@@ -42,14 +42,14 @@ return new class extends Migration
             $table->string('status', 24); // pending | dispatched | parked | failed | rejected
             $table->unsignedInteger('attempts')->default(0);
             $table->unsignedInteger('max_attempts');
-            $table->timestampTz('available_at');
+            $table->timestampTz('available_at', 6);
             $table->string('last_error_class', 32)->nullable();
             $table->string('last_error_code', 96)->nullable();
             $table->text('last_error_message')->nullable();
             $table->string('correlation_id', 64)->nullable();
             $table->string('created_by', 128);
-            $table->timestampTz('dispatched_at')->nullable();
-            $table->timestampsTz();
+            $table->timestampTz('dispatched_at', 6)->nullable();
+            $table->timestampsTz(6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->index(['status', 'available_at']);
             $table->index(['tenant_id', 'aggregate_type', 'aggregate_id']);

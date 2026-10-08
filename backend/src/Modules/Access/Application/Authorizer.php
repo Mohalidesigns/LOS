@@ -11,6 +11,9 @@ use Fundly\Modules\Access\Domain\SodRule;
 use Fundly\Modules\Access\Infrastructure\Persistence\ActionHistory;
 use Fundly\Modules\Access\Infrastructure\Persistence\GrantRepository;
 use Fundly\Modules\Access\Infrastructure\Persistence\SodRuleRepository;
+use Fundly\Shared\Audit\AuditEntry;
+use Fundly\Shared\Audit\AuditOutcome;
+use Fundly\Shared\Audit\AuditTrail;
 use Fundly\Shared\Clock\Clock;
 use Fundly\Shared\Security\AccessDecision;
 use Fundly\Shared\Security\AccessDenied;
@@ -34,6 +37,7 @@ final class Authorizer implements AuthorizationGate
         private readonly SodRuleRepository $sodRules,
         private readonly ActionHistory $history,
         private readonly Clock $clock,
+        private readonly AuditTrail $audit,
     ) {
     }
 
@@ -56,7 +60,7 @@ final class Authorizer implements AuthorizationGate
     {
         $decision = $this->check($principal, $permission, $resource);
         if (! $decision->allowed) {
-            throw new AccessDenied($permission, $decision->reason, $resource);
+            throw $this->denied(new AccessDenied($permission, $decision->reason, $resource));
         }
         if ($principal->isSystem()) {
             return $decision;
@@ -83,7 +87,7 @@ final class Authorizer implements AuthorizationGate
                 || in_array($violation->left, $rolesGrantingPermission, true)
                 || in_array($violation->right, $rolesGrantingPermission, true);
             if ($relevant) {
-                throw new AccessDenied($permission, 'sod_conflict', $resource, 'Segregation of duties: you hold conflicting access ('.$violation->description.').');
+                throw $this->denied(new AccessDenied($permission, 'sod_conflict', $resource, 'Segregation of duties: you hold conflicting access ('.$violation->description.').'));
             }
         }
 
@@ -95,10 +99,30 @@ final class Authorizer implements AuthorizationGate
                 }
             }
             if ($this->history->actorExercised($principal->id, $resource->entityType, $resource->entityId, $counterparts)) {
-                throw new AccessDenied($permission, 'sod_conflict', $resource, 'Segregation of duties: you already performed a conflicting action on this record.');
+                throw $this->denied(new AccessDenied($permission, 'sod_conflict', $resource, 'Segregation of duties: you already performed a conflicting action on this record.'));
             }
         }
 
         return $decision;
+    }
+
+    /**
+     * Every failed authorisation is logged (FR-AUD-007). Inside a command the
+     * insert rolls back with the transaction and the bus records it again
+     * afterwards, so each denial is recorded exactly once.
+     */
+    private function denied(AccessDenied $e): AccessDenied
+    {
+        $this->audit->record(new AuditEntry(
+            action: 'authz.denied',
+            outcome: AuditOutcome::Denied,
+            entityType: $e->resource?->entityType,
+            entityId: $e->resource?->entityId,
+            after: ['reason' => $e->reason],
+            permission: $e->permission,
+            reasonCode: $e->reason,
+        ));
+
+        return $e;
     }
 }

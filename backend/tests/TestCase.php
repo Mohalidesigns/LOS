@@ -68,12 +68,12 @@ abstract class TestCase extends BaseTestCase
 
     // ---- tenancy & fixtures ------------------------------------------------------------------
 
-    protected function tenantContext(): TenantContext
+    public function tenantContext(): TenantContext
     {
         return $this->app->make(TenantContext::class);
     }
 
-    protected function useTenant(TenantFixture|string $tenant): void
+    public function useTenant(TenantFixture|string $tenant): void
     {
         $id = $tenant instanceof TenantFixture ? $tenant->id : $tenant;
         if ($tenant instanceof TenantFixture) {
@@ -83,7 +83,7 @@ abstract class TestCase extends BaseTestCase
     }
 
     /** Provision a tenant through the real provisioner (role library, SoD rules, two administrators). */
-    protected function provisionTenant(?string $slug = null): TenantFixture
+    public function provisionTenant(?string $slug = null): TenantFixture
     {
         $slug ??= 'bank-'.Str::lower(Str::random(6));
         $host = $slug.'.test';
@@ -109,7 +109,7 @@ abstract class TestCase extends BaseTestCase
      * @param  list<string|Permission>  $permissions
      * @param  array<string, mixed>  $scope
      */
-    protected function userWith(array $permissions, array $scope = [], string $kind = 'human', ?string $homeOrgUnitId = null, ?string $homeLegalEntityId = null): UserCredentials
+    public function userWith(array $permissions, array $scope = [], string $kind = 'human', ?string $homeOrgUnitId = null, ?string $homeLegalEntityId = null): UserCredentials
     {
         $tenant = $this->tenantContext()->requireId();
         $role = new Role;
@@ -139,14 +139,14 @@ abstract class TestCase extends BaseTestCase
         return new UserCredentials($user->id, $email, self::PASSWORD, $tenant);
     }
 
-    protected function installLicence(array $overrides = []): void
+    public function installLicence(array $overrides = []): void
     {
         $port = $this->app->make(LicensingPort::class);
         $port->install($this->signLicence($overrides), null, null, null);
     }
 
     /** @param array<string, mixed> $overrides */
-    protected function signLicence(array $overrides = []): SignedLicence
+    public function signLicence(array $overrides = []): SignedLicence
     {
         $port = $this->app->make(LicensingPort::class);
         $licence = array_merge([
@@ -169,6 +169,25 @@ abstract class TestCase extends BaseTestCase
         return new SignedLicence($document, base64_encode(sodium_crypto_sign_detached($document, (string) $secret)));
     }
 
+    /**
+     * LE "ABC" with labels Region/Area/Branch, regions NORTH and SOUTH, and KANO under NORTH,
+     * created through the API (caller must be signed in as an administrator).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function createOrgTree(): array
+    {
+        $le = $this->api('POST', '/api/v1/legal-entities', [
+            'code' => 'ABC', 'name' => 'ABC Bank Plc', 'jurisdiction' => 'NG', 'licence_category' => 'commercial_bank',
+            'base_currency' => 'NGN', 'timezone' => 'Africa/Lagos', 'org_level_labels' => ['Region', 'Area', 'Branch'],
+        ])->assertCreated()->json('data');
+        $north = $this->api('POST', '/api/v1/org-units', ['legal_entity_id' => $le['id'], 'code' => 'NORTH', 'name' => 'North'])->assertCreated()->json('data');
+        $south = $this->api('POST', '/api/v1/org-units', ['legal_entity_id' => $le['id'], 'code' => 'SOUTH', 'name' => 'South'])->assertCreated()->json('data');
+        $kano = $this->api('POST', '/api/v1/org-units', ['legal_entity_id' => $le['id'], 'parent_id' => $north['id'], 'code' => 'KANO', 'name' => 'Kano'])->assertCreated()->json('data');
+
+        return compact('le', 'north', 'south', 'kano');
+    }
+
     // ---- HTTP ---------------------------------------------------------------------------------
 
     /**
@@ -179,7 +198,7 @@ abstract class TestCase extends BaseTestCase
      * @param  array<string, mixed>  $data
      * @param  array<string, string>  $headers
      */
-    protected function api(string $method, string $uri, array $data = [], array $headers = [], ?TenantFixture $tenant = null): TestResponse
+    public function api(string $method, string $uri, array $data = [], array $headers = [], ?TenantFixture $tenant = null): TestResponse
     {
         $tenant ??= $this->currentTenant;
         $method = strtoupper($method);
@@ -222,7 +241,7 @@ abstract class TestCase extends BaseTestCase
     }
 
     /** Bearer-token request for service/partner principals (no session). */
-    protected function apiWithToken(string $token, string $method, string $uri, array $data = [], array $headers = []): TestResponse
+    public function apiWithToken(string $token, string $method, string $uri, array $data = [], array $headers = []): TestResponse
     {
         $saved = $this->jar;
         $this->jar = [];
@@ -234,7 +253,7 @@ abstract class TestCase extends BaseTestCase
     }
 
     /** Full sign-in: password, then TOTP (enrolling on first use). */
-    protected function login(UserCredentials $user, ?TenantFixture $tenant = null): TestResponse
+    public function login(UserCredentials $user, ?TenantFixture $tenant = null): TestResponse
     {
         $this->jar = [];
         $first = $this->api('POST', '/api/v1/auth/login', ['email' => $user->email, 'password' => $user->password], [], $tenant);
@@ -253,14 +272,14 @@ abstract class TestCase extends BaseTestCase
     }
 
     /** Current TOTP code; moves the clock one step forward so codes are never replayed. */
-    protected function totp(UserCredentials $user): string
+    public function totp(UserCredentials $user): string
     {
         $this->travel(31)->seconds();
 
         return Totp::codeAt((string) $user->mfaSecret, now()->getTimestamp());
     }
 
-    protected function stepUp(UserCredentials $user): TestResponse
+    public function stepUp(UserCredentials $user): TestResponse
     {
         return $this->api('POST', '/api/v1/auth/step-up', ['password' => $user->password, 'code' => $this->totp($user)])->assertOk();
     }

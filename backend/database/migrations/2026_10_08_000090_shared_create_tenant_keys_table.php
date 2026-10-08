@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('wrapped_key');
             $table->string('kek_id', 64);
             $table->string('status', 16); // active | retired
-            $table->timestampTz('created_at');
+            $table->timestampTz('created_at', 6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->unique(['tenant_id', 'purpose', 'version']);
         });

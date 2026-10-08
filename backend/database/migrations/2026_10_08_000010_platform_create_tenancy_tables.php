@@ -19,7 +19,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('installation_uuid')->unique();
             $table->string('environment', 32);
-            $table->timestampTz('created_at')->useCurrent();
+            $table->timestampTz('created_at', 6)->useCurrent();
         });
 
         // Root of tenancy. Not itself tenant-scoped (it must be readable to
@@ -30,7 +30,7 @@ return new class extends Migration
             $table->string('name', 200);
             $table->string('status', 16)->default('active');
             $table->string('hostname', 255)->nullable()->unique();
-            $table->timestampsTz();
+            $table->timestampsTz(6);
         });
 
         Schema::create('legal_entities', function (Blueprint $table) {
@@ -44,7 +44,7 @@ return new class extends Migration
             $table->string('timezone', 64);
             $table->jsonb('org_level_labels');
             $table->string('status', 16)->default('active');
-            $table->timestampsTz();
+            $table->timestampsTz(6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->unique(['tenant_id', 'code']);
             $table->unique(['tenant_id', 'id']);
@@ -59,7 +59,7 @@ return new class extends Migration
             $table->string('name', 200);
             $table->unsignedSmallInteger('depth');
             $table->string('status', 16)->default('active');
-            $table->timestampsTz();
+            $table->timestampsTz(6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->foreign(['tenant_id', 'legal_entity_id'])->references(['tenant_id', 'id'])->on('legal_entities');
             $table->unique(['tenant_id', 'legal_entity_id', 'code']);

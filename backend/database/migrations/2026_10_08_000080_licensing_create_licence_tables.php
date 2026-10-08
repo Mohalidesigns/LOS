@@ -26,7 +26,7 @@ return new class extends Migration
             $table->uuid('imported_by_tenant_id')->nullable();
             $table->uuid('imported_by')->nullable();
             $table->uuid('change_request_id')->nullable();
-            $table->timestampTz('imported_at');
+            $table->timestampTz('imported_at', 6);
         });
         DB::statement("create unique index licences_one_active on licences ((status)) where status = 'active'");
 

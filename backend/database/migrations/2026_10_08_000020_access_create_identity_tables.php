@@ -25,16 +25,16 @@ return new class extends Migration
             $table->uuid('home_legal_entity_id')->nullable();
             $table->uuid('home_org_unit_id')->nullable();
             $table->text('mfa_secret')->nullable(); // envelope-encrypted with the tenant DEK
-            $table->timestampTz('mfa_confirmed_at')->nullable();
+            $table->timestampTz('mfa_confirmed_at', 6)->nullable();
             $table->bigInteger('mfa_last_used_step')->nullable(); // TOTP replay protection
             $table->unsignedInteger('failed_login_count')->default(0);
-            $table->timestampTz('locked_until')->nullable();
-            $table->timestampTz('last_login_at')->nullable();
-            $table->timestampTz('password_changed_at')->nullable();
+            $table->timestampTz('locked_until', 6)->nullable();
+            $table->timestampTz('last_login_at', 6)->nullable();
+            $table->timestampTz('password_changed_at', 6)->nullable();
             // Bumped on every role/permission change: sessions holding an older
             // value are rejected (FR-SEC-015 forced re-authentication).
             $table->unsignedInteger('auth_version')->default(1);
-            $table->timestampsTz();
+            $table->timestampsTz(6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->foreign(['tenant_id', 'home_legal_entity_id'])->references(['tenant_id', 'id'])->on('legal_entities');
             $table->foreign(['tenant_id', 'home_org_unit_id'])->references(['tenant_id', 'id'])->on('org_units');
@@ -65,9 +65,9 @@ return new class extends Migration
             $table->text('name');
             $table->string('token', 64)->unique();
             $table->text('abilities')->nullable();
-            $table->timestampTz('last_used_at')->nullable();
-            $table->timestampTz('expires_at')->nullable()->index();
-            $table->timestampsTz();
+            $table->timestampTz('last_used_at', 6)->nullable();
+            $table->timestampTz('expires_at', 6)->nullable()->index();
+            $table->timestampsTz(6);
         });
 
         // Code-defined permission catalogue (TRD §8.1). Global; tenants bundle
@@ -79,7 +79,7 @@ return new class extends Migration
             $table->string('module', 32);
             $table->text('description');
             $table->boolean('is_sensitive')->default(false);
-            $table->timestampTz('synced_at');
+            $table->timestampTz('synced_at', 6);
         });
 
         Schema::create('roles', function (Blueprint $table) {
@@ -91,7 +91,7 @@ return new class extends Migration
             $table->boolean('is_template')->default(false);
             $table->string('template_key', 64)->nullable();
             $table->uuid('cloned_from_id')->nullable();
-            $table->timestampsTz();
+            $table->timestampsTz(6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->unique(['tenant_id', 'code']);
             $table->unique(['tenant_id', 'id']);
@@ -101,7 +101,7 @@ return new class extends Migration
             $table->uuid('tenant_id');
             $table->uuid('role_id');
             $table->string('permission_code', 96);
-            $table->timestampTz('created_at')->useCurrent();
+            $table->timestampTz('created_at', 6)->useCurrent();
             $table->primary(['role_id', 'permission_code']);
             $table->foreign(['tenant_id', 'role_id'])->references(['tenant_id', 'id'])->on('roles')->cascadeOnDelete();
             $table->foreign('permission_code')->references('code')->on('permissions');
@@ -114,14 +114,14 @@ return new class extends Migration
             $table->uuid('role_id');
             // {legal_entity_ids[], org_unit_id, product_ids[], currencies[], max_amount{amount,currency}, segments[], portfolio_tags[]}
             $table->jsonb('scope');
-            $table->timestampTz('valid_from');
-            $table->timestampTz('valid_to')->nullable();
+            $table->timestampTz('valid_from', 6);
+            $table->timestampTz('valid_to', 6)->nullable();
             $table->string('granted_by', 128); // user id, or a system identity for installation bootstrap
             $table->uuid('change_request_id')->nullable();
-            $table->timestampTz('revoked_at')->nullable();
+            $table->timestampTz('revoked_at', 6)->nullable();
             $table->uuid('revoked_by')->nullable();
             $table->uuid('revoke_change_request_id')->nullable();
-            $table->timestampsTz();
+            $table->timestampsTz(6);
             $table->foreign(['tenant_id', 'user_id'])->references(['tenant_id', 'id'])->on('users');
             $table->foreign(['tenant_id', 'role_id'])->references(['tenant_id', 'id'])->on('roles');
             $table->unique(['tenant_id', 'id']);
@@ -141,7 +141,7 @@ return new class extends Migration
             $table->text('description');
             $table->boolean('enabled')->default(true);
             $table->uuid('created_by')->nullable();
-            $table->timestampsTz();
+            $table->timestampsTz(6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
         });
         DB::statement("alter table sod_rules add constraint sod_rules_kind_chk check (kind in ('permission_pair', 'role_pair'))");
@@ -156,11 +156,11 @@ return new class extends Migration
             $table->uuid('delegate_id');
             $table->uuid('role_assignment_id');
             $table->text('reason');
-            $table->timestampTz('valid_from');
-            $table->timestampTz('valid_to');
-            $table->timestampTz('revoked_at')->nullable();
+            $table->timestampTz('valid_from', 6);
+            $table->timestampTz('valid_to', 6);
+            $table->timestampTz('revoked_at', 6)->nullable();
             $table->uuid('revoked_by')->nullable();
-            $table->timestampsTz();
+            $table->timestampsTz(6);
             $table->foreign(['tenant_id', 'delegator_id'])->references(['tenant_id', 'id'])->on('users');
             $table->foreign(['tenant_id', 'delegate_id'])->references(['tenant_id', 'id'])->on('users');
             $table->foreign(['tenant_id', 'role_assignment_id'])->references(['tenant_id', 'id'])->on('role_assignments');

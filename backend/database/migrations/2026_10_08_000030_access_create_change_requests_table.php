@@ -33,10 +33,10 @@ return new class extends Migration
             $table->string('step_up_ref', 64)->nullable();
             $table->jsonb('execution_result')->nullable();
             $table->string('correlation_id', 64)->nullable();
-            $table->timestampTz('decided_at')->nullable();
-            $table->timestampTz('executed_at')->nullable();
-            $table->timestampTz('expires_at')->nullable();
-            $table->timestampsTz();
+            $table->timestampTz('decided_at', 6)->nullable();
+            $table->timestampTz('executed_at', 6)->nullable();
+            $table->timestampTz('expires_at', 6)->nullable();
+            $table->timestampsTz(6);
             $table->foreign(['tenant_id', 'maker_id'])->references(['tenant_id', 'id'])->on('users');
             $table->foreign(['tenant_id', 'checker_id'])->references(['tenant_id', 'id'])->on('users');
             $table->index(['tenant_id', 'status']);

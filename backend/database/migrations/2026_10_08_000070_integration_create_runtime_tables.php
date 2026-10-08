@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('status', 16)->default('active');
             $table->boolean('allow_in_production')->default(false);
             $table->uuid('change_request_id')->nullable();
-            $table->timestampsTz();
+            $table->timestampsTz(6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->foreign(['tenant_id', 'legal_entity_id'])->references(['tenant_id', 'id'])->on('legal_entities');
             $table->unique(['tenant_id', 'id']);
@@ -64,8 +64,8 @@ return new class extends Migration
             $table->string('breaker_key', 160);
             $table->string('state', 16); // closed | open | half_open
             $table->unsignedInteger('consecutive_failures')->default(0);
-            $table->timestampTz('opened_at')->nullable();
-            $table->timestampTz('updated_at');
+            $table->timestampTz('opened_at', 6)->nullable();
+            $table->timestampTz('updated_at', 6);
             $table->primary(['tenant_id', 'breaker_key']);
             $table->foreign('tenant_id')->references('id')->on('tenants');
         });
@@ -90,7 +90,7 @@ return new class extends Migration
             $table->string('kind', 32);
             $table->string('record_key', 255);
             $table->jsonb('data');
-            $table->timestampTz('created_at');
+            $table->timestampTz('created_at', 6);
             $table->foreign('tenant_id')->references('id')->on('tenants');
             $table->unique(['tenant_id', 'kind', 'record_key']);
         });
