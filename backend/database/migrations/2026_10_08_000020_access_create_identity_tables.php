@@ -116,7 +116,7 @@ return new class extends Migration
             $table->jsonb('scope');
             $table->timestampTz('valid_from');
             $table->timestampTz('valid_to')->nullable();
-            $table->uuid('granted_by');
+            $table->string('granted_by', 128); // user id, or a system identity for installation bootstrap
             $table->uuid('change_request_id')->nullable();
             $table->timestampTz('revoked_at')->nullable();
             $table->uuid('revoked_by')->nullable();

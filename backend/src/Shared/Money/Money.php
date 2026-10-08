@@ -72,7 +72,7 @@ final readonly class Money implements JsonSerializable
     }
 
     /** Multiply by a decimal factor (e.g. a rate), rounding to storage scale. */
-    public function multipliedBy(BigNumber|int|string $factor, RoundingMode $rounding = RoundingMode::HALF_EVEN): self
+    public function multipliedBy(BigNumber|int|string $factor, RoundingMode $rounding = RoundingMode::HalfEven): self
     {
         return new self(
             $this->amount->multipliedBy($factor)->toScale(self::STORAGE_SCALE, $rounding),
@@ -81,7 +81,7 @@ final readonly class Money implements JsonSerializable
     }
 
     /** Round to the currency's minor units (e.g. for posting to a CBA). */
-    public function roundedToMinor(RoundingMode $rounding = RoundingMode::HALF_EVEN): self
+    public function roundedToMinor(RoundingMode $rounding = RoundingMode::HalfEven): self
     {
         return new self(
             $this->amount->toScale($this->currency->minorUnits(), $rounding)->toScale(self::STORAGE_SCALE),
