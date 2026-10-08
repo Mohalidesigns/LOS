@@ -20,14 +20,14 @@ cookie session (TRD §2.2 / §3, D-031). Tasks P0-UX-01 + P0-FE-01.
 
 # 4. Frontend
 npm ci
-FUNDLY_BACKEND_URL=http://127.0.0.1:8091 npm run dev -- --port 5174
+FUNDLY_BACKEND_URL=http://127.0.0.1:8091 npm run dev -- --port 5180
 ```
 
 The backend port defaults to **8091** because 8000/8010 are often taken by other
 local Laravel apps (the script refuses to start on a port another app holds, and
 `/health` must answer 200 for it to count as Fundly). The Claude launch config
-`fundly-frontend` (`Loanoriginator/.claude/launch.json`) starts Vite on 5174 with
-`FUNDLY_BACKEND_URL=http://127.0.0.1:8091`. `localhost:5174` is already in
+`fundly-frontend` (`Loanoriginator/.claude/launch.json`) starts Vite on 5180 with
+`FUNDLY_BACKEND_URL=http://127.0.0.1:8091`. `localhost:5180` is already in
 `SANCTUM_STATEFUL_DOMAINS`.
 
 Sign in with a dev admin that the bootstrap printed, for example `ada@fundly.test`.
@@ -85,7 +85,7 @@ Vite proxies `/api`, `/sanctum`, `/health` and `/ready` to `FUNDLY_BACKEND_URL`
 Laravel sees `Host: localhost:5173`. Sanctum then treats the browser as a
 stateful first-party SPA, and the `fundly_session` and `XSRF-TOKEN` cookies
 land on the Vite origin. If you run Vite on a different port
-(`npm run dev -- --port 5174`), add that `host:port` to
+(`npm run dev -- --port 5180`), add that `host:port` to
 `SANCTUM_STATEFUL_DOMAINS` in `backend/.env`. Sanctum only treats a request as
 stateful when its `Origin`/`Referer` is in that list, so never serve the SPA
 with `Referrer-Policy: no-referrer`.
