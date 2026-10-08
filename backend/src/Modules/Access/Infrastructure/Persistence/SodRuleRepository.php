@@ -9,9 +9,7 @@ use Illuminate\Database\ConnectionInterface;
 
 final class SodRuleRepository
 {
-    public function __construct(private readonly ConnectionInterface $db)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
     /** @return list<SodRule> */
     public function enabled(): array

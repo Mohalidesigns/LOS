@@ -19,8 +19,7 @@ final class LegalEntityController
         private readonly CommandBus $bus,
         private readonly CurrentPrincipal $principal,
         private readonly PlatformQueries $queries,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {

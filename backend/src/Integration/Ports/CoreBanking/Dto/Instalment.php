@@ -18,6 +18,5 @@ final readonly class Instalment
         public Money $interest,
         public Money $total,
         public Money $closingBalance,
-    ) {
-    }
+    ) {}
 }

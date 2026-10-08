@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use Fundly\Modules\Access\Domain\Permission;
 use Fundly\Modules\Access\Domain\RoleLibrary;
+use Fundly\Modules\Access\Domain\Scope;
+use Fundly\Modules\Access\Infrastructure\Models\Role;
+use Fundly\Modules\Access\Infrastructure\Models\RoleAssignment;
+use Fundly\Modules\Access\Infrastructure\Models\RolePermission;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -57,9 +61,9 @@ it('grants the union of all assignments', function () {
     $tenant = $this->tenantContext()->requireId();
     $u = $this->userWith([Permission::RoleRead]);
     // a second assignment with a different role
-    $role2 = \Fundly\Modules\Access\Infrastructure\Models\Role::query()->create(['code' => 'r2', 'name' => 'r2', 'is_template' => false]);
-    \Fundly\Modules\Access\Infrastructure\Models\RolePermission::query()->create(['role_id' => $role2->id, 'permission_code' => 'legal_entity:read']);
-    \Fundly\Modules\Access\Infrastructure\Models\RoleAssignment::query()->create(['user_id' => $u->id, 'role_id' => $role2->id, 'scope' => \Fundly\Modules\Access\Domain\Scope::unrestricted()->toArray(), 'valid_from' => now()->subMinute(), 'granted_by' => 'test']);
+    $role2 = Role::query()->create(['code' => 'r2', 'name' => 'r2', 'is_template' => false]);
+    RolePermission::query()->create(['role_id' => $role2->id, 'permission_code' => 'legal_entity:read']);
+    RoleAssignment::query()->create(['user_id' => $u->id, 'role_id' => $role2->id, 'scope' => Scope::unrestricted()->toArray(), 'valid_from' => now()->subMinute(), 'granted_by' => 'test']);
     $this->login($u);
     $this->api('GET', '/api/v1/roles')->assertOk();
     $this->api('GET', '/api/v1/legal-entities')->assertOk();

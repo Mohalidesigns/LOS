@@ -22,8 +22,7 @@ final class UserController
         private readonly CurrentPrincipal $principal,
         private readonly AccessQueries $queries,
         private readonly EffectiveAccessQuery $effective,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {

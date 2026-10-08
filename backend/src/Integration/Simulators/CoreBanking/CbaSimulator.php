@@ -61,7 +61,7 @@ use Fundly\Shared\Money\Money;
  * Behaviour without faults: state-changing calls are natively idempotent on
  * the idempotency key (a re-send returns the original result).
  */
-final class CbaSimulator implements CoreBankingPort, CustomerPort, AccountsPort, ExposurePort, LoanAccountPort, PostingsPort, SchedulePort, CollateralPort, MandatesPort, ReferenceDataPort, ReconciliationPort
+final class CbaSimulator implements AccountsPort, CollateralPort, CoreBankingPort, CustomerPort, ExposurePort, LoanAccountPort, MandatesPort, PostingsPort, ReconciliationPort, ReferenceDataPort, SchedulePort
 {
     public const KEY = 'cba-simulator';
 
@@ -96,7 +96,7 @@ final class CbaSimulator implements CoreBankingPort, CustomerPort, AccountsPort,
         foreach (array_keys(Operations::all()) as $op) {
             $ops[$op] = ['support' => 'native'];
         }
-        $ops['postings.disburse']['idempotency'] = 'native_key';
+        $ops['postings.disburse'] = ['support' => 'native', 'idempotency' => 'native_key'];
         foreach (['collateral.register', 'collateral.update', 'collateral.release', 'mandates.createStandingInstruction', 'mandates.cancelStandingInstruction'] as $op) {
             $ops[$op] = ['support' => 'unsupported', 'substitute' => 'manual_task'];
         }

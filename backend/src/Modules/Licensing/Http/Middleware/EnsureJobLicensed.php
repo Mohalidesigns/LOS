@@ -14,9 +14,7 @@ use Fundly\Modules\Licensing\Contracts\LicenceFailSafe;
  */
 final class EnsureJobLicensed
 {
-    public function __construct(private readonly LicenceGuard $guard)
-    {
-    }
+    public function __construct(private readonly LicenceGuard $guard) {}
 
     public function handle(object $job, Closure $next): mixed
     {

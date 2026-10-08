@@ -25,12 +25,12 @@ final class SodChecker
         private readonly SodRuleRepository $rules,
         private readonly ConnectionInterface $db,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  list<string>  $extraPermissions
      * @param  list<string>  $extraRoleIds
+     * @param  list<string>|null  $overridePermissions
      * @return list<array{rule_id: string, kind: string, left: string, right: string, description: string, user_id: string}>
      */
     public function conflictsFor(string $userId, array $extraPermissions = [], array $extraRoleIds = [], ?string $overrideRoleId = null, ?array $overridePermissions = null): array
@@ -102,7 +102,10 @@ final class SodChecker
         return $out;
     }
 
-    /** @param list<Grant> $grants */
+    /**
+     * @param  list<Grant>  $grants
+     * @return list<string>
+     */
     public static function roleIds(array $grants): array
     {
         return array_values(array_unique(array_map(static fn (Grant $g): string => $g->roleId, $grants)));

@@ -20,8 +20,7 @@ final class LicenceController
         private readonly LicenceStatusQuery $status,
         private readonly CommandBus $bus,
         private readonly CurrentPrincipal $principal,
-    ) {
-    }
+    ) {}
 
     public function show(): JsonResponse
     {

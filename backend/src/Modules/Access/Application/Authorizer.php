@@ -38,8 +38,7 @@ final class Authorizer implements AuthorizationGate
         private readonly ActionHistory $history,
         private readonly Clock $clock,
         private readonly AuditTrail $audit,
-    ) {
-    }
+    ) {}
 
     public function check(Principal $principal, string $permission, ?ResourceAttributes $resource = null): AccessDecision
     {

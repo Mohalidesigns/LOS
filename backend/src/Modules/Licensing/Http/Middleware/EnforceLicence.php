@@ -31,8 +31,7 @@ final class EnforceLicence
         private readonly LicenceRecovery $recovery,
         private readonly AuditTrail $audit,
         private readonly TenantContext $tenant,
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next, ?string $module = null): Response
     {

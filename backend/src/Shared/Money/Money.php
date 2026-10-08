@@ -18,9 +18,7 @@ final readonly class Money implements JsonSerializable
 {
     public const STORAGE_SCALE = 4;
 
-    private function __construct(public BigDecimal $amount, public Currency $currency)
-    {
-    }
+    private function __construct(public BigDecimal $amount, public Currency $currency) {}
 
     /**
      * @param  BigNumber|int|string  $amount  decimal string or integer; floats are rejected by type

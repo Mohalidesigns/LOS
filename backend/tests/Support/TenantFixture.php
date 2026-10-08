@@ -12,8 +12,7 @@ final class TenantFixture
         public readonly string $slug,
         public readonly string $host,
         public readonly array $admins,
-    ) {
-    }
+    ) {}
 
     public function admin(int $i = 0): UserCredentials
     {

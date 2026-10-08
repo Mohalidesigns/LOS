@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fundly\Shared\Audit\AuditVerifier;
+use Fundly\Shared\Audit\HashChain;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -52,14 +53,14 @@ it('detects a deleted event as a sequence gap', function () {
 it('detects a fully re-hashed (rewritten) chain through the anchored checkpoint', function () {
     $this->owner->statement('alter table audit_events disable trigger audit_events_immutable');
     $rows = $this->owner->table('audit_events')->where('tenant_id', $this->t->id)->orderBy('seq')->get();
-    $prev = Fundly\Shared\Audit\HashChain::GENESIS;
+    $prev = HashChain::GENESIS;
     foreach ($rows as $r) {
-        $data = Fundly\Shared\Audit\AuditVerifier::hydrate((array) $r);
+        $data = AuditVerifier::hydrate((array) $r);
         if ((int) $r->seq === 2) {
             $data['reason_text'] = 'rewritten history';
         }
         $data['prev_hash'] = $prev;
-        $hash = Fundly\Shared\Audit\HashChain::compute($data);
+        $hash = HashChain::compute($data);
         $this->owner->update('update audit_events set reason_text = ?, prev_hash = ?, hash = ? where id = ?', [$data['reason_text'], $prev, $hash, $r->id]);
         $prev = $hash;
     }

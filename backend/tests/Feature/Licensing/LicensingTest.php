@@ -3,7 +3,11 @@
 declare(strict_types=1);
 
 use Fundly\Integration\Ports\Licensing\LicensingPort;
+use Fundly\Integration\Ports\Licensing\SignedLicence;
+use Fundly\Integration\Runtime\Outbox\DispatchOutboxJob;
 use Fundly\Modules\Access\Domain\Permission;
+use Fundly\Modules\Licensing\Domain\LicenceProblem;
+use Fundly\Modules\Licensing\Http\Middleware\EnsureJobLicensed;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -138,9 +142,9 @@ it('blocks ordinary queued jobs when the licence is invalid but never fail-safe 
     DB::table('licences')->update(['status' => 'superseded']);
     app()->forgetScopedInstances();
     $this->useTenant($this->tenant);
-    $mw = app(Fundly\Modules\Licensing\Http\Middleware\EnsureJobLicensed::class);
-    expect(fn () => $mw->handle(new stdClass, fn () => true))->toThrow(Fundly\Modules\Licensing\Domain\LicenceProblem::class)
-        ->and($mw->handle(new Fundly\Integration\Runtime\Outbox\DispatchOutboxJob, fn () => true))->toBeTrue();
+    $mw = app(EnsureJobLicensed::class);
+    expect(fn () => $mw->handle(new stdClass, fn () => true))->toThrow(LicenceProblem::class)
+        ->and($mw->handle(new DispatchOutboxJob, fn () => true))->toBeTrue();
 })->group('LOS-FR-316');
 
 it('provides dev-only keypair and issue commands that produce a verifiable licence, and refuses them in production', function () {
@@ -152,7 +156,7 @@ it('provides dev-only keypair and issue commands that produce a verifiable licen
     app()->forgetScopedInstances();
     $this->useTenant($this->tenant);
     expect(Artisan::call('licence:issue', ['--secret-key-file' => "{$dir}/vendor.key", '--out' => "{$dir}/dev.lic", '--modules' => 'core,origination']))->toBe(0);
-    $licence = app(LicensingPort::class)->verify(Fundly\Integration\Ports\Licensing\SignedLicence::fromFileContents((string) file_get_contents("{$dir}/dev.lic")));
+    $licence = app(LicensingPort::class)->verify(SignedLicence::fromFileContents((string) file_get_contents("{$dir}/dev.lic")));
     expect($licence->modules)->toBe(['core', 'origination']);
 
     config(['fundly.installation.environment' => 'production']);

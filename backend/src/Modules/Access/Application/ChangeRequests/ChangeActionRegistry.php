@@ -19,9 +19,7 @@ final class ChangeActionRegistry
     /** @var array<string, class-string<ChangeAction>> */
     private array $actions = [];
 
-    public function __construct(private readonly Container $container)
-    {
-    }
+    public function __construct(private readonly Container $container) {}
 
     /** @param class-string<ChangeAction> $class */
     public function register(string $type, string $class): void

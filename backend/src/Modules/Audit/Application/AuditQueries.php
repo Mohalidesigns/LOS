@@ -14,9 +14,7 @@ final class AuditQueries
 {
     private const FILTERS = ['entity_type', 'entity_id', 'actor_id', 'action', 'correlation_id', 'outcome', 'permission'];
 
-    public function __construct(private readonly ConnectionInterface $db)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
     /** @return array<string, mixed> */
     public function search(Request $request): array
@@ -38,11 +36,11 @@ final class AuditQueries
             }
         }
 
-        return CursorPaginator::paginate($q, $request, static fn (object $r): array => self::present($r), 'seq');
+        return CursorPaginator::paginate($q, $request, static fn (\stdClass $r): array => self::present($r), 'seq');
     }
 
     /** @return array<string, mixed> */
-    public static function present(object $r): array
+    public static function present(\stdClass $r): array
     {
         $json = static fn (mixed $v): mixed => is_string($v) ? json_decode($v, true) : null;
 

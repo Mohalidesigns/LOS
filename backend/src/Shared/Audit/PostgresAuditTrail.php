@@ -6,6 +6,7 @@ namespace Fundly\Shared\Audit;
 
 use DateTimeZone;
 use Fundly\Shared\Clock\Clock;
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Http\RequestContext;
 use Fundly\Shared\Id\UuidV7;
 use Fundly\Shared\Pii\PiiMasker;
@@ -31,8 +32,7 @@ final class PostgresAuditTrail implements AuditTrail
         private readonly RequestContext $request,
         private readonly PiiMasker $masker,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     public function record(AuditEntry $entry, ?Actor $actor = null): string
     {
@@ -42,12 +42,12 @@ final class PostgresAuditTrail implements AuditTrail
         return $this->db->transaction(function () use ($entry, $actor, $tenantId): string {
             $this->db->select('select pg_advisory_xact_lock(?, hashtext(?))', [self::LOCK_NAMESPACE, $tenantId]);
 
-            $last = $this->db->selectOne(
+            $last = Row::one($this->db->selectOne(
                 'select seq, hash from audit_events where tenant_id = ? order by seq desc limit 1',
                 [$tenantId],
-            );
-            $seq = is_object($last) ? ((int) $last->seq) + 1 : 1;
-            $prev = is_object($last) ? (string) $last->hash : HashChain::GENESIS;
+            ));
+            $seq = $last !== null ? ((int) $last->seq) + 1 : 1;
+            $prev = $last !== null ? (string) $last->hash : HashChain::GENESIS;
 
             $row = [
                 'id' => UuidV7::generate(),

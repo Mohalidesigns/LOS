@@ -18,9 +18,7 @@ use Fundly\Shared\Exceptions\ValidationFailed;
 
 final class CreateOrgUnitHandler implements CommandHandler
 {
-    public function __construct(private readonly OrgClosure $closure)
-    {
-    }
+    public function __construct(private readonly OrgClosure $closure) {}
 
     /** @return array{data: array<string, mixed>, etag: string} */
     public function handle(Command $command, CommandContext $context): array

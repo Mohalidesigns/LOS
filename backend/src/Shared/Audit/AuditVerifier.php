@@ -6,6 +6,7 @@ namespace Fundly\Shared\Audit;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Tenancy\TenantContext;
 use Illuminate\Database\ConnectionInterface;
 
@@ -19,8 +20,7 @@ final class AuditVerifier
     public function __construct(
         private readonly ConnectionInterface $db,
         private readonly TenantContext $tenant,
-    ) {
-    }
+    ) {}
 
     public function verify(string $tenantId, ?int $fromSeq = null, ?int $toSeq = null): VerificationResult
     {
@@ -33,8 +33,8 @@ final class AuditVerifier
         $expectedSeq = $fromSeq ?? 1;
         $prevHash = null;
         if ($expectedSeq > 1) {
-            $prior = $this->db->selectOne('select hash from audit_events where tenant_id = ? and seq = ?', [$tenantId, $expectedSeq - 1]);
-            $prevHash = is_object($prior) ? (string) $prior->hash : null;
+            $prior = Row::one($this->db->selectOne('select hash from audit_events where tenant_id = ? and seq = ?', [$tenantId, $expectedSeq - 1]));
+            $prevHash = $prior !== null ? (string) $prior->hash : null;
         }
         $prevHash ??= HashChain::GENESIS;
 
@@ -63,14 +63,14 @@ final class AuditVerifier
             $result->headHash = $prevHash;
         }
 
-        $checkpoints = $this->db->table('audit_checkpoints')->where('tenant_id', $tenantId)->orderBy('seq')->get();
+        $checkpoints = Row::all($this->db->table('audit_checkpoints')->where('tenant_id', $tenantId)->orderBy('seq')->get());
         foreach ($checkpoints as $cp) {
             $cpSeq = (int) $cp->seq;
             if (($fromSeq !== null && $cpSeq < $fromSeq) || ($toSeq !== null && $cpSeq > $toSeq)) {
                 continue;
             }
-            $row = $this->db->selectOne('select hash from audit_events where tenant_id = ? and seq = ?', [$tenantId, $cpSeq]);
-            if (! is_object($row)) {
+            $row = Row::one($this->db->selectOne('select hash from audit_events where tenant_id = ? and seq = ?', [$tenantId, $cpSeq]));
+            if ($row === null) {
                 $result->addBreak($cpSeq, 'checkpoint', 'Checkpointed event no longer exists.');
             } elseif (! hash_equals((string) $cp->hash, (string) $row->hash)) {
                 $result->addBreak($cpSeq, 'checkpoint', 'Event hash differs from the anchored checkpoint: chain rewritten.');

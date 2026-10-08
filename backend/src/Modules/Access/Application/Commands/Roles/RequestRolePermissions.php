@@ -17,9 +17,7 @@ use Fundly\Shared\Security\ResourceRef;
 final readonly class RequestRolePermissions implements SubmitsChangeRequest, ValidatesInput
 {
     /** @param list<string> $permissions */
-    public function __construct(public string $roleId, public array $permissions, public ?string $reason)
-    {
-    }
+    public function __construct(public string $roleId, public array $permissions, public ?string $reason) {}
 
     public function action(): string
     {

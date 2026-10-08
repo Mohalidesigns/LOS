@@ -18,6 +18,5 @@ final readonly class CustomerSearchCriteria
         public ?string $accountNo = null,
         public ?string $phone = null,
         public ?string $name = null,
-    ) {
-    }
+    ) {}
 }

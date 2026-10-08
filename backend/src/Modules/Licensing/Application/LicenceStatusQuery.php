@@ -15,8 +15,7 @@ final class LicenceStatusQuery
         private readonly LicenceGuard $guard,
         private readonly Clock $clock,
         private readonly ConnectionInterface $db,
-    ) {
-    }
+    ) {}
 
     /** @return array<string, mixed> */
     public function status(): array

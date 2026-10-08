@@ -14,6 +14,5 @@ final readonly class PostingResult
     public function __construct(
         public string $postingRef,
         public string $status,
-    ) {
-    }
+    ) {}
 }

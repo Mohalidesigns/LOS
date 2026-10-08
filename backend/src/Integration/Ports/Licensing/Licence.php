@@ -30,8 +30,7 @@ final readonly class Licence
         public DateTimeImmutable $validTo,
         public int $graceDays,
         public string $supportTier,
-    ) {
-    }
+    ) {}
 
     /** @param array<string, mixed> $d */
     public static function fromArray(array $d): self

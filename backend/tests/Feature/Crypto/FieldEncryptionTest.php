@@ -6,6 +6,7 @@ use Fundly\Integration\Adapters\LocalKeyfile\LocalKeyfileKms;
 use Fundly\Integration\Ports\KeyManagement\KeyManagementFailure;
 use Fundly\Integration\Ports\KeyManagement\KeyManagementPort;
 use Fundly\Shared\Crypto\FieldEncryptor;
+use Fundly\Shared\Crypto\TenantKeyRing;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -48,7 +49,7 @@ it('provides a deterministic per-tenant blind index for exact-match search', fun
 it('rotates data keys while old ciphertext stays readable, and refuses tampered wrapped keys', function () {
     $this->useTenant($this->a);
     $old = app(FieldEncryptor::class)->encrypt('secret-1', 'f');
-    expect(app(Fundly\Shared\Crypto\TenantKeyRing::class)->rotate('pii_dek'))->toBe(2);
+    expect(app(TenantKeyRing::class)->rotate('pii_dek'))->toBe(2);
     $new = app(FieldEncryptor::class)->encrypt('secret-2', 'f');
     expect($new)->toStartWith('fe1.2.')->and(app(FieldEncryptor::class)->decrypt($old, 'f'))->toBe('secret-1');
 

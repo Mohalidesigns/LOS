@@ -13,6 +13,5 @@ final readonly class StandingInstruction
         public string $fromAccount,
         public string $toLoanAccount,
         public string $schedule,
-    ) {
-    }
+    ) {}
 }

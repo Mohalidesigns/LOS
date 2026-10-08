@@ -29,7 +29,8 @@ final class HashChain
         foreach (self::FIELDS as $f) {
             $fields[$f] = $row[$f] ?? null;
         }
-        $prev = is_string($fields['prev_hash']) ? $fields['prev_hash'] : self::GENESIS;
+        $prev = $row['prev_hash'] ?? null;
+        $prev = is_string($prev) ? $prev : self::GENESIS;
 
         return hash('sha256', $prev.CanonicalJson::encode($fields));
     }

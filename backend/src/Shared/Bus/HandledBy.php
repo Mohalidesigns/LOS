@@ -11,7 +11,5 @@ use Attribute;
 final readonly class HandledBy
 {
     /** @param class-string<CommandHandler> $handler */
-    public function __construct(public string $handler)
-    {
-    }
+    public function __construct(public string $handler) {}
 }

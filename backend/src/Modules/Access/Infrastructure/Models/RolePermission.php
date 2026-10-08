@@ -27,8 +27,8 @@ final class RolePermission extends Model
 
     protected static function booted(): void
     {
-        static::addGlobalScope(new TenantScope);
-        static::creating(static function (RolePermission $m): void {
+        self::addGlobalScope(new TenantScope);
+        self::creating(static function (RolePermission $m): void {
             $m->setAttribute('tenant_id', app(TenantContext::class)->requireId());
         });
     }

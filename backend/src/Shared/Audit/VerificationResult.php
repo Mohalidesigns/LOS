@@ -17,9 +17,7 @@ final class VerificationResult
 
     public int $headSeq = 0;
 
-    public function __construct(public readonly string $tenantId)
-    {
-    }
+    public function __construct(public readonly string $tenantId) {}
 
     public function addBreak(int $seq, string $kind, string $detail): void
     {

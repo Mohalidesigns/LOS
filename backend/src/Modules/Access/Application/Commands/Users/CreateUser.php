@@ -22,8 +22,7 @@ final readonly class CreateUser implements Command, ValidatesInput
         public ?string $password,
         public ?string $homeLegalEntityId,
         public ?string $homeOrgUnitId,
-    ) {
-    }
+    ) {}
 
     public function action(): string
     {

@@ -22,8 +22,7 @@ final class IdempotencyStore
         private readonly TenantContext $tenant,
         private readonly Clock $clock,
         private readonly int $ttlHours,
-    ) {
-    }
+    ) {}
 
     /** @return array{reserved: bool, record: ?object} */
     public function reserve(string $scope, string $principalId, string $key, string $requestHash): array

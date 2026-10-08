@@ -9,13 +9,19 @@ use Fundly\Modules\Access\Http\Middleware\RequireStepUp;
 use Fundly\Modules\Access\Http\Middleware\ResolveTenantFromCredential;
 use Fundly\Modules\Licensing\Http\Middleware\EnforceLicence;
 use Fundly\Modules\Licensing\Http\Middleware\LicenceExempt;
+use Fundly\Shared\Exceptions\ProblemException;
 use Fundly\Shared\Http\Middleware\AssignCorrelationId;
 use Fundly\Shared\Http\Middleware\RequireIdempotencyKey;
 use Fundly\Shared\Http\ProblemRenderer;
+use Illuminate\Auth\Middleware\Authenticate;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -42,24 +48,24 @@ return Application::configure(basePath: dirname(__DIR__))
         // Fixed pipeline order for route middleware.
         $middleware->priority([
             AssignCorrelationId::class,
-            \Illuminate\Cookie\Middleware\EncryptCookies::class,
-            \Illuminate\Session\Middleware\StartSession::class,
+            EncryptCookies::class,
+            StartSession::class,
             ResolveTenantFromCredential::class,
-            \Illuminate\Auth\Middleware\Authenticate::class,
+            Authenticate::class,
             BindPrincipal::class,
             EnforceSessionPolicy::class,
             EnforceLicence::class,
-            \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            ThrottleRequests::class,
             Authorize::class,
             RequireStepUp::class,
             RequireIdempotencyKey::class,
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            SubstituteBindings::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request): bool => true);
         $exceptions->render(fn (Throwable $e, Request $request) => app(ProblemRenderer::class)->render($e, $request));
         $exceptions->dontReport([
-            \Fundly\Shared\Exceptions\ProblemException::class,
+            ProblemException::class,
         ]);
     })->create();

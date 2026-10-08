@@ -28,6 +28,7 @@ use Fundly\Shared\Security\AuthorizationGate;
 use Fundly\Shared\Security\ListScopeFilter;
 use Fundly\Shared\Security\ResourceAttributes;
 use Fundly\Shared\Security\ResourceResolver;
+use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +49,7 @@ final class AccessServiceProvider extends ServiceProvider
         $this->app->scoped(ChangeRequestGateway::class, ChangeRequestService::class);
         $this->app->scoped(AccessProvisioning::class, AccessProvisioner::class);
         $this->app->scoped(AuthenticationService::class);
-        $this->app->when(AuthenticationService::class)->needs(\Illuminate\Contracts\Auth\StatefulGuard::class)->give(fn (Application $app) => $app->make('auth')->guard('web'));
+        $this->app->when(AuthenticationService::class)->needs(StatefulGuard::class)->give(fn (Application $app) => $app->make('auth')->guard('web'));
     }
 
     public function boot(ChangeActionRegistry $registry, ResourceResolver $resources): void

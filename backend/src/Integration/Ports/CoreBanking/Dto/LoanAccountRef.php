@@ -12,6 +12,5 @@ final readonly class LoanAccountRef
     public function __construct(
         public string $loanAccountNo,
         public string $cbaReference,
-    ) {
-    }
+    ) {}
 }

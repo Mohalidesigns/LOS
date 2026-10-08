@@ -44,8 +44,7 @@ final class CommandBus
         private readonly Outbox $outbox,
         private readonly Dispatcher $events,
         private readonly CurrentPrincipal $current,
-    ) {
-    }
+    ) {}
 
     public function dispatch(Command $command, Principal $principal): mixed
     {

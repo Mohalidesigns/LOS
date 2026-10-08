@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fundly\Integration\Adapters\OfflineLicence;
 
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Id\UuidV7;
 use Illuminate\Database\ConnectionInterface;
 
@@ -17,9 +18,7 @@ final class InstallationIdentity
 {
     private ?string $fingerprint = null;
 
-    public function __construct(private readonly ConnectionInterface $db, private readonly string $environment)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db, private readonly string $environment) {}
 
     public function installationUuid(): string
     {
@@ -36,9 +35,9 @@ final class InstallationIdentity
 
     public function systemIdentifier(): string
     {
-        $row = $this->db->selectOne('select system_identifier::text as id from pg_control_system()');
+        $row = Row::one($this->db->selectOne('select system_identifier::text as id from pg_control_system()'));
 
-        return is_object($row) ? (string) $row->id : 'unknown';
+        return $row !== null ? (string) $row->id : 'unknown';
     }
 
     public function fingerprint(): string

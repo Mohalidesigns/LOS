@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Fundly\Modules\Access\Domain\Grant;
 use Fundly\Modules\Access\Domain\Scope;
 use Fundly\Shared\Clock\Clock;
+use Fundly\Shared\Database\Row;
 use Illuminate\Database\ConnectionInterface;
 
 /**
@@ -19,9 +20,7 @@ final class GrantRepository
     /** @var array<string, list<Grant>> */
     private array $cache = [];
 
-    public function __construct(private readonly ConnectionInterface $db, private readonly Clock $clock)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db, private readonly Clock $clock) {}
 
     /**
      * Non-revoked, non-expired grants (including not-yet-valid ones; the
@@ -60,7 +59,7 @@ final class GrantRepository
             ->get(['a.id', 'a.role_id', 'r.code', 'a.scope', 'a.valid_from', 'a.valid_to']);
 
         $grants = [];
-        foreach ($rows as $row) {
+        foreach (Row::all($rows) as $row) {
             $grants[] = $this->toGrant($row);
         }
 
@@ -76,7 +75,7 @@ final class GrantRepository
             ->where(fn ($q) => $q->whereNull('a.valid_to')->orWhere('a.valid_to', '>', $now))
             ->get(['a.id', 'a.role_id', 'r.code', 'a.scope', 'a.valid_from', 'a.valid_to', 'd.id as delegation_id', 'd.delegator_id', 'd.valid_from as d_from', 'd.valid_to as d_to']);
 
-        foreach ($delegated as $row) {
+        foreach (Row::all($delegated) as $row) {
             $base = $this->toGrant($row);
             $from = max($base->validFrom, new DateTimeImmutable((string) $row->d_from));
             $to = new DateTimeImmutable((string) $row->d_to);
@@ -92,7 +91,7 @@ final class GrantRepository
         return $grants;
     }
 
-    private function toGrant(object $row): Grant
+    private function toGrant(\stdClass $row): Grant
     {
         /** @var array<string, mixed> $scopeData */
         $scopeData = json_decode((string) $row->scope, true, 16, JSON_THROW_ON_ERROR);

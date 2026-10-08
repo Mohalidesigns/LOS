@@ -13,9 +13,7 @@ use Illuminate\Routing\Route;
  */
 final class LicenceRecovery
 {
-    public function __construct(private readonly ConnectionInterface $db)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
     public function isRecoveryRequest(Route $route): bool
     {

@@ -14,9 +14,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(CreateRoleHandler::class)]
 final readonly class CreateRole implements Command, ValidatesInput
 {
-    public function __construct(public string $code, public string $name, public ?string $description)
-    {
-    }
+    public function __construct(public string $code, public string $name, public ?string $description) {}
 
     public function action(): string
     {

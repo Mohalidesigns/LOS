@@ -30,8 +30,7 @@ final class ResolveTenantFromCredential
         private readonly TenantContext $tenant,
         private readonly TenantDirectory $tenants,
         private readonly CurrentPrincipal $principal,
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {

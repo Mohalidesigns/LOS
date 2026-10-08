@@ -11,6 +11,5 @@ final readonly class CustomerRef
 {
     public function __construct(
         public string $cbaCustomerId,
-    ) {
-    }
+    ) {}
 }

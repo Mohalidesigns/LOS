@@ -20,10 +20,13 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  */
 final class ScopeFilter implements ListScopeFilter
 {
-    public function __construct(private readonly GrantRepository $grants, private readonly Clock $clock)
-    {
-    }
+    public function __construct(private readonly GrantRepository $grants, private readonly Clock $clock) {}
 
+    /**
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  EloquentBuilder<TModel>|QueryBuilder  $query
+     */
     public function apply(EloquentBuilder|QueryBuilder $query, Principal $principal, string $permission, ScopeColumns $columns): void
     {
         if ($principal->isSystem()) {

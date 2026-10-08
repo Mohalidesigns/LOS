@@ -9,9 +9,7 @@ use Illuminate\Database\ConnectionInterface;
 
 final class DatabaseTenantDirectory implements TenantDirectory
 {
-    public function __construct(private readonly ConnectionInterface $db, private readonly string $mode)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db, private readonly string $mode) {}
 
     public function resolveForGuest(string $host): ?string
     {

@@ -14,9 +14,7 @@ use DateTimeImmutable;
  */
 final readonly class LockoutPolicy
 {
-    public function __construct(public int $threshold, public int $baseMinutes, public int $maxMinutes)
-    {
-    }
+    public function __construct(public int $threshold, public int $baseMinutes, public int $maxMinutes) {}
 
     public function lockUntil(int $consecutiveFailures, DateTimeImmutable $now): ?DateTimeImmutable
     {

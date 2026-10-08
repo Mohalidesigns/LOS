@@ -6,7 +6,5 @@ namespace Fundly\Integration\Runtime;
 
 final readonly class OperationPolicy
 {
-    public function __construct(public bool $stateChanging, public int $timeoutMs, public int $inlineRetries)
-    {
-    }
+    public function __construct(public bool $stateChanging, public int $timeoutMs, public int $inlineRetries) {}
 }

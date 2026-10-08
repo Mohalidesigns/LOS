@@ -14,6 +14,5 @@ final readonly class ScopeColumns
         public ?string $currency = null,
         public ?string $amount = null,
         public ?string $segment = null,
-    ) {
-    }
+    ) {}
 }

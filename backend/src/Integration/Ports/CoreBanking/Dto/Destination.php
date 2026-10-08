@@ -16,6 +16,5 @@ final readonly class Destination
         public string $accountNo,
         public ?string $bankCode = null,
         public ?string $accountName = null,
-    ) {
-    }
+    ) {}
 }

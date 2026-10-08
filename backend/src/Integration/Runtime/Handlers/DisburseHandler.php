@@ -24,9 +24,7 @@ final class DisburseHandler implements OutboxHandler
 {
     public const TOPIC = 'cba.postings.disburse';
 
-    public function __construct(private readonly IntegrationGateway $gateway)
-    {
-    }
+    public function __construct(private readonly IntegrationGateway $gateway) {}
 
     public function topic(): string
     {

@@ -29,6 +29,5 @@ final readonly class LoanAccountCreate
         public string $dayCount,
         public string $branchCode,
         public array $glMapping = [],
-    ) {
-    }
+    ) {}
 }

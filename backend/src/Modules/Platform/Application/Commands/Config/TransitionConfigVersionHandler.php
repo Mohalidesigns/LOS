@@ -26,9 +26,7 @@ final class TransitionConfigVersionHandler implements CommandHandler
         TransitionConfigVersion::REJECT => 'in_review',
     ];
 
-    public function __construct(private readonly Clock $clock)
-    {
-    }
+    public function __construct(private readonly Clock $clock) {}
 
     /** @return array{data: array<string, mixed>, etag: string} */
     public function handle(Command $command, CommandContext $context): array

@@ -19,9 +19,7 @@ final readonly class TransitionConfigVersion implements Command, ValidatesInput
 
     public const REJECT = 'reject';
 
-    public function __construct(public string $versionId, public string $transition, public ?string $reason)
-    {
-    }
+    public function __construct(public string $versionId, public string $transition, public ?string $reason) {}
 
     public function action(): string
     {

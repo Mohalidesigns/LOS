@@ -13,9 +13,7 @@ use Fundly\Shared\Security\ResourceRef;
 final readonly class UpdateConfigDraft implements Command, ValidatesInput
 {
     /** @param array<string, mixed> $content */
-    public function __construct(public string $versionId, public array $content, public ?string $notes, public ?string $ifMatch)
-    {
-    }
+    public function __construct(public string $versionId, public array $content, public ?string $notes, public ?string $ifMatch) {}
 
     public function action(): string
     {

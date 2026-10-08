@@ -36,8 +36,7 @@ final class ChangeRequestService implements ChangeRequestGateway
         private readonly ResourceResolver $resources,
         private readonly Clock $clock,
         private readonly RequestContext $request,
-    ) {
-    }
+    ) {}
 
     public function submit(string $actionType, array $payload, ?string $reason, CommandContext $context): array
     {

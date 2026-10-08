@@ -11,6 +11,7 @@ use Fundly\Modules\Access\Infrastructure\Models\RoleAssignment;
 use Fundly\Modules\Access\Infrastructure\Persistence\GrantRepository;
 use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Bus\CommandContext;
+use Fundly\Shared\Bus\Payload;
 use Fundly\Shared\Clock\Clock;
 use Fundly\Shared\Exceptions\DomainRuleViolation;
 use Fundly\Shared\Exceptions\NotFound;
@@ -26,8 +27,7 @@ final class RevokeRoleAssignmentAction implements ChangeAction
         private readonly SessionRevoker $sessions,
         private readonly GrantRepository $grants,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     public function type(): string
     {
@@ -46,12 +46,12 @@ final class RevokeRoleAssignmentAction implements ChangeAction
 
     public function entity(array $payload): ResourceRef
     {
-        return new ResourceRef('role_assignment', (string) $payload['role_assignment_id']);
+        return new ResourceRef('role_assignment', Payload::string($payload, 'role_assignment_id'));
     }
 
     public function validate(array $payload, Principal $maker): void
     {
-        $a = RoleAssignment::query()->find($payload['role_assignment_id'] ?? null);
+        $a = RoleAssignment::query()->find(Payload::optionalString($payload, 'role_assignment_id'));
         if (! $a instanceof RoleAssignment) {
             throw new NotFound('Role assignment not found.');
         }
@@ -62,14 +62,14 @@ final class RevokeRoleAssignmentAction implements ChangeAction
 
     public function fingerprint(array $payload): string
     {
-        $a = RoleAssignment::query()->find($payload['role_assignment_id']);
+        $a = RoleAssignment::query()->find(Payload::string($payload, 'role_assignment_id'));
 
         return CanonicalJson::hash(['revoked_at' => $a?->revoked_at?->format('c'), 'updated_at' => $a?->updated_at->format('Uu')]);
     }
 
     public function execute(array $payload, string $changeRequestId, CommandContext $context): array
     {
-        $a = RoleAssignment::query()->findOrFail($payload['role_assignment_id']);
+        $a = RoleAssignment::query()->findOrFail(Payload::string($payload, 'role_assignment_id'));
         $a->forceFill([
             'revoked_at' => $this->clock->now(),
             'revoked_by' => $context->principal->id,
@@ -91,7 +91,7 @@ final class RevokeRoleAssignmentAction implements ChangeAction
 
     public function excludedCheckers(array $payload): array
     {
-        $a = RoleAssignment::query()->find($payload['role_assignment_id']);
+        $a = RoleAssignment::query()->find(Payload::string($payload, 'role_assignment_id'));
 
         return $a === null ? [] : [$a->user_id];
     }

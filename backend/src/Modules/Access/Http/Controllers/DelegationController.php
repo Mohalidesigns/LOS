@@ -19,8 +19,7 @@ final class DelegationController
         private readonly CommandBus $bus,
         private readonly CurrentPrincipal $principal,
         private readonly AccessQueries $queries,
-    ) {
-    }
+    ) {}
 
     /** Delegations the caller gave or received. */
     public function index(Request $request): JsonResponse

@@ -15,6 +15,5 @@ final readonly class OutboxIntent
         public ?string $aggregateId = null,
         public ?string $idempotencyKey = null,
         public int $maxAttempts = 0,
-    ) {
-    }
+    ) {}
 }

@@ -18,9 +18,7 @@ use Fundly\Shared\Clock\Clock;
  */
 final class LicenceGuard implements LicenceEntitlements
 {
-    public function __construct(private readonly LicensingPort $port, private readonly Clock $clock)
-    {
-    }
+    public function __construct(private readonly LicensingPort $port, private readonly Clock $clock) {}
 
     public function licence(): ?Licence
     {

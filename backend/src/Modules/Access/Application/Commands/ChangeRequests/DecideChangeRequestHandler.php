@@ -11,9 +11,7 @@ use Fundly\Shared\Bus\CommandHandler;
 
 final class DecideChangeRequestHandler implements CommandHandler
 {
-    public function __construct(private readonly ChangeRequestService $service)
-    {
-    }
+    public function __construct(private readonly ChangeRequestService $service) {}
 
     /** @return array<string, mixed> */
     public function handle(Command $command, CommandContext $context): array

@@ -12,9 +12,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(DeleteSodRuleHandler::class)]
 final readonly class DeleteSodRule implements Command
 {
-    public function __construct(public string $ruleId)
-    {
-    }
+    public function __construct(public string $ruleId) {}
 
     public function action(): string
     {

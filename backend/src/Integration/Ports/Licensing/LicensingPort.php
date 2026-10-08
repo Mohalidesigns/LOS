@@ -23,7 +23,11 @@ interface LicensingPort
     /** Optional online check-in; offline adapters report "not supported". */
     public function checkIn(): CheckInResult;
 
-    /** Offline activation request to send to the vendor (air-gapped sites). @return array<string, string> */
+    /**
+     * Offline activation request to send to the vendor (air-gapped sites).
+     *
+     * @return array<string, string>
+     */
     public function activationRequest(): array;
 
     public function installationFingerprint(): string;

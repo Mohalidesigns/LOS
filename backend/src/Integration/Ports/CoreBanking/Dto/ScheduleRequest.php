@@ -20,6 +20,5 @@ final readonly class ScheduleRequest
         public int $moratoriumMonths,
         public string $startDate,
         public string $dayCount,
-    ) {
-    }
+    ) {}
 }

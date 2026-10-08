@@ -28,8 +28,7 @@ final readonly class DecideChangeRequest implements Command, ValidatesInput
         public string $decision,
         public ?string $reason,
         public string $requiredPermission,
-    ) {
-    }
+    ) {}
 
     public function action(): string
     {

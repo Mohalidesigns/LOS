@@ -19,6 +19,5 @@ final readonly class LoanAccount
         public Money $outstanding,
         public string $status,
         public ?string $losFacilityId = null,
-    ) {
-    }
+    ) {}
 }

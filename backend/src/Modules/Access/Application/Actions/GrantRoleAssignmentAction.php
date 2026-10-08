@@ -17,6 +17,7 @@ use Fundly\Modules\Access\Infrastructure\Models\User;
 use Fundly\Modules\Access\Infrastructure\Persistence\GrantRepository;
 use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Bus\CommandContext;
+use Fundly\Shared\Bus\Payload;
 use Fundly\Shared\Exceptions\DomainRuleViolation;
 use Fundly\Shared\Exceptions\ValidationFailed;
 use Fundly\Shared\Json\CanonicalJson;
@@ -39,8 +40,7 @@ final class GrantRoleAssignmentAction implements ChangeAction
         private readonly SessionRevoker $sessions,
         private readonly GrantRepository $grants,
         private readonly ConnectionInterface $db,
-    ) {
-    }
+    ) {}
 
     public function type(): string
     {
@@ -59,16 +59,16 @@ final class GrantRoleAssignmentAction implements ChangeAction
 
     public function entity(array $payload): ResourceRef
     {
-        return new ResourceRef('user', (string) $payload['user_id']);
+        return new ResourceRef('user', Payload::string($payload, 'user_id'));
     }
 
     public function validate(array $payload, Principal $maker): void
     {
-        $user = User::query()->find($payload['user_id'] ?? null);
+        $user = User::query()->find(Payload::optionalString($payload, 'user_id'));
         if (! $user instanceof User || ! $user->isActive()) {
             throw ValidationFailed::with(['user_id' => 'The user does not exist or is disabled.']);
         }
-        $role = Role::query()->find($payload['role_id'] ?? null);
+        $role = Role::query()->find(Payload::optionalString($payload, 'role_id'));
         if (! $role instanceof Role) {
             throw ValidationFailed::with(['role_id' => 'The role does not exist.']);
         }
@@ -80,16 +80,15 @@ final class GrantRoleAssignmentAction implements ChangeAction
         }
 
         try {
-            /** @var array<string, mixed> $scopeData */
-            $scopeData = $payload['scope'];
-            $scope = Scope::fromArray($scopeData);
+            $scope = Scope::fromArray(Payload::map($payload, 'scope'));
         } catch (InvalidArgumentException $e) {
             throw ValidationFailed::with(['scope' => $e->getMessage()]);
         }
         $this->assertScopeReferencesExist($scope);
 
-        $from = new DateTimeImmutable((string) $payload['valid_from']);
-        $to = isset($payload['valid_to']) ? new DateTimeImmutable((string) $payload['valid_to']) : null;
+        $from = new DateTimeImmutable(Payload::string($payload, 'valid_from'));
+        $toValue = Payload::optionalString($payload, 'valid_to');
+        $to = $toValue !== null ? new DateTimeImmutable($toValue) : null;
         if ($to !== null && $to <= $from) {
             throw ValidationFailed::with(['valid_to' => 'valid_to must be after valid_from.']);
         }
@@ -102,8 +101,8 @@ final class GrantRoleAssignmentAction implements ChangeAction
 
     public function fingerprint(array $payload): string
     {
-        $userId = (string) $payload['user_id'];
-        $role = Role::query()->find($payload['role_id']);
+        $userId = Payload::string($payload, 'user_id');
+        $role = Role::query()->find(Payload::string($payload, 'role_id'));
 
         return CanonicalJson::hash([
             'user_status' => User::query()->whereKey($userId)->value('status'),
@@ -114,15 +113,14 @@ final class GrantRoleAssignmentAction implements ChangeAction
 
     public function execute(array $payload, string $changeRequestId, CommandContext $context): array
     {
-        /** @var array<string, mixed> $scopeData */
-        $scopeData = $payload['scope'];
+        $validTo = Payload::optionalString($payload, 'valid_to');
         $assignment = new RoleAssignment;
         $assignment->forceFill([
-            'user_id' => $payload['user_id'],
-            'role_id' => $payload['role_id'],
-            'scope' => Scope::fromArray($scopeData)->toArray(),
-            'valid_from' => new DateTimeImmutable((string) $payload['valid_from']),
-            'valid_to' => isset($payload['valid_to']) ? new DateTimeImmutable((string) $payload['valid_to']) : null,
+            'user_id' => Payload::string($payload, 'user_id'),
+            'role_id' => Payload::string($payload, 'role_id'),
+            'scope' => Scope::fromArray(Payload::map($payload, 'scope'))->toArray(),
+            'valid_from' => new DateTimeImmutable(Payload::string($payload, 'valid_from')),
+            'valid_to' => $validTo !== null ? new DateTimeImmutable($validTo) : null,
             'granted_by' => $context->principal->id,
             'change_request_id' => $changeRequestId,
         ])->save();
@@ -138,8 +136,8 @@ final class GrantRoleAssignmentAction implements ChangeAction
                 'user_id' => $assignment->user_id,
                 'role_id' => $assignment->role_id,
                 'scope' => $assignment->scope,
-                'valid_from' => $payload['valid_from'],
-                'valid_to' => $payload['valid_to'] ?? null,
+                'valid_from' => Payload::string($payload, 'valid_from'),
+                'valid_to' => Payload::optionalString($payload, 'valid_to'),
                 'maker_change_request_id' => $changeRequestId,
                 'sessions_revoked' => $revoked,
             ],
@@ -150,7 +148,7 @@ final class GrantRoleAssignmentAction implements ChangeAction
 
     public function excludedCheckers(array $payload): array
     {
-        return [(string) $payload['user_id']];
+        return [Payload::string($payload, 'user_id')];
     }
 
     private function assertScopeReferencesExist(Scope $scope): void

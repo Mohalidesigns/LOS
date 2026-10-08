@@ -10,12 +10,14 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Scope;
 
 /**
+ * @implements Scope<EloquentModel>
+ *
  * Application-layer tenant filter (defence in depth on top of RLS, TRD §2.3).
  * Without a tenant context, tenant-owned queries return nothing.
  */
 final class TenantScope implements Scope
 {
-    /** @param Builder<EloquentModel> $builder */
+    /** @param Builder<covariant EloquentModel> $builder */
     public function apply(Builder $builder, EloquentModel $model): void
     {
         $tenant = app(TenantContext::class)->id();

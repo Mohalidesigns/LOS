@@ -13,9 +13,7 @@ use Illuminate\Database\ConnectionInterface;
  */
 final class OrgClosure
 {
-    public function __construct(private readonly ConnectionInterface $db, private readonly TenantContext $tenant)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db, private readonly TenantContext $tenant) {}
 
     public function insertNode(string $id, ?string $parentId): void
     {

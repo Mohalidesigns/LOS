@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CommitsToDatabase;
 use Tests\Support\RefreshesPostgres;
 use Tests\TestCase;

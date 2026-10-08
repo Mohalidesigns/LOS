@@ -16,8 +16,7 @@ final readonly class OutboxMessage
         public ?string $idempotencyKey,
         public int $attempt,
         public ?string $correlationId,
-    ) {
-    }
+    ) {}
 
     /** True if an earlier delivery may already have reached the provider. */
     public function isRedelivery(): bool

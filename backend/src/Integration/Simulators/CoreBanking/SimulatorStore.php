@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fundly\Integration\Simulators\CoreBanking;
 
 use Fundly\Shared\Clock\Clock;
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Id\UuidV7;
 use Fundly\Shared\Tenancy\TenantContext;
 use Illuminate\Database\ConnectionInterface;
@@ -16,8 +17,7 @@ final class SimulatorStore
         private readonly ConnectionInterface $db,
         private readonly TenantContext $tenant,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     /** @return array<string, mixed>|null */
     public function get(string $kind, string $key): ?array
@@ -58,15 +58,15 @@ final class SimulatorStore
     /** Atomic counter; returns the new value. */
     public function increment(string $kind, string $key): int
     {
-        $row = $this->db->selectOne(
+        $row = Row::one($this->db->selectOne(
             "insert into cba_simulator_records (id, tenant_id, kind, record_key, data, created_at)
              values (?, ?, ?, ?, '{\"n\": 1}'::jsonb, ?)
              on conflict (tenant_id, kind, record_key)
              do update set data = jsonb_build_object('n', (cba_simulator_records.data->>'n')::int + 1)
              returning (data->>'n')::int as n",
             [UuidV7::generate(), $this->tenant->requireId(), $kind, $key, $this->clock->now()],
-        );
+        ));
 
-        return is_object($row) ? (int) $row->n : 1;
+        return $row !== null ? (int) $row->n : 1;
     }
 }

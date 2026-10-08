@@ -25,8 +25,7 @@ final class TenantProvisioner
         private readonly TenantContext $tenant,
         private readonly AccessProvisioning $access,
         private readonly AuditTrail $audit,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  list<array{email: string, name: string, password: string}>  $admins

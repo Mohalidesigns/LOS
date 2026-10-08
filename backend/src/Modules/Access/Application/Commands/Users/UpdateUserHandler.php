@@ -12,9 +12,9 @@ use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Bus\Command;
 use Fundly\Shared\Bus\CommandContext;
 use Fundly\Shared\Bus\CommandHandler;
-use Fundly\Shared\Http\ETag;
 use Fundly\Shared\Exceptions\DomainRuleViolation;
 use Fundly\Shared\Exceptions\ValidationFailed;
+use Fundly\Shared\Http\ETag;
 use Illuminate\Database\ConnectionInterface;
 
 final class UpdateUserHandler implements CommandHandler
@@ -23,8 +23,7 @@ final class UpdateUserHandler implements CommandHandler
         private readonly SessionRevoker $sessions,
         private readonly LicenceEntitlements $licence,
         private readonly ConnectionInterface $db,
-    ) {
-    }
+    ) {}
 
     /** @return array{data: array<string, mixed>, etag?: string} */
     public function handle(Command $command, CommandContext $context): array

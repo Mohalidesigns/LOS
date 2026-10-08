@@ -20,9 +20,7 @@ final class TenantContext
 {
     private ?string $tenantId = null;
 
-    public function __construct(private readonly ConnectionInterface $connection)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $connection) {}
 
     public function set(string $tenantId): void
     {

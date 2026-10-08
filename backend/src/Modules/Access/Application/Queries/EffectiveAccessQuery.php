@@ -14,9 +14,7 @@ use Fundly\Shared\Clock\Clock;
  */
 final class EffectiveAccessQuery
 {
-    public function __construct(private readonly GrantRepository $grants, private readonly Clock $clock)
-    {
-    }
+    public function __construct(private readonly GrantRepository $grants, private readonly Clock $clock) {}
 
     /**
      * @param  list<string>|null  $tokenAbilities

@@ -19,6 +19,7 @@ final class Totp
 
     private const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
+    /** @param positive-int $bytes */
     public static function generateSecret(int $bytes = 20): string
     {
         return self::base32Encode(random_bytes($bytes));
@@ -86,16 +87,23 @@ final class Totp
 
     public static function base32Encode(string $data): string
     {
-        $bits = '';
-        foreach (str_split($data) as $c) {
-            $bits .= str_pad(decbin(ord($c)), 8, '0', STR_PAD_LEFT);
-        }
-        $out = '';
-        foreach (str_split($bits, 5) as $chunk) {
-            $out .= self::BASE32[bindec(str_pad($chunk, 5, '0'))];
-        }
         if ($data === '') {
             return '';
+        }
+        $out = '';
+        $buffer = 0;
+        $bits = 0;
+        $length = strlen($data);
+        for ($i = 0; $i < $length; $i++) {
+            $buffer = (($buffer << 8) | ord($data[$i])) & 0xFFFF;
+            $bits += 8;
+            while ($bits >= 5) {
+                $bits -= 5;
+                $out .= self::BASE32[($buffer >> $bits) & 0x1F];
+            }
+        }
+        if ($bits > 0) {
+            $out .= self::BASE32[($buffer << (5 - $bits)) & 0x1F];
         }
         $pad = (8 - (strlen($out) % 8)) % 8;
 
@@ -105,21 +113,20 @@ final class Totp
     public static function base32Decode(string $input): string
     {
         $input = strtoupper(rtrim(str_replace(' ', '', $input), '='));
-        $bits = '';
-        foreach (str_split($input) as $c) {
-            if ($c === '') {
-                continue;
-            }
-            $pos = strpos(self::BASE32, $c);
+        $out = '';
+        $buffer = 0;
+        $bits = 0;
+        $length = strlen($input);
+        for ($i = 0; $i < $length; $i++) {
+            $pos = strpos(self::BASE32, $input[$i]);
             if ($pos === false) {
                 throw new InvalidArgumentException('Invalid base32 character.');
             }
-            $bits .= str_pad(decbin($pos), 5, '0', STR_PAD_LEFT);
-        }
-        $out = '';
-        foreach (str_split($bits, 8) as $byte) {
-            if (strlen($byte) === 8) {
-                $out .= chr((int) bindec($byte));
+            $buffer = (($buffer << 5) | $pos) & 0xFFFF;
+            $bits += 5;
+            if ($bits >= 8) {
+                $bits -= 8;
+                $out .= chr(($buffer >> $bits) & 0xFF);
             }
         }
 

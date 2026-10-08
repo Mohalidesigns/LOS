@@ -8,6 +8,7 @@ use Fundly\Integration\Adapters\LocalKeyfile\LocalKeyfileKms;
 use Fundly\Integration\Ports\Licensing\LicensingPort;
 use Fundly\Integration\Ports\Licensing\SignedLicence;
 use Fundly\Modules\Access\Domain\Permission;
+use Fundly\Modules\Access\Domain\Scope;
 use Fundly\Modules\Access\Domain\Totp;
 use Fundly\Modules\Access\Infrastructure\Models\Role;
 use Fundly\Modules\Access\Infrastructure\Models\RoleAssignment;
@@ -17,6 +18,7 @@ use Fundly\Modules\Platform\Application\Provisioning\TenantProvisioner;
 use Fundly\Shared\Id\UuidV7;
 use Fundly\Shared\Json\CanonicalJson;
 use Fundly\Shared\Tenancy\TenantContext;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Str;
@@ -42,7 +44,7 @@ abstract class TestCase extends BaseTestCase
     public function createApplication()
     {
         $app = require __DIR__.'/../bootstrap/app.php';
-        $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        $app->make(Kernel::class)->bootstrap();
         // Per-run key material: nothing secret is committed.
         $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat("\x01", 32)));
         self::$licenceKeys ??= (static function (): array {
@@ -131,7 +133,7 @@ abstract class TestCase extends BaseTestCase
         (new RoleAssignment)->forceFill([
             'user_id' => $user->id,
             'role_id' => $role->id,
-            'scope' => \Fundly\Modules\Access\Domain\Scope::fromArray($scope)->toArray(),
+            'scope' => Scope::fromArray($scope)->toArray(),
             'valid_from' => now()->subMinute(),
             'granted_by' => 'test-fixture',
         ])->save();

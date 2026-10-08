@@ -13,9 +13,7 @@ use Fundly\Shared\Security\ResourceRef;
 final readonly class UpdateLegalEntity implements Command, ValidatesInput
 {
     /** @param array<string, mixed> $changes subset of name, timezone, org_level_labels, status */
-    public function __construct(public string $legalEntityId, public array $changes, public ?string $ifMatch)
-    {
-    }
+    public function __construct(public string $legalEntityId, public array $changes, public ?string $ifMatch) {}
 
     public function action(): string
     {

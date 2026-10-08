@@ -31,8 +31,7 @@ final class OfflineSignedFileLicensing implements LicensingPort
         private readonly InstallationIdentity $installation,
         private readonly Clock $clock,
         private readonly string $publicKeyBase64,
-    ) {
-    }
+    ) {}
 
     public function currentLicence(): ?Licence
     {
@@ -106,6 +105,7 @@ final class OfflineSignedFileLicensing implements LicensingPort
         return new CheckInResult(false, true, 'Offline licence: online check-in is not used.');
     }
 
+    /** @return array<string, string> */
     public function activationRequest(): array
     {
         return [

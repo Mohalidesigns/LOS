@@ -6,6 +6,4 @@ namespace Fundly\Integration\Ports\KeyManagement;
 
 use RuntimeException;
 
-final class KeyManagementFailure extends RuntimeException
-{
-}
+final class KeyManagementFailure extends RuntimeException {}

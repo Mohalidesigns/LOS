@@ -16,8 +16,7 @@ final class MeController
         private readonly CurrentPrincipal $principal,
         private readonly AuthenticatedUserQuery $me,
         private readonly EffectiveAccessQuery $effective,
-    ) {
-    }
+    ) {}
 
     public function show(): JsonResponse
     {

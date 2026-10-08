@@ -21,6 +21,5 @@ final readonly class CustomerCreate
         public ?string $email = null,
         public ?string $branchCode = null,
         public ?string $segment = null,
-    ) {
-    }
+    ) {}
 }

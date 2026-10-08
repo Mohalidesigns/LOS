@@ -21,6 +21,5 @@ final readonly class ExposureFacility
         public Money $arrears,
         public string $classification,
         public int $daysPastDue,
-    ) {
-    }
+    ) {}
 }

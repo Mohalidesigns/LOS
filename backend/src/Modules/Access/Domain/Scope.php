@@ -28,8 +28,7 @@ final readonly class Scope
         public ?Money $maxAmount = null,
         public array $segments = [],
         public array $portfolioTags = [],
-    ) {
-    }
+    ) {}
 
     public static function unrestricted(): self
     {

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fundly\Modules\Access\Domain\Permission;
 use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Bus\Command;
 use Fundly\Shared\Bus\CommandBus;
@@ -12,18 +13,25 @@ use Fundly\Shared\Bus\HandledBy;
 use Fundly\Shared\Bus\OutboxIntent;
 use Fundly\Shared\Bus\ValidatesInput;
 use Fundly\Shared\Exceptions\ValidationFailed;
+use Fundly\Shared\Id\UuidV7;
 use Fundly\Shared\Security\AccessDenied;
 use Fundly\Shared\Security\Principal;
 use Fundly\Shared\Security\PrincipalKind;
 use Fundly\Shared\Security\ResourceRef;
-use Fundly\Modules\Access\Domain\Permission;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 
 final class ProbeEvent implements DomainEvent
 {
-    public function name(): string { return 'probe.happened'; }
-    public function payload(): array { return []; }
+    public function name(): string
+    {
+        return 'probe.happened';
+    }
+
+    public function payload(): array
+    {
+        return [];
+    }
 }
 
 final class ProbeHandler implements CommandHandler
@@ -34,7 +42,7 @@ final class ProbeHandler implements CommandHandler
     {
         assert($command instanceof ProbeCommand);
         self::$calls[] = 'handle';
-        DB::table('sod_rules')->insert(['id' => Fundly\Shared\Id\UuidV7::generate(), 'tenant_id' => $context->principal->tenantId, 'kind' => 'permission_pair', 'left_ref' => 'a:b', 'right_ref' => 'c:d', 'description' => 'probe', 'enabled' => true, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('sod_rules')->insert(['id' => UuidV7::generate(), 'tenant_id' => $context->principal->tenantId, 'kind' => 'permission_pair', 'left_ref' => 'a:b', 'right_ref' => 'c:d', 'description' => 'probe', 'enabled' => true, 'created_at' => now(), 'updated_at' => now()]);
         $context->audit(new AuditEntry('probe.done', entityType: 'probe', entityId: 'p1'));
         $context->outbox(new OutboxIntent('probe.topic', ['x' => 1], idempotencyKey: 'probe-key-'.count(self::$calls)));
         $context->raise(new ProbeEvent);
@@ -50,11 +58,31 @@ final class ProbeHandler implements CommandHandler
 final class ProbeCommand implements Command, ValidatesInput
 {
     public function __construct(public bool $explode = false, public string $name = 'ok') {}
-    public function action(): string { return 'probe.run'; }
-    public function permission(): ?string { return Permission::SodRuleManage->value; }
-    public function resource(): ?ResourceRef { return null; }
-    public function data(): array { return ['name' => $this->name]; }
-    public function rules(): array { return ['name' => ['required', 'string', 'max:5']]; }
+
+    public function action(): string
+    {
+        return 'probe.run';
+    }
+
+    public function permission(): ?string
+    {
+        return Permission::SodRuleManage->value;
+    }
+
+    public function resource(): ?ResourceRef
+    {
+        return null;
+    }
+
+    public function data(): array
+    {
+        return ['name' => $this->name];
+    }
+
+    public function rules(): array
+    {
+        return ['name' => ['required', 'string', 'max:5']];
+    }
 }
 
 beforeEach(function () {
@@ -98,10 +126,22 @@ it('validates before handling', function () {
 });
 
 it('refuses system-only commands to non-system principals', function () {
-    $cmd = new class implements Command {
-        public function action(): string { return 'sys.only'; }
-        public function permission(): ?string { return null; }
-        public function resource(): ?ResourceRef { return null; }
+    $cmd = new class implements Command
+    {
+        public function action(): string
+        {
+            return 'sys.only';
+        }
+
+        public function permission(): ?string
+        {
+            return null;
+        }
+
+        public function resource(): ?ResourceRef
+        {
+            return null;
+        }
     };
     $u = $this->userWith([]);
     expect(fn () => app(CommandBus::class)->dispatch($cmd, new Principal($u->id, $this->tenant->id, PrincipalKind::Human)))->toThrow(AccessDenied::class);

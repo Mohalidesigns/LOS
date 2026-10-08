@@ -6,6 +6,4 @@ namespace Fundly\Shared\Tenancy;
 
 use RuntimeException;
 
-final class NoTenantContext extends RuntimeException
-{
-}
+final class NoTenantContext extends RuntimeException {}

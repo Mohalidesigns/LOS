@@ -21,8 +21,7 @@ final class ChangeRequestController
         private readonly CurrentPrincipal $principal,
         private readonly AccessQueries $queries,
         private readonly ChangeActionRegistry $registry,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {

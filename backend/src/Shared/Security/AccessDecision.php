@@ -12,8 +12,7 @@ final readonly class AccessDecision
         public ?string $grantingAssignmentId,
         public ?string $onBehalfOf,
         public string $reason,
-    ) {
-    }
+    ) {}
 
     public static function allow(string $permission, ?string $assignmentId, ?string $onBehalfOf = null, string $reason = 'granted'): self
     {

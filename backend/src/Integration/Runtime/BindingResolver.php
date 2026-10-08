@@ -14,9 +14,7 @@ use Fundly\Integration\Runtime\Models\AdapterBinding;
  */
 final class BindingResolver
 {
-    public function __construct(private readonly AdapterRegistry $registry, private readonly string $installationEnvironment)
-    {
-    }
+    public function __construct(private readonly AdapterRegistry $registry, private readonly string $installationEnvironment) {}
 
     public function resolve(string $port, ?string $legalEntityId = null): AdapterBinding
     {

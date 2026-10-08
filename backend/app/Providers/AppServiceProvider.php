@@ -52,7 +52,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $previous = null;
         Event::listen(CommandStarting::class, function (CommandStarting $event) use (&$previous): void {
-            if (! is_string($event->command) || ! str_starts_with($event->command, 'migrate')) {
+            if (! str_starts_with($event->command, 'migrate')) {
                 return;
             }
             if ($event->input->hasParameterOption('--database')) {
@@ -63,7 +63,7 @@ class AppServiceProvider extends ServiceProvider
             app('db')->setDefaultConnection((string) config('fundly.database.owner_connection'));
         });
         Event::listen(CommandFinished::class, function (CommandFinished $event) use (&$previous): void {
-            if ($previous !== null && is_string($event->command) && str_starts_with($event->command, 'migrate')) {
+            if ($previous !== null && str_starts_with($event->command, 'migrate')) {
                 config(['database.default' => $previous]);
                 app('db')->setDefaultConnection((string) $previous);
                 $previous = null;

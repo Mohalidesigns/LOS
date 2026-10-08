@@ -2,17 +2,23 @@
 
 declare(strict_types=1);
 
+use Fundly\Integration\Ports\CoreBanking\Dto\LoanAccountCreate;
 use Fundly\Integration\Runtime\Handlers\CreateLoanAccountHandler;
 use Fundly\Integration\Runtime\Handlers\DisburseHandler;
+use Fundly\Integration\Runtime\IntegrationGateway;
 use Fundly\Integration\Runtime\Models\AdapterBinding;
 use Fundly\Integration\Runtime\Outbox\DispatchOutboxJob;
 use Fundly\Integration\Runtime\Outbox\OutboxDispatcher;
+use Fundly\Integration\Runtime\Outbox\OutboxMessage;
 use Fundly\Integration\Runtime\Resilience\RandomSource;
 use Fundly\Integration\Runtime\Resilience\RecordingSleeper;
 use Fundly\Integration\Runtime\Resilience\SeededRandom;
 use Fundly\Integration\Runtime\Resilience\Sleeper;
 use Fundly\Modules\Access\Domain\Permission;
+use Fundly\Modules\Licensing\Contracts\LicenceFailSafe;
+use Fundly\Modules\Licensing\Http\Middleware\EnsureJobLicensed;
 use Fundly\Shared\Bus\OutboxIntent;
+use Fundly\Shared\Money\Money;
 use Fundly\Shared\Outbox\Outbox;
 use Illuminate\Support\Facades\DB;
 
@@ -74,7 +80,7 @@ it('re-delivers after a crash (lease expiry) and looks up before re-sending, so 
     $id = enqueueLoan();
     // a worker claims the message, the provider applies it, then the worker dies before recording the outcome
     DB::table('outbox_messages')->where('id', $id)->update(['attempts' => 1, 'available_at' => now()->addMinutes(5)]);
-    app(CreateLoanAccountHandler::class)->handle(new Fundly\Integration\Runtime\Outbox\OutboxMessage($id, $this->tenant->id, CreateLoanAccountHandler::TOPIC, json_decode(message($id)->payload, true), message($id)->idempotency_key, 1, null));
+    app(CreateLoanAccountHandler::class)->handle(new OutboxMessage($id, $this->tenant->id, CreateLoanAccountHandler::TOPIC, json_decode(message($id)->payload, true), message($id)->idempotency_key, 1, null));
     expect(dispatchOutbox()['dispatched'])->toBe(0); // still leased
 
     $this->travel(6)->minutes();
@@ -86,8 +92,8 @@ it('re-delivers after a crash (lease expiry) and looks up before re-sending, so 
 })->group('FR-CBA-007', 'FR-CBA-008');
 
 it('never blind-retries a disbursement: on an unknown outcome it looks the posting up, then retries with the same key only if absent', function () {
-    $g = app(Fundly\Integration\Runtime\IntegrationGateway::class);
-    $acct = $g->coreBanking('loanAccount.create', fn ($c) => $c->loanAccounts()->createLoanAccount(new Fundly\Integration\Ports\CoreBanking\Dto\LoanAccountCreate('fac-d', 'SIMC1', 'SIM-TL-01', Fundly\Shared\Money\Money::of('100', 'NGN'), '20', 6, 'monthly', 0, '2026-11-01', '30/360', '001'), 'k-l'), [], 'k-l');
+    $g = app(IntegrationGateway::class);
+    $acct = $g->coreBanking('loanAccount.create', fn ($c) => $c->loanAccounts()->createLoanAccount(new LoanAccountCreate('fac-d', 'SIMC1', 'SIM-TL-01', Money::of('100', 'NGN'), '20', 6, 'monthly', 0, '2026-11-01', '30/360', '001'), 'k-l'), [], 'k-l');
     setFaults([['operation' => 'postings.disburse', 'fault' => 'timeout', 'times' => 1]]);
     $key = $this->tenant->id.':disburse:fac-d:1';
     $id = app(Outbox::class)->add(new OutboxIntent(DisburseHandler::TOPIC, [
@@ -136,10 +142,10 @@ it('fails non-retryable errors and rejects business rejections without retrying'
 
 it('runs the dispatcher as a queued job for every tenant, as licence fail-safe work', function () {
     $id = enqueueLoan();
-    expect(new DispatchOutboxJob)->toBeInstanceOf(Fundly\Modules\Licensing\Contracts\LicenceFailSafe::class);
+    expect(new DispatchOutboxJob)->toBeInstanceOf(LicenceFailSafe::class);
     // even with no valid licence the job must run (D-034)
     DB::table('licences')->update(['status' => 'superseded']);
-    $guard = app(Fundly\Modules\Licensing\Http\Middleware\EnsureJobLicensed::class);
+    $guard = app(EnsureJobLicensed::class);
     $ran = false;
     $guard->handle(new DispatchOutboxJob, function ($job) use (&$ran) {
         app()->call([$job, 'handle']);

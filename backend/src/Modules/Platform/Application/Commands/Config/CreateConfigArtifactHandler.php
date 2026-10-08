@@ -16,9 +16,7 @@ use Fundly\Shared\Exceptions\NotFound;
 
 final class CreateConfigArtifactHandler implements CommandHandler
 {
-    public function __construct(private readonly ConfigTypeRegistry $types)
-    {
-    }
+    public function __construct(private readonly ConfigTypeRegistry $types) {}
 
     /** @return array{data: array<string, mixed>} */
     public function handle(Command $command, CommandContext $context): array

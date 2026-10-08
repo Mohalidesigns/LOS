@@ -14,6 +14,5 @@ final readonly class NameEnquiryResult
     public function __construct(
         public string $accountName,
         public ?int $matchScore = null,
-    ) {
-    }
+    ) {}
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fundly\Shared\Http;
 
+use Fundly\Shared\Database\Row;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Migrations\Migrator;
@@ -17,9 +18,7 @@ use Throwable;
  */
 final class HealthController
 {
-    public function __construct(private readonly ConnectionInterface $db, private readonly Cache $cache, private readonly Migrator $migrator)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db, private readonly Cache $cache, private readonly Migrator $migrator) {}
 
     public function health(): JsonResponse
     {
@@ -30,9 +29,9 @@ final class HealthController
     {
         $checks = [];
         try {
-            $role = $this->db->selectOne('select current_user as u, (select rolbypassrls or rolsuper from pg_roles where rolname = current_user) as privileged');
-            $checks['database'] = is_object($role) ? 'ok' : 'fail';
-            $checks['rls_enforced'] = is_object($role) && ! $role->privileged ? 'ok' : 'fail';
+            $role = Row::one($this->db->selectOne('select current_user as u, (select rolbypassrls or rolsuper from pg_roles where rolname = current_user) as privileged'));
+            $checks['database'] = $role !== null ? 'ok' : 'fail';
+            $checks['rls_enforced'] = $role !== null && $role->privileged === false ? 'ok' : 'fail';
         } catch (Throwable) {
             $checks['database'] = 'fail';
         }

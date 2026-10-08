@@ -30,8 +30,7 @@ final class CircuitBreaker
         private readonly AuditTrail $audit,
         private readonly int $failureThreshold,
         private readonly int $openSeconds,
-    ) {
-    }
+    ) {}
 
     public function allows(string $key): bool
     {

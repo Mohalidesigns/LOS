@@ -21,8 +21,7 @@ final class DatabaseOutbox implements Outbox
         private readonly RequestContext $request,
         private readonly ActorProvider $actors,
         private readonly int $defaultMaxAttempts,
-    ) {
-    }
+    ) {}
 
     public function add(OutboxIntent $intent): string
     {

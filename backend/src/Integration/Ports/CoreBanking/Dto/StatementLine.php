@@ -16,6 +16,5 @@ final readonly class StatementLine
         public string $reference,
         public Money $amount,
         public string $direction,
-    ) {
-    }
+    ) {}
 }

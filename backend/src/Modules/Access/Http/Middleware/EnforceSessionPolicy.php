@@ -26,8 +26,7 @@ final class EnforceSessionPolicy
         private readonly SessionPolicyProvider $policy,
         private readonly Clock $clock,
         private readonly AuditTrail $audit,
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {

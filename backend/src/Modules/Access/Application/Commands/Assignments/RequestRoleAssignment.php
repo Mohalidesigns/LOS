@@ -23,8 +23,7 @@ final readonly class RequestRoleAssignment implements SubmitsChangeRequest, Vali
         public string $validFrom,
         public ?string $validTo,
         public ?string $reason,
-    ) {
-    }
+    ) {}
 
     public function action(): string
     {

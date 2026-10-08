@@ -13,9 +13,7 @@ use Illuminate\Database\ConnectionInterface;
  */
 final class ActionHistory
 {
-    public function __construct(private readonly ConnectionInterface $db)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
     /** @param list<string> $permissions */
     public function actorExercised(string $actorId, string $entityType, string $entityId, array $permissions): bool

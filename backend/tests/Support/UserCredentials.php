@@ -14,6 +14,5 @@ final class UserCredentials
         public readonly string $email,
         public readonly string $password,
         public readonly string $tenantId,
-    ) {
-    }
+    ) {}
 }

@@ -25,7 +25,7 @@ final class ProvisionTenantCommand extends Command
             [$name, $email] = array_pad(explode(':', (string) $spec, 2), 2, '');
             $password = getenv('FUNDLY_BOOTSTRAP_PASSWORD_'.($i + 1));
             if ($email === '' || ! is_string($password) || strlen($password) < 12) {
-                $this->error("Admin #".($i + 1).': use --admin="Name:email" and set FUNDLY_BOOTSTRAP_PASSWORD_'.($i + 1).' (12+ chars).');
+                $this->error('Admin #'.($i + 1).': use --admin="Name:email" and set FUNDLY_BOOTSTRAP_PASSWORD_'.($i + 1).' (12+ chars).');
 
                 return self::FAILURE;
             }

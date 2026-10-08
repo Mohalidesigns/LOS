@@ -19,8 +19,7 @@ final class SodController
         private readonly CommandBus $bus,
         private readonly CurrentPrincipal $principal,
         private readonly AccessQueries $queries,
-    ) {
-    }
+    ) {}
 
     public function index(): JsonResponse
     {

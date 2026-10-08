@@ -15,6 +15,5 @@ final readonly class ChargeItem
         public string $code,
         public Money $amount,
         public ?string $taxCode = null,
-    ) {
-    }
+    ) {}
 }

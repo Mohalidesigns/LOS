@@ -17,7 +17,7 @@ use Illuminate\Queue\InteractsWithQueue;
  * Delivers in-flight external effects, so it is licence fail-safe (D-034):
  * an expired licence never strands a saga half way.
  */
-final class DispatchOutboxJob implements ShouldQueue, ShouldBeUnique, LicenceFailSafe
+final class DispatchOutboxJob implements LicenceFailSafe, ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;

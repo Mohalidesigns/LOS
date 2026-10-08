@@ -17,9 +17,7 @@ final class SessionPolicyProvider
 
     public const CONFIG_KEY = 'default';
 
-    public function __construct(private readonly ActiveConfiguration $config)
-    {
-    }
+    public function __construct(private readonly ActiveConfiguration $config) {}
 
     public function current(): SessionPolicy
     {

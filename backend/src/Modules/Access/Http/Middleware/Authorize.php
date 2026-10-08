@@ -32,8 +32,7 @@ final class Authorize
         private readonly CurrentPrincipal $principal,
         private readonly AuditTrail $audit,
         private readonly TenantContext $tenant,
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next, string $permission): Response
     {

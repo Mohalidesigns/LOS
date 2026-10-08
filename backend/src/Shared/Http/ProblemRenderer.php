@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Fundly\Shared\Http;
 
 use Fundly\Shared\Exceptions\ProblemException;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
@@ -29,9 +29,7 @@ final class ProblemRenderer
 {
     public const CONTENT_TYPE = 'application/problem+json';
 
-    public function __construct(private readonly RequestContext $context)
-    {
-    }
+    public function __construct(private readonly RequestContext $context) {}
 
     public function render(Throwable $e, Request $request): JsonResponse
     {

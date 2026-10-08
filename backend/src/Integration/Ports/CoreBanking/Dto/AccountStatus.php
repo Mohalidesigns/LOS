@@ -14,6 +14,5 @@ final readonly class AccountStatus
     public function __construct(
         public string $status,
         public string $ownerName,
-    ) {
-    }
+    ) {}
 }

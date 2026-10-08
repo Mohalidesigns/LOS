@@ -23,9 +23,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class BindPrincipal
 {
-    public function __construct(private readonly CurrentPrincipal $principal, private readonly TenantContext $tenant)
-    {
-    }
+    public function __construct(private readonly CurrentPrincipal $principal, private readonly TenantContext $tenant) {}
 
     public function handle(Request $request, Closure $next): Response
     {

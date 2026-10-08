@@ -22,7 +22,8 @@ final class DatabaseSeeder extends Seeder
         if (config('fundly.installation.environment') === 'production') {
             throw new RuntimeException('Demo seeding is disabled in production installations.');
         }
-        $password = (string) env('FUNDLY_DEMO_PASSWORD', '');
+        $password = getenv('FUNDLY_DEMO_PASSWORD');
+        $password = is_string($password) ? $password : '';
         if (strlen($password) < 12) {
             throw new RuntimeException('Set FUNDLY_DEMO_PASSWORD (12+ characters) to seed demo administrators.');
         }

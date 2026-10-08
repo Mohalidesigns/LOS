@@ -26,8 +26,7 @@ final readonly class CreateLegalEntity implements Command, ValidatesInput
         public string $baseCurrency,
         public string $timezone,
         public array $orgLevelLabels,
-    ) {
-    }
+    ) {}
 
     public function action(): string
     {

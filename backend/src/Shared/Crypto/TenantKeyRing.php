@@ -7,6 +7,7 @@ namespace Fundly\Shared\Crypto;
 use Fundly\Integration\Ports\KeyManagement\KeyManagementPort;
 use Fundly\Integration\Ports\KeyManagement\WrappedKey;
 use Fundly\Shared\Clock\Clock;
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Id\UuidV7;
 use Fundly\Shared\Tenancy\TenantContext;
 use Illuminate\Database\ConnectionInterface;
@@ -26,16 +27,15 @@ final class TenantKeyRing
         private readonly TenantContext $tenant,
         private readonly KeyManagementPort $kms,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     /** @return array{version: int, key: string} */
     public function active(string $purpose): array
     {
         $tenantId = $this->tenant->requireId();
-        $row = $this->db->table('tenant_keys')
+        $row = Row::one($this->db->table('tenant_keys')
             ->where(['tenant_id' => $tenantId, 'purpose' => $purpose, 'status' => 'active'])
-            ->orderByDesc('version')->first();
+            ->orderByDesc('version')->first());
 
         if ($row === null) {
             return $this->create($tenantId, $purpose, 1);
@@ -51,8 +51,8 @@ final class TenantKeyRing
         if (isset($this->cache[$cacheKey])) {
             return $this->cache[$cacheKey];
         }
-        $row = $this->db->table('tenant_keys')
-            ->where(['tenant_id' => $tenantId, 'purpose' => $purpose, 'version' => $version])->first();
+        $row = Row::one($this->db->table('tenant_keys')
+            ->where(['tenant_id' => $tenantId, 'purpose' => $purpose, 'version' => $version])->first());
         if ($row === null) {
             throw new RuntimeException("Key {$purpose} v{$version} does not exist for this tenant.");
         }
@@ -90,7 +90,7 @@ final class TenantKeyRing
         return ['version' => $version, 'key' => $key];
     }
 
-    private function unwrapRow(string $tenantId, string $purpose, object $row): string
+    private function unwrapRow(string $tenantId, string $purpose, \stdClass $row): string
     {
         $version = (int) $row->version;
         $cacheKey = "{$tenantId}|{$purpose}|{$version}";

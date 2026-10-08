@@ -1,0 +1,18 @@
+O:23:"PHPStan\Cache\CacheItem":2:{s:11:"variableKey";s:37:"v3-6.73.0.5-dev-master@e4f5f6c-8.3.6-";s:4:"data";a:17:{s:4:"name";s:49:"sodium_crypto_aead_xchacha20poly1305_ietf_encrypt";s:10:"parameters";a:4:{s:7:"message";a:13:{s:4:"name";s:7:"message";s:7:"default";N;s:4:"type";a:2:{s:5:"class";s:55:"PHPStan\BetterReflection\Reflection\ReflectionNamedType";s:4:"data";a:2:{s:4:"name";s:6:"string";s:12:"isIdentifier";b:1;}}s:10:"isVariadic";b:0;s:5:"byRef";b:0;s:10:"isPromoted";b:0;s:10:"attributes";a:0:{}s:9:"startLine";i:22;s:7:"endLine";i:22;s:11:"startColumn";i:64;s:9:"endColumn";i:78;s:14:"parameterIndex";i:0;s:10:"isOptional";b:0;}s:15:"additional_data";a:13:{s:4:"name";s:15:"additional_data";s:7:"default";N;s:4:"type";a:2:{s:5:"class";s:55:"PHPStan\BetterReflection\Reflection\ReflectionNamedType";s:4:"data";a:2:{s:4:"name";s:6:"string";s:12:"isIdentifier";b:1;}}s:10:"isVariadic";b:0;s:5:"byRef";b:0;s:10:"isPromoted";b:0;s:10:"attributes";a:0:{}s:9:"startLine";i:22;s:7:"endLine";i:22;s:11:"startColumn";i:81;s:9:"endColumn";i:103;s:14:"parameterIndex";i:1;s:10:"isOptional";b:0;}s:5:"nonce";a:13:{s:4:"name";s:5:"nonce";s:7:"default";N;s:4:"type";a:2:{s:5:"class";s:55:"PHPStan\BetterReflection\Reflection\ReflectionNamedType";s:4:"data";a:2:{s:4:"name";s:6:"string";s:12:"isIdentifier";b:1;}}s:10:"isVariadic";b:0;s:5:"byRef";b:0;s:10:"isPromoted";b:0;s:10:"attributes";a:0:{}s:9:"startLine";i:22;s:7:"endLine";i:22;s:11:"startColumn";i:106;s:9:"endColumn";i:118;s:14:"parameterIndex";i:2;s:10:"isOptional";b:0;}s:3:"key";a:13:{s:4:"name";s:3:"key";s:7:"default";N;s:4:"type";a:2:{s:5:"class";s:55:"PHPStan\BetterReflection\Reflection\ReflectionNamedType";s:4:"data";a:2:{s:4:"name";s:6:"string";s:12:"isIdentifier";b:1;}}s:10:"isVariadic";b:0;s:5:"byRef";b:0;s:10:"isPromoted";b:0;s:10:"attributes";a:0:{}s:9:"startLine";i:22;s:7:"endLine";i:22;s:11:"startColumn";i:121;s:9:"endColumn";i:131;s:14:"parameterIndex";i:3;s:10:"isOptional";b:0;}}s:16:"returnsReference";b:0;s:10:"returnType";a:2:{s:5:"class";s:55:"PHPStan\BetterReflection\Reflection\ReflectionNamedType";s:4:"data";a:2:{s:4:"name";s:6:"string";s:12:"isIdentifier";b:1;}}s:10:"attributes";a:0:{}s:10:"docComment";s:973:"/**
+ * (Preferred) Encrypt then authenticate with XChaCha20-Poly1305
+ *
+ * Encrypt then authenticate with XChaCha20-Poly1305 (eXtended-nonce variant).
+ *
+ * @link https://php.net/manual/en/function.sodium-crypto-aead-xchacha20poly1305-ietf-encrypt.php
+ * @param string $message The plaintext message to encrypt.
+ * @param string $additional_data Additional, authenticated data. This is used in the verification
+ * of the authentication tag appended to the ciphertext, but it is not encrypted or stored in the
+ * ciphertext.
+ * @param string $nonce A number that must be only used once, per message. 24 bytes long. This is a
+ * large enough bound to generate randomly (i.e. random_bytes).
+ * @param string $key Encryption key (256-bit).
+ * @return string Returns the ciphertext and authentication tag as a string of raw binary bytes.
+ * @throws SodiumException
+ * @since 7.2
+ * https://www.php.net/manual/en/function.sodium-crypto-aead-xchacha20poly1305-ietf-encrypt.php
+ */";s:9:"startLine";i:22;s:7:"endLine";i:24;s:11:"startColumn";i:5;s:9:"endColumn";i:5;s:10:"couldThrow";b:0;s:9:"isClosure";b:0;s:11:"isGenerator";b:0;s:10:"isVariadic";b:0;s:8:"isStatic";b:0;s:9:"namespace";N;s:13:"locatedSource";a:2:{s:5:"class";s:68:"PHPStan\BetterReflection\SourceLocator\Located\InternalLocatedSource";s:4:"data";a:4:{s:4:"name";s:49:"sodium_crypto_aead_xchacha20poly1305_ietf_encrypt";s:8:"filename";s:33:"phpstorm-stubs:sodium/sodium.stub";s:13:"extensionName";s:6:"sodium";s:9:"aliasName";N;}}}}

@@ -23,8 +23,7 @@ final class IntegrationCallLog
         private readonly TenantContext $tenant,
         private readonly RequestContext $request,
         private readonly PiiMasker $masker,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $request

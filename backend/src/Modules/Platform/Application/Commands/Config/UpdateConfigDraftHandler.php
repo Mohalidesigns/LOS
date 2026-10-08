@@ -18,9 +18,7 @@ use Fundly\Shared\Json\CanonicalJson;
 
 final class UpdateConfigDraftHandler implements CommandHandler
 {
-    public function __construct(private readonly ConfigTypeRegistry $types)
-    {
-    }
+    public function __construct(private readonly ConfigTypeRegistry $types) {}
 
     /** @return array{data: array<string, mixed>, etag: string} */
     public function handle(Command $command, CommandContext $context): array

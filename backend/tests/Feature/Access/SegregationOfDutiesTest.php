@@ -7,6 +7,15 @@ use Fundly\Modules\Access\Domain\Scope;
 use Fundly\Modules\Access\Infrastructure\Models\Role;
 use Fundly\Modules\Access\Infrastructure\Models\RoleAssignment;
 use Fundly\Modules\Access\Infrastructure\Models\RolePermission;
+use Fundly\Modules\Access\Infrastructure\Persistence\GrantRepository;
+use Fundly\Shared\Audit\AuditEntry;
+use Fundly\Shared\Audit\AuditTrail;
+use Fundly\Shared\Security\AccessDenied;
+use Fundly\Shared\Security\AuthorizationGate;
+use Fundly\Shared\Security\CurrentPrincipal;
+use Fundly\Shared\Security\Principal;
+use Fundly\Shared\Security\PrincipalKind;
+use Fundly\Shared\Security\ResourceAttributes;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -61,28 +70,28 @@ it('blocks at action time a user who holds a conflicting pair (pre-existing viol
     expect(collect($conflicts)->where('user_id', $both->id)->pluck('left')->all())->toContain('disbursement:make');
 
     // action-time check through the authoriser
-    $principal = new Fundly\Shared\Security\Principal($both->id, $this->tenant->id, Fundly\Shared\Security\PrincipalKind::Human);
-    $gate = app(Fundly\Shared\Security\AuthorizationGate::class);
-    expect(fn () => $gate->authorize($principal, 'disbursement:check'))->toThrow(Fundly\Shared\Security\AccessDenied::class)
+    $principal = new Principal($both->id, $this->tenant->id, PrincipalKind::Human);
+    $gate = app(AuthorizationGate::class);
+    expect(fn () => $gate->authorize($principal, 'disbursement:check'))->toThrow(AccessDenied::class)
         ->and($gate->authorize($principal, 'role:read')->allowed)->toBeTrue();
 })->group('FR-SEC-006');
 
 it('blocks a user from exercising the counterpart permission on the same record (history-based SoD)', function () {
     $maker = $this->userWith([Permission::DisbursementMake]);
-    $gate = app(Fundly\Shared\Security\AuthorizationGate::class);
-    $d1 = new Fundly\Shared\Security\ResourceAttributes(entityType: 'disbursement', entityId: 'D-1');
-    $d2 = new Fundly\Shared\Security\ResourceAttributes(entityType: 'disbursement', entityId: 'D-2');
+    $gate = app(AuthorizationGate::class);
+    $d1 = new ResourceAttributes(entityType: 'disbursement', entityId: 'D-1');
+    $d2 = new ResourceAttributes(entityType: 'disbursement', entityId: 'D-2');
 
     // The user "made" D-1; the audit trail is the record of who did what.
-    app(Fundly\Shared\Security\CurrentPrincipal::class)->set(new Fundly\Shared\Security\Principal($maker->id, $this->tenant->id, Fundly\Shared\Security\PrincipalKind::Human));
-    app(Fundly\Shared\Audit\AuditTrail::class)->record(new Fundly\Shared\Audit\AuditEntry('disbursement.made', entityType: 'disbursement', entityId: 'D-1', permission: 'disbursement:make'));
+    app(CurrentPrincipal::class)->set(new Principal($maker->id, $this->tenant->id, PrincipalKind::Human));
+    app(AuditTrail::class)->record(new AuditEntry('disbursement.made', entityType: 'disbursement', entityId: 'D-1', permission: 'disbursement:make'));
 
     // Later they move teams: maker access revoked, checker access granted. No standing conflict now.
     RoleAssignment::query()->where('user_id', $maker->id)->update(['revoked_at' => now()]);
     RoleAssignment::query()->create(['user_id' => $maker->id, 'role_id' => $this->checkerRole->id, 'scope' => Scope::unrestricted()->toArray(), 'valid_from' => now()->subMinute(), 'granted_by' => 'test']);
-    app(Fundly\Modules\Access\Infrastructure\Persistence\GrantRepository::class)->forget();
+    app(GrantRepository::class)->forget();
 
-    $p = new Fundly\Shared\Security\Principal($maker->id, $this->tenant->id, Fundly\Shared\Security\PrincipalKind::Human);
+    $p = new Principal($maker->id, $this->tenant->id, PrincipalKind::Human);
     expect($gate->authorize($p, 'disbursement:check', $d2)->allowed)->toBeTrue()
-        ->and(fn () => $gate->authorize($p, 'disbursement:check', $d1))->toThrow(Fundly\Shared\Security\AccessDenied::class, 'already performed a conflicting action');
+        ->and(fn () => $gate->authorize($p, 'disbursement:check', $d1))->toThrow(AccessDenied::class, 'already performed a conflicting action');
 })->group('FR-SEC-006');

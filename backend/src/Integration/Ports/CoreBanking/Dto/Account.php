@@ -14,6 +14,5 @@ final readonly class Account
         public string $currency,
         public string $status,
         public ?string $productCode = null,
-    ) {
-    }
+    ) {}
 }

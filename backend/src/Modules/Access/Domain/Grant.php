@@ -28,8 +28,7 @@ final readonly class Grant
         public ?array $orgSubtree = null,
         public ?string $delegatedBy = null,
         public ?string $delegationId = null,
-    ) {
-    }
+    ) {}
 
     public function isActiveAt(DateTimeImmutable $now): bool
     {

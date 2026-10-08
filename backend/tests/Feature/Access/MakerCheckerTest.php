@@ -3,11 +3,14 @@
 declare(strict_types=1);
 
 use Fundly\Modules\Access\Domain\Permission;
+use Fundly\Modules\Access\Domain\Scope;
 use Fundly\Modules\Access\Infrastructure\Models\ChangeRequest;
 use Fundly\Modules\Access\Infrastructure\Models\Role;
+use Fundly\Modules\Access\Infrastructure\Models\RoleAssignment;
 use Fundly\Modules\Access\Infrastructure\Models\RolePermission;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 
 beforeEach(function () {
     $this->tenant = $this->provisionTenant();
@@ -17,7 +20,7 @@ beforeEach(function () {
     $this->target = $this->userWith([]);
 });
 
-function requestAssignment(object $t, array $extra = []): Illuminate\Testing\TestResponse
+function requestAssignment(object $t, array $extra = []): TestResponse
 {
     return $t->api('POST', '/api/v1/role-assignments', array_merge([
         'user_id' => $t->target->id, 'role_id' => $t->role->id, 'scope' => [], 'reason' => 'joining audit team',
@@ -56,7 +59,7 @@ it('does not let the subject of a change approve it, nor a checker without the c
 
     // the target is excluded even if they could otherwise approve
     $role = Role::query()->where('code', 'tenant_administrator')->firstOrFail();
-    \Fundly\Modules\Access\Infrastructure\Models\RoleAssignment::query()->create(['user_id' => $this->target->id, 'role_id' => $role->id, 'scope' => \Fundly\Modules\Access\Domain\Scope::unrestricted()->toArray(), 'valid_from' => now()->subMinute(), 'granted_by' => 'test']);
+    RoleAssignment::query()->create(['user_id' => $this->target->id, 'role_id' => $role->id, 'scope' => Scope::unrestricted()->toArray(), 'valid_from' => now()->subMinute(), 'granted_by' => 'test']);
     $this->login($this->target);
     $this->api('POST', "/api/v1/change-requests/{$cr['id']}/actions/approve")->assertForbidden()->assertJsonPath('code', 'sod-conflict');
 })->group('FR-SEC-007', 'FR-SEC-006');

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Fundly\Modules\Access\Application\Commands\Delegations;
 
-use Fundly\Modules\Access\Application\Queries\AccessQueries;
 use DateTimeImmutable;
+use Fundly\Modules\Access\Application\Queries\AccessQueries;
 use Fundly\Modules\Access\Application\SodChecker;
 use Fundly\Modules\Access\Contracts\SodConflict;
 use Fundly\Modules\Access\Infrastructure\Models\Delegation;
@@ -22,9 +22,7 @@ use Fundly\Shared\Exceptions\ValidationFailed;
 
 final class CreateDelegationHandler implements CommandHandler
 {
-    public function __construct(private readonly SodChecker $sod, private readonly GrantRepository $grants)
-    {
-    }
+    public function __construct(private readonly SodChecker $sod, private readonly GrantRepository $grants) {}
 
     /** @return array{data: array<string, mixed>, etag?: string} */
     public function handle(Command $command, CommandContext $context): array

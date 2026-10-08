@@ -16,8 +16,7 @@ final readonly class Actor
         public array $roles = [],
         public ?string $permissionsHash = null,
         public ?string $onBehalfOf = null,
-    ) {
-    }
+    ) {}
 
     public static function system(SystemIdentity $identity): self
     {

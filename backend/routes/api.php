@@ -17,6 +17,7 @@ use Fundly\Modules\Platform\Http\Controllers\ConfigController;
 use Fundly\Modules\Platform\Http\Controllers\LegalEntityController;
 use Fundly\Modules\Platform\Http\Controllers\OrgUnitController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 
 /*
  * /api/v1 — the only HTTP surface (D-031). Every route declares an `authz:`
@@ -29,7 +30,7 @@ use Illuminate\Support\Facades\Route;
 // ---- Authentication (no session yet) ---------------------------------------------------
 Route::middleware(['authz:public', 'licence.exempt', 'throttle:login'])->prefix('auth')->group(function (): void {
     // SPA bootstrap: sets the XSRF-TOKEN cookie for Sanctum's CSRF protection (G-51).
-    Route::get('csrf-cookie', [\Laravel\Sanctum\Http\Controllers\CsrfCookieController::class, 'show'])->name('auth.csrf-cookie');
+    Route::get('csrf-cookie', [CsrfCookieController::class, 'show'])->name('auth.csrf-cookie');
     Route::post('login', [AuthController::class, 'login'])->name('auth.login');
     Route::post('mfa/verify', [AuthController::class, 'verifyMfa'])->name('auth.mfa.verify');
 });

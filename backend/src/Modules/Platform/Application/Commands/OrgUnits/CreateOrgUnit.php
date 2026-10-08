@@ -12,9 +12,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(CreateOrgUnitHandler::class)]
 final readonly class CreateOrgUnit implements Command, ValidatesInput
 {
-    public function __construct(public string $legalEntityId, public ?string $parentId, public string $code, public string $name)
-    {
-    }
+    public function __construct(public string $legalEntityId, public ?string $parentId, public string $code, public string $name) {}
 
     public function action(): string
     {

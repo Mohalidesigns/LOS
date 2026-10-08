@@ -14,9 +14,7 @@ use Illuminate\Database\ConnectionInterface;
  */
 final class SessionRevoker
 {
-    public function __construct(private readonly ConnectionInterface $db, private readonly GrantRepository $grants)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db, private readonly GrantRepository $grants) {}
 
     public function revokeAll(string $userId): int
     {

@@ -20,9 +20,7 @@ use Fundly\Shared\Security\ResourceAttributes;
 
 final class UpdateOrgUnitHandler implements CommandHandler
 {
-    public function __construct(private readonly OrgClosure $closure, private readonly AuthorizationGate $gate)
-    {
-    }
+    public function __construct(private readonly OrgClosure $closure, private readonly AuthorizationGate $gate) {}
 
     /** @return array{data: array<string, mixed>, etag: string} */
     public function handle(Command $command, CommandContext $context): array

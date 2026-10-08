@@ -35,8 +35,7 @@ final class IntegrationGateway
         private readonly RetryPolicy $retry,
         private readonly Sleeper $sleeper,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     /**
      * @template T

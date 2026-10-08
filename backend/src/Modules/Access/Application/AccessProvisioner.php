@@ -28,9 +28,7 @@ final class AccessProvisioner implements AccessProvisioning
 {
     public const ADMIN_ROLE_CODE = 'tenant_administrator';
 
-    public function __construct(private readonly Hasher $hasher, private readonly AuditTrail $audit, private readonly Clock $clock)
-    {
-    }
+    public function __construct(private readonly Hasher $hasher, private readonly AuditTrail $audit, private readonly Clock $clock) {}
 
     public function seedTenant(): void
     {

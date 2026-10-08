@@ -19,9 +19,7 @@ final class AssignCorrelationId
 {
     public const HEADER = 'X-Correlation-Id';
 
-    public function __construct(private readonly RequestContext $context)
-    {
-    }
+    public function __construct(private readonly RequestContext $context) {}
 
     public function handle(Request $request, Closure $next): Response
     {

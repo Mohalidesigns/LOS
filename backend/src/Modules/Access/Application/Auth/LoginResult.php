@@ -13,9 +13,7 @@ final readonly class LoginResult
     public const AUTHENTICATED = 'authenticated';
 
     /** @param array<string, string>|null $enrollment */
-    private function __construct(public string $status, public ?array $enrollment = null, public ?string $userId = null)
-    {
-    }
+    private function __construct(public string $status, public ?array $enrollment = null, public ?string $userId = null) {}
 
     public static function mfaRequired(): self
     {

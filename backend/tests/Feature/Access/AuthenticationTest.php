@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use Fundly\Modules\Access\Application\SessionRevoker;
 use Fundly\Modules\Access\Domain\Permission;
-use Fundly\Modules\Access\Domain\Totp;
 use Fundly\Modules\Access\Infrastructure\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -136,7 +136,7 @@ it('forces re-authentication after a privilege change', function () {
     $this->login($user);
     $this->api('GET', '/api/v1/roles')->assertOk();
 
-    app(\Fundly\Modules\Access\Application\SessionRevoker::class)->revokeAll($user->id);
+    app(SessionRevoker::class)->revokeAll($user->id);
     $this->api('GET', '/api/v1/roles')->assertStatus(401);
 })->group('FR-SEC-015');
 

@@ -24,8 +24,7 @@ final class CreateUserHandler implements CommandHandler
         private readonly LicenceEntitlements $licence,
         private readonly ConnectionInterface $db,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     /** @return array{data: array<string, mixed>, etag?: string} */
     public function handle(Command $command, CommandContext $context): array

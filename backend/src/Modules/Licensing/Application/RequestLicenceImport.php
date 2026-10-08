@@ -11,9 +11,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(RequestLicenceImportHandler::class)]
 final readonly class RequestLicenceImport implements Command
 {
-    public function __construct(public string $document, public string $signature, public ?string $reason)
-    {
-    }
+    public function __construct(public string $document, public string $signature, public ?string $reason) {}
 
     public function action(): string
     {

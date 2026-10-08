@@ -18,6 +18,5 @@ final readonly class Posting
         public Money $amount,
         public string $status,
         public string $valueDate,
-    ) {
-    }
+    ) {}
 }

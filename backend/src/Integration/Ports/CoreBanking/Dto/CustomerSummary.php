@@ -15,6 +15,5 @@ final readonly class CustomerSummary
         public string $kind,
         public ?string $segment = null,
         public ?string $losPartyId = null,
-    ) {
-    }
+    ) {}
 }

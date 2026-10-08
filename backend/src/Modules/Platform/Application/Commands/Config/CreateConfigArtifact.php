@@ -12,9 +12,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(CreateConfigArtifactHandler::class)]
 final readonly class CreateConfigArtifact implements Command, ValidatesInput
 {
-    public function __construct(public string $type, public string $key, public string $name, public ?string $description)
-    {
-    }
+    public function __construct(public string $type, public string $key, public string $name, public ?string $description) {}
 
     public function action(): string
     {

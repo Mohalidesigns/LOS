@@ -12,9 +12,7 @@ final readonly class BreakerState
 
     public const HALF_OPEN = 'half_open';
 
-    public function __construct(public string $state, public int $consecutiveFailures, public ?int $openedAt)
-    {
-    }
+    public function __construct(public string $state, public int $consecutiveFailures, public ?int $openedAt) {}
 
     public static function closed(): self
     {

@@ -20,6 +20,5 @@ final readonly class CollateralRecord
         public string $type,
         public Money $value,
         public array $attributes = [],
-    ) {
-    }
+    ) {}
 }

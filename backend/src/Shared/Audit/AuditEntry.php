@@ -22,6 +22,5 @@ final readonly class AuditEntry
         public ?string $reasonCode = null,
         public ?string $reasonText = null,
         public ?string $stepUpRef = null,
-    ) {
-    }
+    ) {}
 }

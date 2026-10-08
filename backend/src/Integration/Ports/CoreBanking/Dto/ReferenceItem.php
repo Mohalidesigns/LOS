@@ -18,6 +18,5 @@ final readonly class ReferenceItem
         public string $code,
         public string $name,
         public array $attributes = [],
-    ) {
-    }
+    ) {}
 }

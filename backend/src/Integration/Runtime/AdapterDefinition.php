@@ -17,6 +17,5 @@ final readonly class AdapterDefinition
         public CapabilityManifest $manifest,
         public Closure $factory,
         public bool $isSimulator = false,
-    ) {
-    }
+    ) {}
 }

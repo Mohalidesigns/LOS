@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fundly\Integration\Runtime\Resilience;
 
 use Fundly\Shared\Clock\Clock;
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Tenancy\TenantContext;
 use Illuminate\Database\ConnectionInterface;
 
@@ -15,8 +16,7 @@ final class DatabaseBreakerStore implements BreakerStore
         private readonly ConnectionInterface $db,
         private readonly TenantContext $tenant,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     public function update(string $key, callable $mutate): array
     {
@@ -26,7 +26,7 @@ final class DatabaseBreakerStore implements BreakerStore
                 'insert into circuit_breakers (tenant_id, breaker_key, state, consecutive_failures, updated_at) values (?, ?, ?, 0, ?) on conflict do nothing',
                 [$tenantId, $key, BreakerState::CLOSED, $this->clock->now()],
             );
-            $row = $this->db->table('circuit_breakers')->where(['tenant_id' => $tenantId, 'breaker_key' => $key])->lockForUpdate()->first();
+            $row = Row::one($this->db->table('circuit_breakers')->where(['tenant_id' => $tenantId, 'breaker_key' => $key])->lockForUpdate()->first());
             $before = self::hydrate($row);
             $after = $mutate($before);
             $this->db->table('circuit_breakers')->where(['tenant_id' => $tenantId, 'breaker_key' => $key])->update([
@@ -42,10 +42,10 @@ final class DatabaseBreakerStore implements BreakerStore
 
     public function get(string $key): BreakerState
     {
-        return self::hydrate($this->db->table('circuit_breakers')->where(['tenant_id' => $this->tenant->requireId(), 'breaker_key' => $key])->first());
+        return self::hydrate(Row::one($this->db->table('circuit_breakers')->where(['tenant_id' => $this->tenant->requireId(), 'breaker_key' => $key])->first()));
     }
 
-    private static function hydrate(?object $row): BreakerState
+    private static function hydrate(?\stdClass $row): BreakerState
     {
         if ($row === null) {
             return BreakerState::closed();

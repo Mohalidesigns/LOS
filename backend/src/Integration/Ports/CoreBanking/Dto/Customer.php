@@ -28,6 +28,5 @@ final readonly class Customer
         public ?string $kycTier = null,
         public array $relationships = [],
         public ?string $losPartyId = null,
-    ) {
-    }
+    ) {}
 }

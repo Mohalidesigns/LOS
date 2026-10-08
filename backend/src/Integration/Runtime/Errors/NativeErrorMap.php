@@ -12,9 +12,7 @@ namespace Fundly\Integration\Runtime\Errors;
 final readonly class NativeErrorMap
 {
     /** @param array<string, array{0: ErrorClass, 1: string}> $map native code => [class, canonical code] */
-    public function __construct(private string $port, private array $map)
-    {
-    }
+    public function __construct(private string $port, private array $map) {}
 
     public function toException(string $nativeCode, string $message, bool $afterSend = false): IntegrationException
     {

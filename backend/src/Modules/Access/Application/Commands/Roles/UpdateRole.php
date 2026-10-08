@@ -13,9 +13,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(UpdateRoleHandler::class)]
 final readonly class UpdateRole implements Command, ValidatesInput
 {
-    public function __construct(public string $roleId, public ?string $name, public ?string $description, public bool $descriptionProvided, public ?string $ifMatch)
-    {
-    }
+    public function __construct(public string $roleId, public ?string $name, public ?string $description, public bool $descriptionProvided, public ?string $ifMatch) {}
 
     public function action(): string
     {

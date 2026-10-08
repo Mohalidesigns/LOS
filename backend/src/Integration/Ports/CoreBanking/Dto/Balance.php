@@ -15,6 +15,5 @@ final readonly class Balance
         public Money $ledger,
         public Money $available,
         public string $asOf,
-    ) {
-    }
+    ) {}
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fundly\Modules\Access\Application\Queries;
 
+use Fundly\Modules\Access\Application\ChangeRequests\ChangeActionRegistry;
 use Fundly\Modules\Access\Application\ChangeRequests\ChangeRequestService;
 use Fundly\Modules\Access\Application\SodChecker;
 use Fundly\Modules\Access\Application\Support\RolePresenter;
@@ -31,8 +32,7 @@ final class AccessQueries
         private readonly ListScopeFilter $scope,
         private readonly AuthorizationGate $gate,
         private readonly SodChecker $sod,
-    ) {
-    }
+    ) {}
 
     /** @return array<string, mixed> */
     public function users(Request $request, Principal $principal): array
@@ -97,14 +97,14 @@ final class AccessQueries
     /** @return list<array<string, mixed>> */
     public function permissions(): array
     {
-        return array_map(static fn (Permission $p): array => [
+        return array_values(array_map(static fn (Permission $p): array => [
             'code' => $p->value,
             'resource' => $p->resource(),
             'action' => $p->actionName(),
             'module' => $p->module(),
             'description' => $p->description(),
             'is_sensitive' => $p->isSensitive(),
-        ], Permission::cases());
+        ], Permission::cases()));
     }
 
     /** @return array<string, mixed> */
@@ -143,7 +143,7 @@ final class AccessQueries
     /** @return list<array<string, mixed>> */
     public function sodRules(): array
     {
-        return SodRuleRecord::query()->orderBy('id')->get()->map(static fn (SodRuleRecord $r): array => self::presentSodRule($r))->values()->all();
+        return array_values(SodRuleRecord::query()->orderBy('id')->get()->map(static fn (SodRuleRecord $r): array => self::presentSodRule($r))->all());
     }
 
     /** @return array<string, mixed> */
@@ -212,7 +212,7 @@ final class AccessQueries
         return $cr->required_checker_permission;
     }
 
-    public function changeRequestMakerPermission(string $id, \Fundly\Modules\Access\Application\ChangeRequests\ChangeActionRegistry $registry): string
+    public function changeRequestMakerPermission(string $id, ChangeActionRegistry $registry): string
     {
         $cr = ChangeRequest::query()->find($id) ?? throw new NotFound('Change request not found.');
 

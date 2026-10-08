@@ -1,0 +1,1 @@
+O:23:"PHPStan\Cache\CacheItem":2:{s:11:"variableKey";s:73:"v2-eabedac3bb47b736648b317df7eac3cb149314103789b62023662b360fbfe8af-8.3.6";s:4:"data";a:3:{s:7:"classes";a:1:{s:42:"illuminate\database\events\migrationsevent";b:1;}s:9:"functions";a:0:{}s:9:"constants";a:0:{}}}

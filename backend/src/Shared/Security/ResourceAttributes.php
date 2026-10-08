@@ -24,6 +24,5 @@ final readonly class ResourceAttributes
         public array $portfolioTags = [],
         public ?string $entityType = null,
         public ?string $entityId = null,
-    ) {
-    }
+    ) {}
 }

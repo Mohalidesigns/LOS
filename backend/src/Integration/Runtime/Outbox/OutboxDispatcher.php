@@ -13,6 +13,7 @@ use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Audit\AuditOutcome;
 use Fundly\Shared\Audit\AuditTrail;
 use Fundly\Shared\Clock\Clock;
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Http\RequestContext;
 use Fundly\Shared\Security\SystemIdentity;
 use Fundly\Shared\Tenancy\TenantContext;
@@ -45,8 +46,7 @@ final class OutboxDispatcher
         private readonly Clock $clock,
         private readonly AuditTrail $audit,
         private readonly RequestContext $request,
-    ) {
-    }
+    ) {}
 
     /** @return array{dispatched: int, retried: int, parked: int, failed: int, rejected: int} */
     public function dispatchDue(string $tenantId, int $limit = 50): array
@@ -54,7 +54,8 @@ final class OutboxDispatcher
         return $this->tenant->run($tenantId, function () use ($limit): array {
             $stats = ['dispatched' => 0, 'retried' => 0, 'parked' => 0, 'failed' => 0, 'rejected' => 0];
             foreach ($this->claim($limit) as $message) {
-                $stats[$this->deliver($message)]++;
+                $outcome = $this->deliver($message);
+                $stats[$outcome] = $stats[$outcome] + 1;
             }
 
             return $stats;
@@ -67,17 +68,17 @@ final class OutboxDispatcher
         $now = $this->clock->now();
 
         return $this->db->transaction(function () use ($limit, $now): array {
-            $rows = $this->db->select(
+            $rows = Row::all($this->db->select(
                 "select id from outbox_messages where status = 'pending' and available_at <= ? order by created_at limit ? for update skip locked",
                 [$now, $limit],
-            );
+            ));
             $out = [];
             foreach ($rows as $row) {
-                $claimed = $this->db->selectOne(
+                $claimed = Row::one($this->db->selectOne(
                     'update outbox_messages set attempts = attempts + 1, available_at = ?, updated_at = ? where id = ? returning *',
                     [$now->add(new DateInterval('PT'.self::LEASE_SECONDS.'S')), $now, $row->id],
-                );
-                if (! is_object($claimed)) {
+                ));
+                if ($claimed === null) {
                     continue;
                 }
                 /** @var array<string, mixed> $payload */
@@ -97,6 +98,7 @@ final class OutboxDispatcher
         });
     }
 
+    /** @return 'dispatched'|'retried'|'parked'|'failed'|'rejected' */
     private function deliver(OutboxMessage $m): string
     {
         $previousCorrelation = $this->request->correlationId();
@@ -117,6 +119,7 @@ final class OutboxDispatcher
         }
     }
 
+    /** @return 'retried'|'parked'|'failed'|'rejected' */
     private function onError(OutboxMessage $m, ErrorClass $class, string $code, string $message): string
     {
         $max = (int) $this->db->table('outbox_messages')->where('id', $m->id)->value('max_attempts');
@@ -141,11 +144,7 @@ final class OutboxDispatcher
         };
         $this->finish($m, $status, ['class' => $class === ErrorClass::Retryable ? ErrorClass::RequiresIntervention->value : $class->value, 'code' => $code, 'message' => $message], null);
 
-        return match ($status) {
-            'failed' => 'failed',
-            'rejected' => 'rejected',
-            default => 'parked',
-        };
+        return $status;
     }
 
     /**

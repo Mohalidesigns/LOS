@@ -12,9 +12,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(RevokeDelegationHandler::class)]
 final readonly class RevokeDelegation implements Command
 {
-    public function __construct(public string $delegationId)
-    {
-    }
+    public function __construct(public string $delegationId) {}
 
     public function action(): string
     {

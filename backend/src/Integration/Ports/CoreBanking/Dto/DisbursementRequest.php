@@ -20,6 +20,5 @@ final readonly class DisbursementRequest
         public string $narration,
         public string $valueDate,
         public string $losReference,
-    ) {
-    }
+    ) {}
 }

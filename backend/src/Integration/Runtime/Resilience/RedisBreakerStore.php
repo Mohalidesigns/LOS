@@ -13,9 +13,7 @@ use Illuminate\Contracts\Redis\Factory as Redis;
  */
 final class RedisBreakerStore implements BreakerStore
 {
-    public function __construct(private readonly Redis $redis, private readonly TenantContext $tenant)
-    {
-    }
+    public function __construct(private readonly Redis $redis, private readonly TenantContext $tenant) {}
 
     public function update(string $key, callable $mutate): array
     {

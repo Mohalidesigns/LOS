@@ -24,8 +24,7 @@ final readonly class CreateDelegation implements Command, ValidatesInput
         public string $validFrom,
         public ?string $validTo,
         public string $reason,
-    ) {
-    }
+    ) {}
 
     public function action(): string
     {

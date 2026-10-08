@@ -21,9 +21,7 @@ final class CreateLoanAccountHandler implements OutboxHandler
 {
     public const TOPIC = 'cba.loan_account.create';
 
-    public function __construct(private readonly IntegrationGateway $gateway)
-    {
-    }
+    public function __construct(private readonly IntegrationGateway $gateway) {}
 
     public function topic(): string
     {

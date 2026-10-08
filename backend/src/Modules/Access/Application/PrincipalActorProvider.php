@@ -23,8 +23,7 @@ final class PrincipalActorProvider implements ActorProvider
         private readonly CurrentPrincipal $principal,
         private readonly GrantRepository $grants,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     public function current(): Actor
     {

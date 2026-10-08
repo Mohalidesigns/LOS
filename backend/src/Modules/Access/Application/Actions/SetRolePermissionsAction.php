@@ -14,6 +14,7 @@ use Fundly\Modules\Access\Infrastructure\Models\RolePermission;
 use Fundly\Modules\Access\Infrastructure\Persistence\GrantRepository;
 use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Bus\CommandContext;
+use Fundly\Shared\Bus\Payload;
 use Fundly\Shared\Exceptions\NotFound;
 use Fundly\Shared\Exceptions\ValidationFailed;
 use Fundly\Shared\Json\CanonicalJson;
@@ -29,8 +30,7 @@ final class SetRolePermissionsAction implements ChangeAction
         private readonly SodChecker $sod,
         private readonly SessionRevoker $sessions,
         private readonly GrantRepository $grants,
-    ) {
-    }
+    ) {}
 
     public function type(): string
     {
@@ -49,17 +49,16 @@ final class SetRolePermissionsAction implements ChangeAction
 
     public function entity(array $payload): ResourceRef
     {
-        return new ResourceRef('role', (string) $payload['role_id']);
+        return new ResourceRef('role', Payload::string($payload, 'role_id'));
     }
 
     public function validate(array $payload, Principal $maker): void
     {
-        $role = Role::query()->find($payload['role_id'] ?? null);
+        $role = Role::query()->find(Payload::optionalString($payload, 'role_id'));
         if (! $role instanceof Role) {
             throw new NotFound('Role not found.');
         }
-        /** @var list<string> $perms */
-        $perms = $payload['permissions'];
+        $perms = Payload::strings($payload, 'permissions');
         $unknown = array_values(array_diff($perms, Permission::codes()));
         if ($unknown !== []) {
             throw ValidationFailed::with(['permissions' => 'Unknown permissions: '.implode(', ', $unknown)]);
@@ -79,7 +78,7 @@ final class SetRolePermissionsAction implements ChangeAction
 
     public function fingerprint(array $payload): string
     {
-        $role = Role::query()->find($payload['role_id']);
+        $role = Role::query()->find(Payload::string($payload, 'role_id'));
 
         return CanonicalJson::hash([
             'permissions' => $role?->permissionCodes(),
@@ -89,10 +88,9 @@ final class SetRolePermissionsAction implements ChangeAction
 
     public function execute(array $payload, string $changeRequestId, CommandContext $context): array
     {
-        $role = Role::query()->findOrFail($payload['role_id']);
+        $role = Role::query()->findOrFail(Payload::string($payload, 'role_id'));
         $before = $role->permissionCodes();
-        /** @var list<string> $after */
-        $after = $payload['permissions'];
+        $after = Payload::strings($payload, 'permissions');
 
         RolePermission::query()->where('role_id', $role->id)->delete();
         foreach ($after as $code) {
@@ -118,6 +116,6 @@ final class SetRolePermissionsAction implements ChangeAction
     public function excludedCheckers(array $payload): array
     {
         // Holders of the role may not approve a change to their own access.
-        return $this->sod->holdersOf((string) $payload['role_id']);
+        return $this->sod->holdersOf(Payload::string($payload, 'role_id'));
     }
 }

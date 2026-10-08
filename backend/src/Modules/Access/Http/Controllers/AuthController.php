@@ -18,8 +18,7 @@ final class AuthController
         private readonly AuthenticationService $auth,
         private readonly AuthenticatedUserQuery $me,
         private readonly CurrentPrincipal $principal,
-    ) {
-    }
+    ) {}
 
     public function login(Request $request): JsonResponse
     {

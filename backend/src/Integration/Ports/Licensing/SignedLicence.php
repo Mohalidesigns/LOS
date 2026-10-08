@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Fundly\Integration\Ports\Licensing;
 
+use Fundly\Shared\Json\CanonicalJson;
+
 /** A licence document as delivered: the exact signed bytes plus the detached signature. */
 final readonly class SignedLicence
 {
-    public function __construct(public string $document, public string $signature)
-    {
-    }
+    public function __construct(public string $document, public string $signature) {}
 
     /** File format: {"licence": {...}, "signature": "<base64 Ed25519>"} */
     public static function fromFileContents(string $json): self
@@ -19,7 +19,7 @@ final readonly class SignedLicence
             throw new LicenceInvalid('The licence file is malformed.');
         }
 
-        return new self(\Fundly\Shared\Json\CanonicalJson::encode($d['licence']), $d['signature']);
+        return new self(CanonicalJson::encode($d['licence']), $d['signature']);
     }
 
     public function toFileContents(): string

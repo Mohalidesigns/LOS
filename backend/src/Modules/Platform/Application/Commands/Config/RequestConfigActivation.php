@@ -16,9 +16,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(RequestConfigActivationHandler::class)]
 final readonly class RequestConfigActivation implements Command
 {
-    public function __construct(public string $versionId, public bool $rollback, public ?string $reason)
-    {
-    }
+    public function __construct(public string $versionId, public bool $rollback, public ?string $reason) {}
 
     public function action(): string
     {

@@ -18,7 +18,7 @@ final class PersonalAccessToken extends SanctumToken
 
     protected static function booted(): void
     {
-        static::creating(static function (PersonalAccessToken $token): void {
+        self::creating(static function (PersonalAccessToken $token): void {
             $owner = $token->tokenable;
             if ($owner instanceof User) {
                 $token->setAttribute('tenant_id', $owner->tenant_id);

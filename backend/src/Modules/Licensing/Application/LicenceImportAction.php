@@ -9,6 +9,7 @@ use Fundly\Integration\Ports\Licensing\SignedLicence;
 use Fundly\Modules\Access\Contracts\ChangeAction;
 use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Bus\CommandContext;
+use Fundly\Shared\Bus\Payload;
 use Fundly\Shared\Clock\Clock;
 use Fundly\Shared\Exceptions\DomainRuleViolation;
 use Fundly\Shared\Id\UuidV7;
@@ -26,8 +27,7 @@ final class LicenceImportAction implements ChangeAction
         private readonly LicensingPort $port,
         private readonly ConnectionInterface $db,
         private readonly Clock $clock,
-    ) {
-    }
+    ) {}
 
     public function type(): string
     {
@@ -51,7 +51,7 @@ final class LicenceImportAction implements ChangeAction
 
     public function validate(array $payload, Principal $maker): void
     {
-        $licence = $this->port->verify(new SignedLicence((string) $payload['document'], (string) $payload['signature']));
+        $licence = $this->port->verify(new SignedLicence(Payload::string($payload, 'document'), Payload::string($payload, 'signature')));
         if ($licence->validTo <= $this->clock->now()) {
             throw new DomainRuleViolation('The licence has already expired.');
         }
@@ -70,7 +70,7 @@ final class LicenceImportAction implements ChangeAction
     {
         $previous = $this->port->currentLicence();
         $licence = $this->port->install(
-            new SignedLicence((string) $payload['document'], (string) $payload['signature']),
+            new SignedLicence(Payload::string($payload, 'document'), Payload::string($payload, 'signature')),
             $context->principal->tenantId,
             $context->principal->id,
             $changeRequestId,

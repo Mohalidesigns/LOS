@@ -13,9 +13,7 @@ use Illuminate\Http\Request;
 
 final class IntegrationQueries
 {
-    public function __construct(private readonly AdapterRegistry $registry, private readonly ConnectionInterface $db)
-    {
-    }
+    public function __construct(private readonly AdapterRegistry $registry, private readonly ConnectionInterface $db) {}
 
     /** @return array<string, mixed> */
     public function bindings(Request $request): array
@@ -43,7 +41,7 @@ final class IntegrationQueries
             }
         }
 
-        return CursorPaginator::paginate($q, $request, static function (object $r): array {
+        return CursorPaginator::paginate($q, $request, static function (\stdClass $r): array {
             $json = static fn (mixed $v): mixed => is_string($v) ? json_decode($v, true) : null;
 
             return [

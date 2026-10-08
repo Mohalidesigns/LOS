@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fundly\Modules\Access\Infrastructure\Models\User;
+use Fundly\Shared\Id\UuidV7;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -17,7 +18,7 @@ beforeEach(function () {
 });
 
 it('connects as a non-owner, non-superuser role that cannot bypass RLS', function () {
-    $role = DB::selectOne("select current_user as u, r.rolsuper, r.rolbypassrls from pg_roles r where r.rolname = current_user");
+    $role = DB::selectOne('select current_user as u, r.rolsuper, r.rolbypassrls from pg_roles r where r.rolname = current_user');
     expect($role->u)->toBe('fundly_app')->and($role->rolsuper)->toBeFalse()->and($role->rolbypassrls)->toBeFalse();
     $owner = DB::selectOne('select tableowner from pg_tables where tablename = ?', ['users']);
     expect($owner->tableowner)->toBe('fundly_owner');
@@ -45,7 +46,7 @@ it('returns nothing without a tenant context', function () {
 
 it('refuses writes into another tenant (WITH CHECK) and updates/deletes of its rows', function () {
     $this->useTenant($this->a);
-    expect(fn () => DB::table('sod_rules')->insert(['id' => Fundly\Shared\Id\UuidV7::generate(), 'tenant_id' => $this->b->id, 'kind' => 'permission_pair', 'left_ref' => 'a:a', 'right_ref' => 'b:b', 'description' => 'x', 'created_at' => now(), 'updated_at' => now()]))
+    expect(fn () => DB::table('sod_rules')->insert(['id' => UuidV7::generate(), 'tenant_id' => $this->b->id, 'kind' => 'permission_pair', 'left_ref' => 'a:a', 'right_ref' => 'b:b', 'description' => 'x', 'created_at' => now(), 'updated_at' => now()]))
         ->toThrow(QueryException::class, 'row-level security');
     expect(DB::update('update users set name = ? where tenant_id = ?', ['pwned', $this->b->id]))->toBe(0)
         ->and(DB::delete('delete from role_assignments where tenant_id = ?', [$this->b->id]))->toBe(0);

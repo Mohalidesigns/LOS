@@ -75,7 +75,11 @@ it('parses and validates fault scripts', function () {
 it('looks up before re-sending and converts a not-applied timeout into a safe retry', function () {
     $sent = 0;
     // re-delivery where the effect already exists: no send at all
-    $r = LookupBeforeRetry::execute(function () use (&$sent) { $sent++; return 'new'; }, fn () => 'existing', true);
+    $r = LookupBeforeRetry::execute(function () use (&$sent) {
+        $sent++;
+
+        return 'new';
+    }, fn () => 'existing', true);
     expect($r)->toBe('existing')->and($sent)->toBe(0);
     // unknown outcome, effect applied: lookup returns it
     $r = LookupBeforeRetry::execute(fn () => throw new RequiresInterventionError('CBA.TRANSPORT.TIMEOUT_UNKNOWN_OUTCOME', 't', true), fn () => 'applied', false);

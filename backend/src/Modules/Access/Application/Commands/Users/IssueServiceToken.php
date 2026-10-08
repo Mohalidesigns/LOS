@@ -19,9 +19,7 @@ use Fundly\Shared\Security\ResourceRef;
 final readonly class IssueServiceToken implements Command, ValidatesInput
 {
     /** @param list<string> $abilities */
-    public function __construct(public string $userId, public string $name, public array $abilities, public ?string $expiresAt)
-    {
-    }
+    public function __construct(public string $userId, public string $name, public array $abilities, public ?string $expiresAt) {}
 
     public function action(): string
     {

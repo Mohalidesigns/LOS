@@ -13,9 +13,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(CreateSodRuleHandler::class)]
 final readonly class CreateSodRule implements Command, ValidatesInput
 {
-    public function __construct(public string $kind, public string $left, public string $right, public string $description)
-    {
-    }
+    public function __construct(public string $kind, public string $left, public string $right, public string $description) {}
 
     public function action(): string
     {

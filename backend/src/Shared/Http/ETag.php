@@ -6,6 +6,7 @@ namespace Fundly\Shared\Http;
 
 use Fundly\Shared\Exceptions\PreconditionFailed;
 use Fundly\Shared\Exceptions\PreconditionRequired;
+use Fundly\Shared\Json\CanonicalJson;
 use Illuminate\Http\Request;
 
 /**
@@ -19,10 +20,14 @@ final class ETag
         return '"'.substr(hash('sha256', $id.'|'.$version), 0, 32).'"';
     }
 
-    /** Strong validator over the full representation: any visible change changes the tag. */
+    /**
+     * Strong validator over the full representation: any visible change changes the tag.
+     *
+     * @param  array<string, mixed>  $representation
+     */
     public static function forRepresentation(string $id, array $representation): string
     {
-        return self::of($id, \Fundly\Shared\Json\CanonicalJson::hash($representation));
+        return self::of($id, CanonicalJson::hash($representation));
     }
 
     public static function assertMatches(Request $request, string $current): void

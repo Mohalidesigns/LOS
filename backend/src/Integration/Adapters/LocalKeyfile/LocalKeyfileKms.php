@@ -14,7 +14,7 @@ use Fundly\Integration\Ports\KeyManagement\WrappedKey;
  * context as associated data, so a wrapped key cannot be replayed into
  * another tenant or purpose.
  *
- * @param array<string, string> $keks map of KEK id => raw 32-byte key (current + retired)
+ * @param  array<string, string>  $keks  map of KEK id => raw 32-byte key (current + retired)
  */
 final class LocalKeyfileKms implements KeyManagementPort
 {

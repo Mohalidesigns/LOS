@@ -20,9 +20,7 @@ final class FieldEncryptor
 
     private const PURPOSE_INDEX = 'blind_index';
 
-    public function __construct(private readonly TenantKeyRing $keys, private readonly TenantContext $tenant)
-    {
-    }
+    public function __construct(private readonly TenantKeyRing $keys, private readonly TenantContext $tenant) {}
 
     public function encrypt(string $plaintext, string $field): string
     {

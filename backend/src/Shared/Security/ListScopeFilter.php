@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fundly\Shared\Security;
 
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
@@ -13,6 +14,10 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  */
 interface ListScopeFilter
 {
-    /** @param EloquentBuilder<\Illuminate\Database\Eloquent\Model>|QueryBuilder $query */
+    /**
+     * @template TModel of Model
+     *
+     * @param  EloquentBuilder<TModel>|QueryBuilder  $query
+     */
     public function apply(EloquentBuilder|QueryBuilder $query, Principal $principal, string $permission, ScopeColumns $columns): void;
 }

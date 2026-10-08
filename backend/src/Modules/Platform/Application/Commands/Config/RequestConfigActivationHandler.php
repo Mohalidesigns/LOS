@@ -11,9 +11,7 @@ use Fundly\Shared\Bus\CommandHandler;
 
 final class RequestConfigActivationHandler implements CommandHandler
 {
-    public function __construct(private readonly ChangeRequestGateway $changeRequests)
-    {
-    }
+    public function __construct(private readonly ChangeRequestGateway $changeRequests) {}
 
     /** @return array<string, mixed> */
     public function handle(Command $command, CommandContext $context): array

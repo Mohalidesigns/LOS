@@ -10,9 +10,7 @@ use Illuminate\Database\ConnectionInterface;
 
 final class DatabaseActiveConfiguration implements ActiveConfiguration
 {
-    public function __construct(private readonly ConnectionInterface $db, private readonly TenantContext $tenant)
-    {
-    }
+    public function __construct(private readonly ConnectionInterface $db, private readonly TenantContext $tenant) {}
 
     public function content(string $type, string $key): ?array
     {

@@ -29,6 +29,7 @@ use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Support\Carbon;
 
 /**
  * Local identity store authentication (LOS-FR-302): Argon2id password,
@@ -57,8 +58,7 @@ final class AuthenticationService
         private readonly SessionPolicyProvider $sessionPolicy,
         private readonly TenantContext $tenant,
         private readonly ConnectionInterface $db,
-    ) {
-    }
+    ) {}
 
     public function attemptPassword(string $email, string $password, Session $session): LoginResult
     {
@@ -140,7 +140,7 @@ final class AuthenticationService
 
         $user->mfa_last_used_step = $step;
         if (($pending['enrolling'] ?? false) === true) {
-            $user->mfa_confirmed_at = $now;
+            $user->mfa_confirmed_at = Carbon::instance($now);
             $this->auditUser($user, 'auth.mfa.enrolled', AuditOutcome::Success, []);
         }
         $user->failed_login_count = 0;
@@ -197,7 +197,7 @@ final class AuthenticationService
         $session->put('auth.step_up_at', $now->getTimestamp());
         $session->put('auth.step_up_ref', UuidV7::generate());
 
-        $user->last_login_at = $now;
+        $user->last_login_at = Carbon::instance($now);
         $user->failed_login_count = 0;
         $user->save();
 
@@ -247,7 +247,7 @@ final class AuthenticationService
         );
         $user->failed_login_count++;
         $lockUntil = $policy->lockUntil($user->failed_login_count, $this->clock->now());
-        $user->locked_until = $lockUntil;
+        $user->locked_until = $lockUntil === null ? null : Carbon::instance($lockUntil);
         $user->save();
 
         $this->auditUser($user, $action, AuditOutcome::Failure, ['reason' => $reason, 'consecutive_failures' => $user->failed_login_count]);

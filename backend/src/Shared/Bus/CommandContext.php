@@ -25,8 +25,7 @@ final class CommandContext
         public readonly Principal $principal,
         public readonly ?AccessDecision $decision = null,
         public readonly ?ResourceAttributes $resource = null,
-    ) {
-    }
+    ) {}
 
     public function audit(AuditEntry $entry): void
     {

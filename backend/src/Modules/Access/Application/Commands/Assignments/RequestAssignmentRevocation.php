@@ -14,9 +14,7 @@ use Fundly\Shared\Security\ResourceRef;
 #[HandledBy(SubmitChangeRequestHandler::class)]
 final readonly class RequestAssignmentRevocation implements SubmitsChangeRequest
 {
-    public function __construct(public string $assignmentId, public ?string $reason)
-    {
-    }
+    public function __construct(public string $assignmentId, public ?string $reason) {}
 
     public function action(): string
     {

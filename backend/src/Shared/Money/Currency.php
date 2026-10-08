@@ -14,9 +14,7 @@ final readonly class Currency
         'NGN' => 2, 'USD' => 2, 'EUR' => 2, 'GBP' => 2, 'XOF' => 0, 'GHS' => 2, 'KES' => 2, 'ZAR' => 2, 'CNY' => 2, 'JPY' => 0,
     ];
 
-    private function __construct(public string $code)
-    {
-    }
+    private function __construct(public string $code) {}
 
     public static function of(string $code): self
     {
@@ -28,6 +26,7 @@ final readonly class Currency
         return new self($code);
     }
 
+    /** @return int<0, max> */
     public function minorUnits(): int
     {
         return self::MINOR_UNITS[$this->code] ?? 2;

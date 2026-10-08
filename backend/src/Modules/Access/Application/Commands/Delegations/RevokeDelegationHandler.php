@@ -16,9 +16,7 @@ use Fundly\Shared\Exceptions\DomainRuleViolation;
 
 final class RevokeDelegationHandler implements CommandHandler
 {
-    public function __construct(private readonly Clock $clock, private readonly SessionRevoker $sessions)
-    {
-    }
+    public function __construct(private readonly Clock $clock, private readonly SessionRevoker $sessions) {}
 
     /** @return array{data: array<string, mixed>, etag?: string} */
     public function handle(Command $command, CommandContext $context): array

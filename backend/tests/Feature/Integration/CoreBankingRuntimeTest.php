@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fundly\Integration\Ports\CoreBanking\CoreBankingPort;
+use Fundly\Integration\Ports\CoreBanking\Dto\CollateralRecord;
 use Fundly\Integration\Ports\CoreBanking\Dto\CustomerCreate;
 use Fundly\Integration\Ports\CoreBanking\Dto\CustomerSearchCriteria;
 use Fundly\Integration\Ports\CoreBanking\Dto\Destination;
@@ -15,12 +16,14 @@ use Fundly\Integration\Runtime\Errors\RequiresInterventionError;
 use Fundly\Integration\Runtime\Errors\RetryableError;
 use Fundly\Integration\Runtime\IntegrationGateway;
 use Fundly\Integration\Runtime\Models\AdapterBinding;
+use Fundly\Integration\Runtime\OperationPolicy;
 use Fundly\Integration\Runtime\Resilience\BreakerState;
 use Fundly\Integration\Runtime\Resilience\CircuitBreaker;
 use Fundly\Integration\Runtime\Resilience\RandomSource;
 use Fundly\Integration\Runtime\Resilience\RecordingSleeper;
 use Fundly\Integration\Runtime\Resilience\SeededRandom;
 use Fundly\Integration\Runtime\Resilience\Sleeper;
+use Fundly\Shared\Http\RequestContext;
 use Fundly\Shared\Money\Money;
 use Illuminate\Support\Facades\DB;
 
@@ -191,7 +194,7 @@ it('error_rate below 100% is a proportion, reproducible from the seed', function
     $failures = 0;
     foreach (range(1, 60) as $_) {
         try {
-            cba()->call('core_banking', 'reference.branches', new Fundly\Integration\Runtime\OperationPolicy(false, 1000, 0), fn (CoreBankingPort $c) => $c->reference()->getBranches());
+            cba()->call('core_banking', 'reference.branches', new OperationPolicy(false, 1000, 0), fn (CoreBankingPort $c) => $c->reference()->getBranches());
         } catch (RetryableError) {
             $failures++;
         }
@@ -202,7 +205,7 @@ it('error_rate below 100% is a proportion, reproducible from the seed', function
 it('fault: partial(step) fails the Nth state-changing step of a saga (correlation)', function () {
     faults([['fault' => 'partial', 'step' => 2]]);
     $g = cba();
-    app(Fundly\Shared\Http\RequestContext::class)->setCorrelationId('saga-0001'); // one saga = one correlation id
+    app(RequestContext::class)->setCorrelationId('saga-0001'); // one saga = one correlation id
     $g->coreBanking('customer.create', fn (CoreBankingPort $c) => $c->customers()->createCustomer(newCustomer(), 'k1'), [], 'k1');
     expect(fn () => $g->coreBanking('loanAccount.create', fn (CoreBankingPort $c) => $c->loanAccounts()->createLoanAccount(loanRequest(), 'k2'), [], 'k2'))
         ->toThrow(RetryableError::class, 'saga step 2');
@@ -211,7 +214,7 @@ it('fault: partial(step) fails the Nth state-changing step of a saga (correlatio
 })->group('FR-CBA-007');
 
 it('logs every call with PII masked, latency, correlation id and adapter version', function () {
-    app(Fundly\Shared\Http\RequestContext::class)->setCorrelationId('corr-int-0001');
+    app(RequestContext::class)->setCorrelationId('corr-int-0001');
     $g = app(IntegrationGateway::class);
     $g->coreBanking('customer.create', fn (CoreBankingPort $c) => $c->customers()->createCustomer(newCustomer(), 'k1'), ['bvn' => '22345678991', 'phone' => '+2348031234567', 'name' => 'Ada'], 'k1');
     $call = DB::table('integration_calls')->where('operation', 'customer.create')->first();
@@ -223,7 +226,7 @@ it('logs every call with PII masked, latency, correlation id and adapter version
 
 it('routes operations the manifest marks unsupported to their substitute instead of failing silently', function () {
     try {
-        cba()->coreBanking('collateral.register', fn (CoreBankingPort $c) => $c->collateral()->registerCollateral(new Fundly\Integration\Ports\CoreBanking\Dto\CollateralRecord('c1', 'SIMC1', 'land', Money::of('1', 'NGN')), 'k'));
+        cba()->coreBanking('collateral.register', fn (CoreBankingPort $c) => $c->collateral()->registerCollateral(new CollateralRecord('c1', 'SIMC1', 'land', Money::of('1', 'NGN')), 'k'));
         $this->fail('expected substitute routing');
     } catch (RequiresInterventionError $e) {
         expect($e->canonicalCode)->toBe('CBA.CAPABILITY.UNSUPPORTED')->and($e->getMessage())->toContain('substitute: manual_task');

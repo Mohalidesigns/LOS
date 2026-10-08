@@ -21,8 +21,7 @@ final class RoleController
         private readonly CommandBus $bus,
         private readonly CurrentPrincipal $principal,
         private readonly AccessQueries $queries,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {

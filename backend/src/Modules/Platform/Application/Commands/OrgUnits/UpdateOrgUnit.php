@@ -14,9 +14,7 @@ use Fundly\Shared\Security\ResourceRef;
 final readonly class UpdateOrgUnit implements Command, ValidatesInput
 {
     /** @param array<string, mixed> $changes subset of name, status, parent_id */
-    public function __construct(public string $orgUnitId, public array $changes, public ?string $ifMatch)
-    {
-    }
+    public function __construct(public string $orgUnitId, public array $changes, public ?string $ifMatch) {}
 
     public function action(): string
     {

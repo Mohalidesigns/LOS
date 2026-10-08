@@ -13,9 +13,7 @@ final class OutboxHandlerRegistry
     /** @var array<string, class-string<OutboxHandler>> */
     private array $handlers = [];
 
-    public function __construct(private readonly Container $container)
-    {
-    }
+    public function __construct(private readonly Container $container) {}
 
     /** @param class-string<OutboxHandler> $class */
     public function register(string $topic, string $class): void

@@ -16,8 +16,7 @@ final readonly class SodRule
         public string $left,
         public string $right,
         public string $description,
-    ) {
-    }
+    ) {}
 
     public function involvesPermission(string $permission): bool
     {

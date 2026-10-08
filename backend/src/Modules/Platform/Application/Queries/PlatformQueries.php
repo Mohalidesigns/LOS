@@ -26,8 +26,7 @@ final class PlatformQueries
         private readonly ListScopeFilter $scope,
         private readonly AuthorizationGate $gate,
         private readonly ConfigTypeRegistry $types,
-    ) {
-    }
+    ) {}
 
     /** @return array<string, mixed> */
     public function legalEntities(Request $request, Principal $principal): array

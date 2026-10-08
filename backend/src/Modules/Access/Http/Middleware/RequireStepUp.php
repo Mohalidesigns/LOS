@@ -17,9 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class RequireStepUp
 {
-    public function __construct(private readonly CurrentPrincipal $principal, private readonly Clock $clock)
-    {
-    }
+    public function __construct(private readonly CurrentPrincipal $principal, private readonly Clock $clock) {}
 
     public function handle(Request $request, Closure $next, ?string $minutes = null): Response
     {

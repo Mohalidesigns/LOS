@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fundly\Modules\Audit\Application;
 
 use Fundly\Shared\Clock\Clock;
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Id\UuidV7;
 use Fundly\Shared\Tenancy\TenantContext;
 use Illuminate\Database\ConnectionInterface;
@@ -21,19 +22,18 @@ final class AuditCheckpointer
         private readonly TenantContext $tenant,
         private readonly Clock $clock,
         private readonly ?string $fileSinkPath,
-    ) {
-    }
+    ) {}
 
     /** @return array{tenant_id: string, seq: int, hash: string}|null null if the chain is empty or unchanged */
     public function checkpoint(string $tenantId): ?array
     {
         return $this->tenant->run($tenantId, function () use ($tenantId): ?array {
-            $head = $this->db->selectOne('select seq, hash from audit_events where tenant_id = ? order by seq desc limit 1', [$tenantId]);
-            if (! is_object($head)) {
+            $head = Row::one($this->db->selectOne('select seq, hash from audit_events where tenant_id = ? order by seq desc limit 1', [$tenantId]));
+            if ($head === null) {
                 return null;
             }
-            $last = $this->db->selectOne('select seq from audit_checkpoints where tenant_id = ? order by seq desc limit 1', [$tenantId]);
-            if (is_object($last) && (int) $last->seq === (int) $head->seq) {
+            $last = Row::one($this->db->selectOne('select seq from audit_checkpoints where tenant_id = ? order by seq desc limit 1', [$tenantId]));
+            if ($last !== null && (int) $last->seq === (int) $head->seq) {
                 return null;
             }
             $now = $this->clock->now();

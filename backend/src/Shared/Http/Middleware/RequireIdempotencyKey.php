@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fundly\Shared\Http\Middleware;
 
 use Closure;
+use Fundly\Shared\Database\Row;
 use Fundly\Shared\Exceptions\CodedConflict;
 use Fundly\Shared\Exceptions\ValidationFailed;
 use Fundly\Shared\Idempotency\IdempotencyStore;
@@ -28,8 +29,7 @@ final class RequireIdempotencyKey
     public function __construct(
         private readonly IdempotencyStore $store,
         private readonly CurrentPrincipal $principal,
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -43,8 +43,8 @@ final class RequireIdempotencyKey
         $reservation = $this->store->reserve(self::SCOPE, $principalId, $key, $hash);
 
         if (! $reservation['reserved']) {
-            $record = $reservation['record'];
-            if (! is_object($record) || ! hash_equals((string) $record->request_hash, $hash)) {
+            $record = Row::one($reservation['record']);
+            if ($record === null || ! hash_equals((string) $record->request_hash, $hash)) {
                 throw new CodedConflict('idempotency-key-reused', 'This Idempotency-Key was already used with a different request.');
             }
             if ($record->status !== 'completed') {

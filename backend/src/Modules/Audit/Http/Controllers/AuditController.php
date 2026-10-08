@@ -17,8 +17,7 @@ final class AuditController
         private readonly AuditQueries $queries,
         private readonly AuditVerifier $verifier,
         private readonly CurrentPrincipal $principal,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {

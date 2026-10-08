@@ -20,6 +20,7 @@ final class CursorPaginator
      *
      * @param  EloquentBuilder<TModel>|QueryBuilder  $query
      * @param  callable(mixed): array<string, mixed>  $transform
+     * @param  'asc'|'desc'  $direction
      * @return array{data: list<array<string, mixed>>, meta: array{page: array{size: int, next_cursor: ?string, has_more: bool}}}
      */
     public static function paginate(EloquentBuilder|QueryBuilder $query, Request $request, callable $transform, string $column = 'id', string $direction = 'desc'): array

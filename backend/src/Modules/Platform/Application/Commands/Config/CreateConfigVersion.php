@@ -13,9 +13,7 @@ use Fundly\Shared\Security\ResourceRef;
 final readonly class CreateConfigVersion implements Command, ValidatesInput
 {
     /** @param array<string, mixed> $content */
-    public function __construct(public string $artifactId, public array $content, public ?string $notes)
-    {
-    }
+    public function __construct(public string $artifactId, public array $content, public ?string $notes) {}
 
     public function action(): string
     {

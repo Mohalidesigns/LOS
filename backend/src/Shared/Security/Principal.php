@@ -25,8 +25,7 @@ final readonly class Principal
         public ?array $tokenAbilities = null,
         public ?DateTimeImmutable $stepUpAt = null,
         public ?string $stepUpRef = null,
-    ) {
-    }
+    ) {}
 
     public static function system(string $tenantId, SystemIdentity $identity): self
     {

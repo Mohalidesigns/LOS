@@ -7,9 +7,7 @@ namespace Fundly\Modules\Access\Domain;
 /** Session controls (FR-SEC-015). */
 final readonly class SessionPolicy
 {
-    public function __construct(public int $idleMinutes, public int $absoluteMinutes, public int $maxConcurrent)
-    {
-    }
+    public function __construct(public int $idleMinutes, public int $absoluteMinutes, public int $maxConcurrent) {}
 
     /** Returns the reason the session is no longer valid, or null. */
     public function violation(int $authenticatedAt, int $lastActivityAt, int $now): ?string
