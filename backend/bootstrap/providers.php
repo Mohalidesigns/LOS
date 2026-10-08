@@ -7,6 +7,7 @@ use Fundly\Modules\Access\AccessServiceProvider;
 use Fundly\Modules\Application\ApplicationServiceProvider;
 use Fundly\Modules\Audit\AuditServiceProvider;
 use Fundly\Modules\Compliance\ComplianceServiceProvider;
+use Fundly\Modules\Credit\CreditServiceProvider;
 use Fundly\Modules\Document\DocumentServiceProvider;
 use Fundly\Modules\Licensing\LicensingServiceProvider;
 use Fundly\Modules\Party\PartyServiceProvider;
@@ -28,5 +29,6 @@ return [
     ApplicationServiceProvider::class,
     ComplianceServiceProvider::class,
     DocumentServiceProvider::class,
+    CreditServiceProvider::class,
     WorkflowServiceProvider::class,
 ];

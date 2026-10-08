@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Fundly\Modules\Party;
 
 use Fundly\Modules\Party\Contracts\ConsentRegistry;
+use Fundly\Modules\Party\Contracts\IdentityNumberResolver;
 use Fundly\Modules\Party\Contracts\PartyDirectory;
 use Fundly\Modules\Party\Infrastructure\DatabaseConsentRegistry;
 use Fundly\Modules\Party\Infrastructure\EloquentPartyDirectory;
+use Fundly\Modules\Party\Infrastructure\EncryptedIdentityNumberResolver;
 use Fundly\Modules\Party\Infrastructure\Models\Party;
 use Fundly\Shared\Security\ResourceAttributes;
 use Fundly\Shared\Security\ResourceResolver;
@@ -20,6 +22,7 @@ final class PartyServiceProvider extends ServiceProvider
     {
         $this->app->scoped(PartyDirectory::class, EloquentPartyDirectory::class);
         $this->app->scoped(ConsentRegistry::class, DatabaseConsentRegistry::class);
+        $this->app->scoped(IdentityNumberResolver::class, EncryptedIdentityNumberResolver::class);
     }
 
     public function boot(ResourceResolver $resources): void

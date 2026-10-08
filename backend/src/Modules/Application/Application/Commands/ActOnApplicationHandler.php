@@ -6,7 +6,9 @@ namespace Fundly\Modules\Application\Application\Commands;
 
 use Fundly\Modules\Application\Application\ApplicationQueries;
 use Fundly\Modules\Application\Application\Support\EventPublisher;
+use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Application\Contracts\CanonicalStatus;
+use Fundly\Modules\Application\Contracts\TransitionGuard;
 use Fundly\Modules\Application\Domain\Application;
 use Fundly\Modules\Application\Domain\ApplicationAction;
 use Fundly\Modules\Application\Infrastructure\ApplicationStore;
@@ -18,6 +20,7 @@ use Fundly\Shared\Bus\CommandHandler;
 use Fundly\Shared\Exceptions\ValidationFailed;
 use Fundly\Shared\Http\ETag;
 use Fundly\Shared\Money\Money;
+use Illuminate\Contracts\Container\Container;
 
 final class ActOnApplicationHandler implements CommandHandler
 {
@@ -25,6 +28,8 @@ final class ActOnApplicationHandler implements CommandHandler
         private readonly ApplicationStore $store,
         private readonly ProductCatalogue $products,
         private readonly ApplicationQueries $queries,
+        private readonly ApplicationReader $reader,
+        private readonly Container $container,
     ) {}
 
     /** @return array{data: array<string, mixed>, etag: string} */
@@ -38,6 +43,7 @@ final class ActOnApplicationHandler implements CommandHandler
             $returnTo = CanonicalStatus::tryFrom($command->returnTo) ?? throw ValidationFailed::with(['return_to' => 'Unknown status.']);
         }
         $blockers = $command->verb === ApplicationAction::Submit ? $this->productBlockers($app) : [];
+        $blockers = array_merge($blockers, $this->guardBlockers($app->id(), $command->verb->value));
         $app->act($command->verb, $command->reasonCode, $command->reasonText, $returnTo, $blockers);
         EventPublisher::publish($context, $app, $this->store->save($app, $context->principal));
 
@@ -71,5 +77,22 @@ final class ActOnApplicationHandler implements CommandHandler
         }
 
         return $blockers;
+    }
+
+    /** @return list<string> preconditions contributed by other modules (TransitionGuard) */
+    private function guardBlockers(string $applicationId, string $action): array
+    {
+        $summary = $this->reader->find($applicationId);
+        if ($summary === null) {
+            return [];
+        }
+        $out = [];
+        foreach ($this->container->tagged(TransitionGuard::TAG) as $guard) {
+            if ($guard instanceof TransitionGuard) {
+                $out = array_merge($out, $guard->blockers($summary, $action));
+            }
+        }
+
+        return $out;
     }
 }

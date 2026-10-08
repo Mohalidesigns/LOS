@@ -50,6 +50,7 @@ tags:
 - name: Applications
 - name: Compliance
 - name: Documents
+- name: Credit
 # <<< generated: tags
 paths:
   /health:
@@ -3973,6 +3974,400 @@ paths:
         - bearerToken: []
       x-idempotency-key: required
       description: "verify/reject need document:verify; waive needs document:verify to request and the item's waiver authority to approve. reject and waive need a reason."
+  '/api/v1/applications/{id}/bureau-reports':
+    get:
+      summary: 'Bureau reports pulled for an application'
+      operationId: listBureauReports
+      tags:
+        - Credit
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BureauReport'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/bureau-reports/actions/pull':
+    post:
+      summary: "Pull a credit bureau report (requires the party's credit_bureau consent)"
+      operationId: pullBureauReport
+      tags:
+        - Credit
+      x-permission: 'bureau:pull'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                party_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+                  description: 'Defaults to the primary applicant'
+      responses:
+        201:
+          description: 'Pulled and parsed into the canonical profile'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BureauReport'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/applications/{id}/decisions':
+    get:
+      summary: 'Decision snapshots for an application, newest first'
+      operationId: listDecisions
+      tags:
+        - Credit
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Decision'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/decisions/actions/run':
+    post:
+      summary: 'Run the bound rule set (knock-out → policy → grade → affordability → pricing → outcome) and store an immutable snapshot'
+      operationId: runDecision
+      tags:
+        - Credit
+      x-permission: 'credit:analyse'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        201:
+          description: 'Decision recorded'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Decision'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/decisions/{id}':
+    get:
+      summary: 'Get a decision snapshot (inputs, versions, outputs, trace)'
+      operationId: getDecision
+      tags:
+        - Credit
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Decision'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/decisions/{id}/actions/replay':
+    post:
+      summary: 'Replay a snapshot with its recorded rule-set version and evaluator version'
+      operationId: replayDecision
+      tags:
+        - Credit
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: 'Replay result'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      identical:
+                        type: boolean
+                      evaluator_version:
+                        type: string
+                      rule_set_version_id:
+                        type: string
+                        format: uuid
+                      differences:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            path:
+                              type: string
+                            recorded: true
+                            replayed: true
+                          required:
+                            - path
+                    required:
+                      - identical
+                      - evaluator_version
+                      - rule_set_version_id
+                      - differences
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/decisions/{id}/exceptions':
+    post:
+      summary: 'Record a policy exception / override against a decision (escalates approval authority)'
+      operationId: raiseException
+      tags:
+        - Credit
+      x-permission: 'exception:raise'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason_code:
+                  type: string
+                justification:
+                  type: string
+                evidence_ref:
+                  type:
+                    - string
+                    - 'null'
+                severity:
+                  type: string
+                  enum:
+                    - low
+                    - medium
+                    - high
+              required:
+                - reason_code
+                - justification
+                - severity
+      responses:
+        201:
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PolicyException'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/applications/{id}/exceptions':
+    get:
+      summary: 'Policy exceptions on an application'
+      operationId: listExceptions
+      tags:
+        - Credit
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PolicyException'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/credit-memo':
+    get:
+      summary: 'Credit memo: latest version, all versions, and a draft of the auto-populated sections'
+      operationId: getCreditMemo
+      tags:
+        - Credit
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      latest:
+                        oneOf:
+                          - $ref: '#/components/schemas/CreditMemo'
+                          - type: 'null'
+                      versions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CreditMemo'
+                      draft_sections:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MemoSection'
+                    required:
+                      - latest
+                      - versions
+                      - draft_sections
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Save a new memo version (sections auto-populated from the latest decision, plus the analyst narrative and recommendation)'
+      operationId: saveCreditMemo
+      tags:
+        - Credit
+      x-permission: 'credit:analyse'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                narrative:
+                  type: string
+                recommendation:
+                  type: string
+                  enum:
+                    - approve
+                    - decline
+                    - counter_offer
+                recommended_amount:
+                  type:
+                    - string
+                    - 'null'
+                recommended_tenor_months:
+                  type:
+                    - integer
+                    - 'null'
+                conditions:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - narrative
+                - recommendation
+      responses:
+        201:
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CreditMemo'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
 # <<< generated: paths
 components:
   securitySchemes:
@@ -6449,4 +6844,380 @@ components:
       required:
         - items
         - summary
+    BureauReport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        party_id:
+          type: string
+          format: uuid
+        party_name:
+          type: string
+        bureau:
+          type: string
+        report_reference:
+          type: string
+        pulled_at:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        is_valid:
+          type: boolean
+        hit:
+          type: boolean
+        profile:
+          type: object
+          properties:
+            score:
+              type:
+                - integer
+                - 'null'
+            active_facilities:
+              type: integer
+            total_outstanding:
+              $ref: '#/components/schemas/Money'
+            monthly_obligations:
+              $ref: '#/components/schemas/Money'
+            max_dpd_12m:
+              type: integer
+            delinquent_facilities:
+              type: integer
+            enquiries_6m:
+              type: integer
+            has_write_off:
+              type: boolean
+            facilities:
+              type: array
+              items:
+                type: object
+                properties:
+                  lender:
+                    type: string
+                  type:
+                    type: string
+                  outstanding:
+                    $ref: '#/components/schemas/Money'
+                  monthly_instalment:
+                    $ref: '#/components/schemas/Money'
+                  dpd:
+                    type: integer
+                  status:
+                    type: string
+                required:
+                  - lender
+                  - type
+                  - outstanding
+                  - monthly_instalment
+                  - dpd
+                  - status
+          required:
+            - score
+            - active_facilities
+            - total_outstanding
+            - monthly_obligations
+            - max_dpd_12m
+            - delinquent_facilities
+            - enquiries_6m
+            - has_write_off
+            - facilities
+        pulled_by:
+          type: string
+      required:
+        - id
+        - application_id
+        - party_id
+        - bureau
+        - report_reference
+        - pulled_at
+        - valid_until
+        - is_valid
+        - hit
+        - profile
+        - pulled_by
+    Decision:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        outcome:
+          type: string
+          enum:
+            - approve
+            - refer
+            - decline
+            - counter_offer
+        risk_grade:
+          type: string
+        requested_terms:
+          type: object
+          properties:
+            amount:
+              $ref: '#/components/schemas/Money'
+            tenor_months:
+              type: integer
+            rate_percent:
+              type: string
+            monthly_instalment:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+          required:
+            - amount
+            - tenor_months
+            - rate_percent
+            - monthly_instalment
+        recommended_terms:
+          type: object
+          properties:
+            amount:
+              $ref: '#/components/schemas/Money'
+            tenor_months:
+              type: integer
+            rate_percent:
+              type: string
+            monthly_instalment:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+          required:
+            - amount
+            - tenor_months
+            - rate_percent
+            - monthly_instalment
+        reason_codes:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              text_key:
+                type: string
+              stage:
+                type: string
+                enum:
+                  - knockout
+                  - policy
+                  - grade
+                  - affordability
+                  - pricing
+                  - outcome
+            required:
+              - code
+              - text_key
+              - stage
+        affordability:
+          type: object
+          properties:
+            monthly_income:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+            existing_obligations:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+            new_instalment:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+            dsr_percent:
+              type:
+                - string
+                - 'null'
+            max_dsr_percent:
+              type:
+                - string
+                - 'null'
+            passed:
+              type:
+                - boolean
+                - 'null'
+            max_affordable_amount:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+          required:
+            - dsr_percent
+            - max_dsr_percent
+            - passed
+        rule_set:
+          type: object
+          properties:
+            key:
+              type: string
+            version_id:
+              type: string
+              format: uuid
+            version_no:
+              type: integer
+          required:
+            - key
+            - version_id
+            - version_no
+        evaluator_version:
+          type: string
+        bureau_report_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        facts:
+          type: object
+        trace:
+          type: array
+          items:
+            type: object
+        exceptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyException'
+        decided_by:
+          type: string
+        decided_at:
+          type: string
+          format: date-time
+        is_latest:
+          type: boolean
+      required:
+        - id
+        - application_id
+        - sequence
+        - outcome
+        - risk_grade
+        - requested_terms
+        - recommended_terms
+        - reason_codes
+        - affordability
+        - rule_set
+        - evaluator_version
+        - bureau_report_id
+        - facts
+        - trace
+        - exceptions
+        - decided_by
+        - decided_at
+        - is_latest
+    PolicyException:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        decision_id:
+          type: string
+          format: uuid
+        reason_code:
+          type: string
+        justification:
+          type: string
+        evidence_ref:
+          type:
+            - string
+            - 'null'
+        severity:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+        raised_by:
+          type: string
+        raised_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - application_id
+        - decision_id
+        - reason_code
+        - justification
+        - severity
+        - raised_by
+        - raised_at
+    MemoSection:
+      type: object
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        content:
+          type: object
+      required:
+        - key
+        - title
+        - content
+    CreditMemo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        version_no:
+          type: integer
+        decision_id:
+          type: string
+          format: uuid
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemoSection'
+        narrative:
+          type: string
+        recommendation:
+          type: string
+          enum:
+            - approve
+            - decline
+            - counter_offer
+        recommended_amount:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        recommended_tenor_months:
+          type:
+            - integer
+            - 'null'
+        conditions:
+          type: array
+          items:
+            type: string
+        authored_by:
+          type: string
+        authored_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - application_id
+        - version_no
+        - decision_id
+        - sections
+        - narrative
+        - recommendation
+        - recommended_amount
+        - recommended_tenor_months
+        - conditions
+        - authored_by
+        - authored_at
 # <<< generated: schemas

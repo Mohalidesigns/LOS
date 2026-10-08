@@ -6,6 +6,7 @@ namespace Fundly\Integration;
 
 use Fundly\Integration\Adapters\Clamav\ClamdScanner;
 use Fundly\Integration\Ports\CoreBanking\CoreBankingPort;
+use Fundly\Integration\Ports\CreditBureau\CreditBureauPort;
 use Fundly\Integration\Ports\Identity\IdentityVerificationPort;
 use Fundly\Integration\Ports\MalwareScan\MalwareScanPort;
 use Fundly\Integration\Ports\Screening\ScreeningPort;
@@ -29,6 +30,7 @@ use Fundly\Integration\Runtime\Resilience\Sleeper;
 use Fundly\Integration\Simulators\CoreBanking\CbaSimulator;
 use Fundly\Integration\Simulators\CoreBanking\FaultScript;
 use Fundly\Integration\Simulators\CoreBanking\SimulatorStore;
+use Fundly\Integration\Simulators\CreditBureau\CreditBureauSimulator;
 use Fundly\Integration\Simulators\Identity\IdentitySimulator;
 use Fundly\Integration\Simulators\MalwareScan\MalwareScanSimulator;
 use Fundly\Integration\Simulators\Screening\ScreeningSimulator;
@@ -122,6 +124,15 @@ final class IntegrationServiceProvider extends ServiceProvider
             version: ClamdScanner::VERSION,
             manifest: ClamdScanner::capabilities(),
             factory: static fn (AdapterBinding $binding): ClamdScanner => new ClamdScanner($binding->config),
+        ));
+
+        $adapters->register(new AdapterDefinition(
+            key: CreditBureauSimulator::KEY,
+            port: CreditBureauPort::PORT,
+            version: CreditBureauSimulator::VERSION,
+            manifest: CreditBureauSimulator::capabilities(),
+            factory: static fn (AdapterBinding $binding): CreditBureauSimulator => new CreditBureauSimulator,
+            isSimulator: true,
         ));
 
         if ($this->app->runningInConsole()) {

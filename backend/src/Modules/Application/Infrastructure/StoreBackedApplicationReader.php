@@ -39,6 +39,7 @@ final class StoreBackedApplicationReader implements ApplicationReader
             tenorMonths: $r->tenor_months,
             applicants: $applicants,
             version: $r->version,
+            data: $r->data,
         );
     }
 }

@@ -14,6 +14,7 @@ use Fundly\Modules\Access\Http\Controllers\UserController;
 use Fundly\Modules\Application\Http\Controllers\ApplicationController;
 use Fundly\Modules\Audit\Http\Controllers\AuditController;
 use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
+use Fundly\Modules\Credit\Http\Controllers\CreditController;
 use Fundly\Modules\Document\Http\Controllers\DocumentController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
 use Fundly\Modules\Party\Http\Controllers\PartyController;
@@ -112,6 +113,18 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('documents/{id}/versions/{versionId}/content', [DocumentController::class, 'content'])->middleware('authz:application:view')->name('documents.content');
     Route::post('checklist-items/{id}/actions/{action}', [DocumentController::class, 'actOnItem'])->middleware(['authz:document:verify', 'idempotent'])
         ->where('action', 'verify|reject|waive')->name('checklist-items.act');
+
+    // Credit (FR-CRD-003..015, FR-CMP-020/027/043)
+    Route::get('applications/{id}/bureau-reports', [CreditController::class, 'bureauReports'])->middleware('authz:application:view')->name('bureau-reports.index');
+    Route::post('applications/{id}/bureau-reports/actions/pull', [CreditController::class, 'pullBureau'])->middleware(['authz:bureau:pull', 'idempotent'])->name('bureau-reports.pull');
+    Route::get('applications/{id}/decisions', [CreditController::class, 'decisions'])->middleware('authz:application:view')->name('decisions.index');
+    Route::post('applications/{id}/decisions/actions/run', [CreditController::class, 'runDecision'])->middleware(['authz:credit:analyse', 'idempotent'])->name('decisions.run');
+    Route::get('decisions/{id}', [CreditController::class, 'decision'])->middleware('authz:application:view')->name('decisions.show');
+    Route::post('decisions/{id}/actions/replay', [CreditController::class, 'replay'])->middleware(['authz:application:view', 'idempotent'])->name('decisions.replay');
+    Route::post('decisions/{id}/exceptions', [CreditController::class, 'raiseException'])->middleware(['authz:exception:raise', 'idempotent'])->name('decisions.exceptions.store');
+    Route::get('applications/{id}/exceptions', [CreditController::class, 'exceptions'])->middleware('authz:application:view')->name('exceptions.index');
+    Route::get('applications/{id}/credit-memo', [CreditController::class, 'memo'])->middleware('authz:application:view')->name('credit-memo.show');
+    Route::post('applications/{id}/credit-memo', [CreditController::class, 'saveMemo'])->middleware(['authz:credit:analyse', 'idempotent'])->name('credit-memo.store');
 
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
     Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');

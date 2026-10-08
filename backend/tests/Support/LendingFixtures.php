@@ -55,9 +55,20 @@ final class LendingFixtures
      */
     public static function activateProduct(TestCase $t, string $key, string $name, array $content): array
     {
+        return self::activateConfig($t, 'product', $key, $name, $content);
+    }
+
+    /**
+     * Any configuration type through the full maker-checker lifecycle.
+     *
+     * @param  array<string, mixed>  $content
+     * @return array{artifact: array<string, mixed>, version: array<string, mixed>}
+     */
+    public static function activateConfig(TestCase $t, string $type, string $key, string $name, array $content): array
+    {
         $author = $t->userWith([Permission::ConfigRead, Permission::ConfigAuthor, Permission::ConfigActivateRequest, Permission::ProductManage]);
         $checker = $t->userWith([Permission::ConfigRead, Permission::ConfigReview, Permission::ConfigActivateApprove, Permission::ChangeRequestRead]);
-        $base = '/api/v1/config-artifacts/product';
+        $base = '/api/v1/config-artifacts/'.$type;
         $t->login($author);
         $artifact = $t->api('GET', $base)->json('data');
         $existing = array_values(array_filter($artifact, static fn (array $a): bool => $a['key'] === $key))[0] ?? null;
@@ -110,7 +121,7 @@ final class LendingFixtures
     /** Bind the identity and screening simulators for the current tenant (UAT posture, D-037). */
     public static function bindSimulators(array $screeningConfig = []): void
     {
-        foreach ([['identity_verification', 'identity-simulator', []], ['screening', 'screening-simulator', $screeningConfig], ['malware_scan', 'malware-scan-simulator', []]] as [$port, $key, $config]) {
+        foreach ([['identity_verification', 'identity-simulator', []], ['screening', 'screening-simulator', $screeningConfig], ['malware_scan', 'malware-scan-simulator', []], ['credit_bureau', 'credit-bureau-simulator', []]] as [$port, $key, $config]) {
             AdapterBinding::query()->create(['port' => $port, 'adapter_key' => $key, 'adapter_version' => '1.0.0', 'config' => $config, 'processing_location' => 'on_prem:simulator', 'status' => 'active']);
         }
     }
@@ -127,5 +138,37 @@ final class LendingFixtures
         foreach ($purposes as $purpose) {
             $t->api('POST', "/api/v1/parties/{$party['id']}/consents", ['purpose' => $purpose, 'action' => 'grant', 'channel' => 'branch', 'terms_version' => 'T&C-2026.1', 'evidence_ref' => 'signed-form-001'])->assertCreated();
         }
+    }
+
+    /** @return array<string, mixed> the SME credit policy used across tests and the demo seed */
+    public static function smePolicy(array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'evaluator_version' => '1.0.0',
+            'formulas' => [
+                ['name' => 'instalment', 'expression' => 'pmt(facility.rate_percent / 1200, facility.tenor_months, facility.amount)'],
+                ['name' => 'dsr', 'expression' => 'percent(coalesce(bureau.monthly_obligations, 0) + formulas.instalment, applicant.monthly_income)'],
+            ],
+            'knockouts' => ['hit_policy' => 'COLLECT', 'rows' => [
+                ['when' => 'bureau.has_write_off', 'reason' => ['code' => 'KO_WRITE_OFF']],
+                ['when' => "applicant.type == 'limited_company' and coalesce(applicant.years_trading, 0) < 1", 'reason' => ['code' => 'KO_TRADING_HISTORY']],
+            ]],
+            'policy' => ['hit_policy' => 'COLLECT', 'rows' => [
+                ['when' => 'bureau.max_dpd_12m > 30', 'reason' => ['code' => 'POL_DPD_30']],
+                ['when' => 'bureau.enquiries_6m > 5', 'reason' => ['code' => 'POL_ENQUIRIES']],
+                ['when' => 'bureau.score != null and bureau.score < 550', 'reason' => ['code' => 'POL_LOW_SCORE']],
+            ]],
+            'grade' => ['hit_policy' => 'FIRST', 'rows' => [
+                ['when' => 'bureau.score >= 720', 'outputs' => ['risk_grade' => 'A'], 'reason' => ['code' => 'GRADE_A']],
+                ['when' => 'bureau.score >= 640', 'outputs' => ['risk_grade' => 'B'], 'reason' => ['code' => 'GRADE_B']],
+                ['when' => 'bureau.score >= 550', 'outputs' => ['risk_grade' => 'C'], 'reason' => ['code' => 'GRADE_C']],
+                ['when' => 'true', 'outputs' => ['risk_grade' => 'D'], 'reason' => ['code' => 'GRADE_D']],
+            ]],
+            'affordability' => ['max_dsr_percent' => '40', 'income_fact' => 'applicant.monthly_income', 'dsr_formula' => 'dsr'],
+            'pricing' => ['hit_policy' => 'FIRST', 'rows' => [
+                ['when' => "decision.risk_grade == 'A'", 'outputs' => ['rate_percent' => '22.5']],
+                ['when' => 'true', 'outputs' => ['rate_percent' => '=facility.rate_percent']],
+            ]],
+        ], $overrides);
     }
 }

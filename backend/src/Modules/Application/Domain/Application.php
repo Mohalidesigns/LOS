@@ -163,6 +163,9 @@ final class Application
         if ($action->requiresReason() && ($reasonCode === null || $reasonCode === '')) {
             throw new ApplicationRuleViolation("A reason code is required to {$action->value} an application.");
         }
+        if ($action !== ApplicationAction::Submit && $blockers !== []) {
+            throw new ApplicationRuleViolation("The application is not ready to {$action->value}.", ['blockers' => $blockers]);
+        }
         switch ($action) {
             case ApplicationAction::Submit:
                 $this->expect(S::Draft, $action);

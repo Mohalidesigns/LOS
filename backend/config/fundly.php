@@ -92,6 +92,11 @@ return [
         ],
     ],
 
+    // Credit (FR-CMP-020): a bureau report older than this cannot support a decision or an approval.
+    'credit' => [
+        'bureau_validity_days' => (int) env('FUNDLY_BUREAU_VALIDITY_DAYS', 30),
+    ],
+
     // Documents (FR-DOC-002/005): content store disk, size limit and accepted types (sniffed, not trusted from the client).
     'documents' => [
         'disk' => env('FUNDLY_DOCUMENTS_DISK', 'documents'),

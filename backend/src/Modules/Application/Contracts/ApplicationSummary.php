@@ -9,7 +9,10 @@ use Fundly\Shared\Money\Money;
 /** What other modules may know about an application. */
 final readonly class ApplicationSummary
 {
-    /** @param array<string, string> $applicants party id → role */
+    /**
+     * @param  array<string, string>  $applicants  party id → role
+     * @param  array<string, mixed>  $data  captured product-specific fields
+     */
     public function __construct(
         public string $id,
         public string $reference,
@@ -25,5 +28,6 @@ final readonly class ApplicationSummary
         public ?int $tenorMonths,
         public array $applicants,
         public int $version,
+        public array $data = [],
     ) {}
 }
