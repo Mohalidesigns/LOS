@@ -1,11 +1,18 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { MoreVertical } from 'lucide-react';
+import { ChevronDown, MoreVertical } from 'lucide-react';
 import { IconButton } from './IconButton';
 
-export type MenuItem = { label: string; onSelect: () => void; disabled?: boolean };
+export type MenuItem = {
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+  /** Shown under the label; the item stays focusable but inert (aria-disabled). */
+  disabledReason?: string | null;
+  danger?: boolean;
+};
 
 /** Menu button (WAI-ARIA APG pattern): Enter/Space/ArrowDown opens, arrows move, Escape closes. */
-export function KebabMenu({ label, items }: { label: string; items: readonly MenuItem[] }) {
+export function KebabMenu({ label, items, buttonText }: { label: string; items: readonly MenuItem[]; /** Text button ("Actions ▾") instead of the kebab icon. */ buttonText?: string }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const menuId = useId();
@@ -33,7 +40,32 @@ export function KebabMenu({ label, items }: { label: string; items: readonly Men
 
   return (
     <div ref={rootRef} className="relative">
-      <IconButton
+      {buttonText ? (
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-controls={open ? menuId : undefined}
+          aria-label={label === buttonText ? undefined : label}
+          onClick={() => {
+            setActive(0);
+            setOpen((o) => !o);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              setActive(0);
+              setOpen(true);
+            }
+          }}
+          className="inline-flex h-control min-h-target items-center gap-1.5 rounded-pill border border-strong bg-surface px-4 text-body font-semibold text-primary shadow-button hover:bg-hover"
+        >
+          {buttonText}
+          <ChevronDown aria-hidden="true" className="h-icon-sm w-icon-sm" />
+        </button>
+      ) : (
+        <IconButton
         ref={buttonRef}
         label={label}
         icon={<MoreVertical className="h-icon w-icon" />}
@@ -53,13 +85,14 @@ export function KebabMenu({ label, items }: { label: string; items: readonly Men
           }
         }}
       />
+      )}
       {open && (
         <div
           id={menuId}
           role="menu"
           aria-label={label}
           tabIndex={-1}
-          className="absolute right-0 top-full z-drawer mt-1 min-w-[180px] rounded-control border bg-surface p-1 shadow-popover"
+          className="absolute right-0 top-full z-drawer mt-1 min-w-[220px] max-w-[min(320px,90vw)] rounded-control border bg-surface p-1 shadow-popover"
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.preventDefault();
@@ -85,13 +118,16 @@ export function KebabMenu({ label, items }: { label: string; items: readonly Men
               role="menuitem"
               tabIndex={i === active ? 0 : -1}
               disabled={item.disabled}
-              className="flex min-h-target w-full items-center rounded-mark px-3 py-2 text-left text-body-sm text-primary hover:bg-hover-nav disabled:text-disabled"
+              aria-disabled={item.disabledReason ? true : undefined}
+              className={`flex min-h-target w-full flex-col items-start rounded-mark px-3 py-2 text-left text-body-sm hover:bg-hover-nav disabled:text-disabled aria-disabled:cursor-not-allowed aria-disabled:text-disabled ${item.danger ? 'text-danger' : 'text-primary'}`}
               onClick={() => {
+                if (item.disabledReason) return;
                 item.onSelect();
                 close();
               }}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.disabledReason && <span className="text-meta text-tertiary">{item.disabledReason}</span>}
             </button>
           ))}
         </div>

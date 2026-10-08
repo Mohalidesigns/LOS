@@ -14,6 +14,7 @@ use Fundly\Shared\Bus\Command;
 use Fundly\Shared\Bus\CommandContext;
 use Fundly\Shared\Bus\CommandHandler;
 use Fundly\Shared\Clock\Clock;
+use Fundly\Shared\Exceptions\DomainRuleViolation;
 use Fundly\Shared\Exceptions\NotFound;
 use Illuminate\Support\Carbon;
 
@@ -28,6 +29,10 @@ final class ReviewChecklistItemHandler implements CommandHandler
         $item = ChecklistItem::query()->lockForUpdate()->find($command->itemId) ?? throw new NotFound('Checklist item not found.');
         ChecklistStatus::from($item->status)->assertCanReview();
         $latest = DocumentVersion::query()->where('document_id', $item->document_id)->where('scan_status', 'clean')->orderByDesc('version_no')->first();
+        // Segregation of duties: nobody verifies a document they uploaded themselves.
+        if ($command->verb === 'verify' && $latest !== null && $latest->uploaded_by === $context->principal->id) {
+            throw new DomainRuleViolation('You uploaded this document; a different officer must verify it.');
+        }
         $before = ['status' => $item->status];
         $now = $this->clock->now();
         if ($command->verb === 'verify') {

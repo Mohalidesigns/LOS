@@ -1185,6 +1185,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/applications/{id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Documents on an application */
+        get: operations["listApplicationDocuments"];
+        put?: never;
+        /** Upload a document (multipart). Hashed before storage, scanned before anyone can read it; infected files are quarantined. */
+        post: operations["uploadDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a document with all versions */
+        get: operations["getDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{id}/versions/{versionId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a clean version (read access is audited). Quarantined versions are never served (423). */
+        get: operations["getDocumentContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/checklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Document checklist derived from the pinned product */
+        get: operations["getChecklist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-items/{id}/actions/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify, reject or waive a checklist item. Waive raises a maker-checker request (202).
+         * @description verify/reject need document:verify; waive needs document:verify to request and the item's waiver authority to approve. reject and waive need a reason.
+         */
+        post: operations["actOnChecklistItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1940,6 +2029,104 @@ export interface components {
                 screened_at: string;
             }[];
             alerts: components["schemas"]["ScreeningAlert"][];
+        };
+        Document: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            /** Format: uuid */
+            checklist_item_id: string | null;
+            /** Format: uuid */
+            party_id: string | null;
+            document_type: string;
+            title: string;
+            latest_version: {
+                /** Format: uuid */
+                id: string;
+                version_no: number;
+                filename: string;
+                mime_type: string;
+                size_bytes: number;
+                sha256: string;
+                /** @enum {string} */
+                scan_status: "clean" | "infected";
+                scan_signature: string | null;
+                scanner?: string;
+                uploaded_by: string;
+                /** Format: date-time */
+                uploaded_at: string;
+                duplicates: {
+                    /** Format: uuid */
+                    document_id: string;
+                    /** Format: uuid */
+                    application_id: string;
+                    application_reference: string;
+                    same_application: boolean;
+                }[];
+            } | null;
+            versions: {
+                /** Format: uuid */
+                id: string;
+                version_no: number;
+                filename: string;
+                mime_type: string;
+                size_bytes: number;
+                sha256: string;
+                /** @enum {string} */
+                scan_status: "clean" | "infected";
+                scan_signature: string | null;
+                scanner?: string;
+                uploaded_by: string;
+                /** Format: date-time */
+                uploaded_at: string;
+                duplicates: {
+                    /** Format: uuid */
+                    document_id: string;
+                    /** Format: uuid */
+                    application_id: string;
+                    application_reference: string;
+                    same_application: boolean;
+                }[];
+            }[];
+            /** Format: date-time */
+            created_at: string;
+        };
+        ChecklistItem: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            code: string;
+            name: string;
+            mandatory: boolean;
+            /** @enum {string} */
+            status: "not_received" | "received" | "under_review" | "verified" | "rejected" | "waived" | "expired";
+            /** Format: uuid */
+            document_id: string | null;
+            /** Format: uuid */
+            latest_version_id?: string | null;
+            /** Format: date */
+            valid_until: string | null;
+            rejection_reason?: string | null;
+            waiver_reason?: string | null;
+            /** Format: uuid */
+            waiver_change_request_id?: string | null;
+            waiver_authority: string;
+            verified_by?: string | null;
+            /** Format: date-time */
+            verified_at?: string | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        Checklist: {
+            items: components["schemas"]["ChecklistItem"][];
+            summary: {
+                mandatory_total: number;
+                mandatory_satisfied: number;
+                outstanding: string[];
+                complete: boolean;
+            };
         };
     };
     responses: {
@@ -4812,6 +4999,203 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ScreeningAlert"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listApplicationDocuments: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Document"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    uploadDocument: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    document_type: string;
+                    /** Format: uuid */
+                    checklist_item_id?: string | null;
+                    /** Format: uuid */
+                    party_id?: string | null;
+                    title?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Stored (scan_status clean) or quarantined (scan_status infected) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Document"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDocument: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Document"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDocumentContent: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file, served with the media type sniffed at upload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getChecklist: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Checklist"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    actOnChecklistItem: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                action: "verify" | "reject" | "waive";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string | null;
+                    note?: string | null;
+                    /** Format: date */
+                    valid_until?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated (verify, reject) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ChecklistItem"];
+                    };
+                };
+            };
+            /** @description Waiver requested; awaits the configured authority */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ChangeRequest"];
                     };
                 };
             };

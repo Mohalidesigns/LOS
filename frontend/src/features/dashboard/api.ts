@@ -2,29 +2,17 @@
  * Dashboard data adapter.
  *
  * TODO(P1-RPT-01): replace with /api/v1/reports/operational
- * The P1 application/reporting endpoints do not exist yet. Everything in this
+ * Recent applications and "Pipeline by stage" are already live
+ * (listApplications / applicationStats in DashboardPage). The remaining
+ * reporting endpoints do not exist yet. Everything in this
  * file returns typed MOCK data so the dashboard can be built and reviewed now.
  * Swap the bodies of `fetchDashboard` / `fetchNavCounts` for generated-client
  * calls (api.GET('/api/v1/reports/operational', …)) once the contract lands;
  * the types below are the shape the UI needs and should map 1:1.
  */
 import { queryOptions } from '@tanstack/react-query';
-import type { ApplicationStatus } from '@/components/StatusBadge';
-import type { SlaState } from '@/components/SlaChip';
 
 export type Money = { amount: string; currency: string };
-
-export type RecentApplication = {
-  id: string;
-  reference: string;
-  applicant: string;
-  applicantType: 'Individual' | 'SME' | 'Corporate';
-  product: string;
-  amount: Money;
-  status: ApplicationStatus;
-  sla: { state: SlaState; remaining: string };
-  submittedAt: string;
-};
 
 export type DashboardData = {
   /** MOCK marker: the UI shows a "sample data" note while true. */
@@ -37,8 +25,6 @@ export type DashboardData = {
     disbursedValue: { value: Money; change: number };
   };
   flow: { label: string; received: number; booked: number }[];
-  byStage: { label: string; count: number; value: Money }[];
-  recent: RecentApplication[];
   activity: { id: string; actor: string; action: string; at: string }[];
   sla: { onTrack: number; atRisk: number; breached: number; withinSlaRate: number; target: number };
 };
@@ -74,70 +60,6 @@ export async function fetchDashboard(): Promise<DashboardData> {
       { label: 'Aug', received: 117, booked: 77 },
       { label: 'Sep', received: 139, booked: 88 },
       { label: 'Oct', received: 148, booked: 64 },
-    ],
-    byStage: [
-      { label: 'Assessment', count: 118, value: NGN('1945000000.0000') },
-      { label: 'Approval', count: 62, value: NGN('1210000000.0000') },
-      { label: 'Documentation', count: 54, value: NGN('802000000.0000') },
-      { label: 'Offer & CPs', count: 46, value: NGN('598500000.0000') },
-      { label: 'Disbursement', count: 32, value: NGN('307000000.0000') },
-    ],
-    recent: [
-      {
-        id: '01J9A1',
-        reference: 'APP-2026-004812',
-        applicant: 'Adaeze Okafor',
-        applicantType: 'Individual',
-        product: 'Salary advance',
-        amount: NGN('1500000.0000'),
-        status: 'assessment',
-        sla: { state: 'on_track', remaining: '1d 4h left' },
-        submittedAt: hoursAgo(3, now),
-      },
-      {
-        id: '01J9A2',
-        reference: 'APP-2026-004809',
-        applicant: 'Kano Agro Processors Ltd',
-        applicantType: 'SME',
-        product: 'Working capital',
-        amount: NGN('85000000.0000'),
-        status: 'approval',
-        sla: { state: 'at_risk', remaining: '3h left' },
-        submittedAt: hoursAgo(20, now),
-      },
-      {
-        id: '01J9A3',
-        reference: 'APP-2026-004797',
-        applicant: 'Lekki Logistics Plc',
-        applicantType: 'Corporate',
-        product: 'Asset finance',
-        amount: NGN('420000000.0000'),
-        status: 'conditions_precedent',
-        sla: { state: 'breached', remaining: '6h over' },
-        submittedAt: hoursAgo(54, now),
-      },
-      {
-        id: '01J9A4',
-        reference: 'APP-2026-004790',
-        applicant: 'Chinedu Eze',
-        applicantType: 'Individual',
-        product: 'Personal loan',
-        amount: NGN('3200000.0000'),
-        status: 'approved',
-        sla: { state: 'on_track', remaining: '2d left' },
-        submittedAt: hoursAgo(70, now),
-      },
-      {
-        id: '01J9A5',
-        reference: 'APP-2026-004781',
-        applicant: 'Abuja Fresh Foods Ltd',
-        applicantType: 'SME',
-        product: 'Invoice discounting',
-        amount: { amount: '250000.0000', currency: 'USD' },
-        status: 'declined',
-        sla: { state: 'paused', remaining: 'closed' },
-        submittedAt: hoursAgo(96, now),
-      },
     ],
     activity: [
       { id: 'a1', actor: 'Funmi Adebayo', action: 'approved APP-2026-004790 at level 2', at: hoursAgo(0.5, now) },

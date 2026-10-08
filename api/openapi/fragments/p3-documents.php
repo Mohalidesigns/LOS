@@ -39,7 +39,7 @@ $paths = [
         'operationId' => 'getDocumentContent', 'tags' => ['Documents'], 'x-permission' => 'application:view',
         'parameters' => [oa_param('Id'), oa_path_param('versionId', OA_UUID), oa_param('CorrelationId')],
         'responses' => [
-            '200' => ['description' => 'The file', 'content' => ['application/octet-stream' => ['schema' => ['type' => 'string', 'format' => 'binary']]]],
+            '200' => ['description' => 'The file, served with the media type sniffed at upload', 'content' => ['*/*' => ['schema' => ['type' => 'string', 'format' => 'binary']]]],
             'default' => ['$ref' => '#/components/responses/Problem'],
         ],
         'security' => [['sessionCookie' => []], ['bearerToken' => []]],

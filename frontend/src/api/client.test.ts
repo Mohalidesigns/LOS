@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, policyFetch, readCookie, setSessionEndedHandler, setStepUpHandler, unwrap } from './client';
+import { api, etagOf, formBody, policyFetch, readCookie, setSessionEndedHandler, setStepUpHandler, unwrap } from './client';
 import { ApiProblem, problemFromBody } from './problem';
 
 type Call = { url: string; method: string; headers: Headers; credentials: RequestCredentials; body: string };
@@ -150,5 +150,42 @@ describe('session ended', () => {
     queue.push(() => problem(401, 'authentication-failed'));
     await expect(api.POST('/api/v1/auth/login', { body: { email: 'a', password: 'b' } })).rejects.toMatchObject({ code: 'authentication-failed' });
     expect(onEnded).not.toHaveBeenCalled();
+  });
+});
+
+describe('multipart uploads (formBody)', () => {
+  it('sends FormData through the policy client with XSRF, Idempotency-Key and the browser boundary', async () => {
+    queue.push(() => jsonResponse(201, { data: { id: 'd1' } }));
+    const file = new File(['%PDF-1.4'], 'statement.pdf', { type: 'application/pdf' });
+    const fields = { document_type: 'STATEMENT_6M', checklist_item_id: 'c1', party_id: null, title: null };
+    unwrap(
+      await api.POST('/api/v1/applications/{id}/documents', {
+        params: { path: { id: 'a1' }, header: { 'Idempotency-Key': 'upload-key-123' } },
+        body: { ...fields, file: file.name },
+        bodySerializer: formBody({ ...fields, file }),
+      }),
+    );
+    const c = calls[0]!;
+    expect(c.method).toBe('POST');
+    expect(c.headers.get('Idempotency-Key')).toBe('upload-key-123');
+    expect(c.headers.get('X-XSRF-TOKEN')).toBe('abc==xyz');
+    expect(c.headers.get('Content-Type')).toMatch(/^multipart\/form-data; boundary=/);
+    expect(c.body).toContain('name="document_type"');
+    expect(c.body).toContain('STATEMENT_6M');
+    expect(c.body).toMatch(/name="file"; filename=/);
+    expect(c.body).not.toContain('name="party_id"');
+    // The serializer itself keeps the File and its name (jsdom→undici re-encoding in tests drops it).
+    const form = formBody({ ...fields, file })();
+    expect((form.get('file') as File).name).toBe('statement.pdf');
+    expect(form.has('title')).toBe(false);
+  });
+
+  it('reads binary responses as blobs and exposes the ETag helper', async () => {
+    queue.push(() => new Response('abc', { status: 200, headers: { 'content-type': 'application/octet-stream' } }));
+    const r = await api.GET('/api/v1/documents/{id}/versions/{versionId}/content', { params: { path: { id: 'd1', versionId: 'v1' } }, parseAs: 'blob' });
+    const blob = unwrap(r);
+    expect(blob.size).toBe(3);
+    expect(typeof blob.text).toBe('function');
+    expect(etagOf(new Response(null, { headers: { ETag: 'W/"7"' } }))).toBe('W/"7"');
   });
 });

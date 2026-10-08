@@ -6,6 +6,9 @@
  *  - same-origin Sanctum cookie session: `credentials: 'include'`
  *  - `X-XSRF-TOKEN` from the `XSRF-TOKEN` cookie on every request
  *  - `Idempotency-Key` (crypto.randomUUID) on every POST, reused on retries
+ *  - multipart: pass `formBody(...)` as the bodySerializer; the browser sets the
+ *    boundary and the same policy (XSRF, Idempotency-Key, retries) applies
+ *  - binary: `parseAs: 'blob'` (see `saveBlob` in lib/download.ts)
  *  - `Accept: application/json`
  *  - non-2xx → typed `ApiProblem` (RFC 9457) is thrown
  *  - 419 / CSRF mismatch → refresh the csrf cookie and retry once
@@ -153,4 +156,34 @@ export function unwrap<T>(result: { data?: T; error?: unknown; response: Respons
     });
   }
   return result.data;
+}
+
+export type FormFieldValue = string | Blob | null | undefined;
+
+/**
+ * openapi-fetch `bodySerializer` for multipart/form-data endpoints. The typed
+ * `body` still documents the contract; the serializer sends these fields
+ * (Files/Blobs kept as parts, null/undefined dropped). openapi-fetch leaves
+ * Content-Type unset for FormData so the browser adds the boundary.
+ */
+export function formBody(fields: Record<string, FormFieldValue>): () => FormData {
+  return () => {
+    const form = new FormData();
+    for (const [name, value] of Object.entries(fields)) {
+      if (value === null || value === undefined) continue;
+      if (typeof value === 'string') form.append(name, value);
+      else form.append(name, value, 'name' in value && typeof value.name === 'string' && value.name !== '' ? value.name : name);
+    }
+    return form;
+  };
+}
+
+/** A fresh Idempotency-Key for one user intent (reuse it if the same intent is retried). */
+export function idempotencyKey(): string {
+  return newIdempotencyKey();
+}
+
+/** The ETag of a response (for If-Match on the next mutation). */
+export function etagOf(response: Response): string {
+  return response.headers.get('ETag') ?? response.headers.get('etag') ?? '';
 }

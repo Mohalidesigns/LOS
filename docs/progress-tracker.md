@@ -16,7 +16,7 @@ Requirement IDs marked ◐→Pn are partial in that task and completed in phase 
 | Phase | Gate status | Tasks | Not started | In progress | In review | Done | Blocked | Phase traceability (reqs with passing tests / reqs in phase) |
 |---|---|---|---|---|---|---|---|---|
 | P0 Foundation | Open (build started) | 24 | 0 | 24 | 0 | 0 | 0 | 0 / 53 |
-| P1 MVP origination | Open (build started 2026-10-08) | 51 | 44 | 5 | 3 | 0 | 0 | 0 / 155 |
+| P1 MVP origination | Open (build started 2026-10-08) | 51 | 41 | 5 | 6 | 0 | 0 | 0 / 155 |
 | P2 Documents & IDP | Not open | 13 | 13 | 0 | 0 | 0 | 0 | 0 / 24 |
 | P3 Decisioning & workflow depth | Not open | 21 | 21 | 0 | 0 | 0 | 0 | 0 / 25 |
 | P4 Live integrations & channels | Not open | 21 | 21 | 0 | 0 | 0 | 0 | 0 / 27 |
@@ -69,8 +69,8 @@ Requirement IDs marked ◐→Pn are partial in that task and completed in phase 
 | P1-APP-01 | Event-sourced application aggregate, human reference, canonical state machine + cross-c… | `FR-APP-001`, `FR-APP-006`, `LOS-FR-282`, `LOS-FR-283` | BE Origination & Application | In review | — | `tests/Feature/Origination`, `tests/Unit/Application` (local PG17 run, 204 passed) | M1: event-sourced aggregate, gap-free `{LE}-{YYYY}-{SEQ:6}` reference, canonical state machine + cross-cutting, ETag/If-Match, as-at replay, projection verify |
 | P1-APP-02 | Schema-driven dynamic forms, multiple applicants/guarantors, pre-approval amendment wit… | `FR-APP-002`, `FR-APP-004`, `FR-APP-005`, `FR-APP-008`, `LOS-FR-301`, `NFR-013` | BE Origination & Application | In progress | — | `tests/Feature/Origination`, `tests/Unit/Application` (local PG17 run, 204 passed) | M1: multiple applicants/guarantors, pre-approval amendment with field history, provenance; schema-driven forms pending |
 | P1-APP-03 | Application- and stage-level SLA clocks over the tenant calendar with pause/resume | `FR-APP-009` | BE Origination & Application | Not started | — | — | |
-| P1-DOC-01 | Upload API (web + API, tus resumable), format/size policy, ClamAV gate, SHA-256 before … | `FR-DOC-001` ◐→P4, `FR-DOC-002`, `FR-DOC-004`, `FR-DOC-005`, `FR-DOC-006` | BE Origination & Application | Not started | — | — | |
-| P1-DOC-02 | Per-application checklist with statuses, waivers via authority, expiry tracking, manual… | `FR-DOC-007`, `FR-DOC-008`, `FR-DOC-009` | BE Origination & Application | Not started | — | — | |
+| P1-DOC-01 | Upload API (web + API, tus resumable), format/size policy, ClamAV gate, SHA-256 before … | `FR-DOC-001` ◐→P4, `FR-DOC-002`, `FR-DOC-004`, `FR-DOC-005`, `FR-DOC-006` | BE Origination & Application | In review | — | local pest 219 passed; frontend verify 107 tests | M3: malware port (clamd + EICAR simulator), SHA-256 before store, encrypted write-once store, immutable versions, hash duplicates; tus resumable and content-similarity duplicates pending |
+| P1-DOC-02 | Per-application checklist with statuses, waivers via authority, expiry tracking, manual… | `FR-DOC-007`, `FR-DOC-008`, `FR-DOC-009` | BE Origination & Application | In review | — | local pest 219 passed; frontend verify 107 tests | M3: checklist from pinned product, verify/reject with uploader SoD, validity + documents:expire, waivers via maker-checker at configured authority, auto Documentation→Assessment |
 | P1-CRD-01 | Rules engine | `FR-CRD-001`, `FR-CRD-002` ◐→P3 | BE Decisioning & Approvals | Not started | — | — | |
 | P1-CRD-02 | CreditBureauPort (one bureau stub), canonical credit profile parser, bureau-before-appr… | `FR-CRD-003` ◐→P4, `FR-CRD-004`, `FR-CMP-020` | BE Decisioning & Approvals | Not started | — | — | |
 | P1-CRD-03 | Decision flow | `FR-CRD-008`, `FR-CRD-010`, `FR-CRD-011`, `FR-CRD-014`, `FR-CRD-015`, `FR-CMP-027`, `FR-CMP-043`, `LOS-CON-006` † | BE Decisioning & Approvals | Not started | — | — | |
@@ -97,7 +97,7 @@ Requirement IDs marked ◐→Pn are partial in that task and completed in phase 
 | P1-RPT-01 | Operational dashboard (pipeline, TAT, SLA breaches, queues) with ScopeFilter enforcemen… | `FR-RPT-001` ◐→P5, `FR-RPT-010` | BE Platform & Access | Not started | — | — | |
 | P1-UX-01 | MVP screen designs per role journey (capture → booked, auditor), states, empty/error st… | — | UI/UX | Not started | — | — | |
 | P1-FE-01 | Admin console UI | — | Frontend | Not started | — | — | |
-| P1-FE-02 | Origination UI | — | Frontend | Not started | — | — | |
+| P1-FE-02 | Origination UI | — | Frontend | In review | — | local pest 219 passed; frontend verify 107 tests | M3: applications list/pipeline, new-application wizard with dedupe, case workspace (summary, KYC, documents, timeline/as-at), compliance alert queue with four-eyes, customers |
 | P1-FE-03 | Assessment UI | — | Frontend | Not started | — | — | |
 | P1-FE-04 | Execution UI | — | Frontend | Not started | — | — | |
 | P1-FE-05 | Accessibility and browser matrix certification of MVP screens (axe on every screen, man… | `NFR-014`, `NFR-015` † | Frontend | Not started | — | — | |

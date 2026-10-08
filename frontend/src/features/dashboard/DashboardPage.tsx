@@ -14,6 +14,8 @@ import {
   Skeleton,
   SlaChip,
   StatCard,
+  DateTimeText,
+  EmptyState,
   StatusBadge,
   FundlyGlyph,
   useToast,
@@ -21,12 +23,16 @@ import {
 } from '@/components';
 import { formatNumber, formatPercent } from '@/lib/format';
 import { useSession } from '@/features/auth/session';
-import { dashboardQuery, type RecentApplication } from './api';
+import type { ApplicationSummary } from '@/api/lending';
+import { applicationsApi } from '@/api/lending';
+import { STATUS_GROUPS, countFor } from '@/features/applications/domain/groups';
+import { statsQuery } from '@/features/applications/queries';
+import { dashboardQuery } from './api';
 
 type QuickAction = { label: string; to: string; icon: LucideIcon; anyOf: readonly string[] };
 
 const QUICK_ACTIONS: readonly QuickAction[] = [
-  { label: 'New application', to: '/applications?new=1', icon: CirclePlus, anyOf: ['application:originate'] },
+  { label: 'New application', to: '/applications/new', icon: CirclePlus, anyOf: ['application:originate'] },
   { label: 'Pipeline', to: '/pipeline', icon: Workflow, anyOf: ['application:view'] },
   { label: 'Approvals', to: '/inbox?queue=approvals', icon: BadgeCheck, anyOf: ['application:approve'] },
   { label: 'Disbursements', to: '/pipeline?stage=disbursement', icon: Banknote, anyOf: ['disbursement:make', 'disbursement:check'] },
@@ -38,18 +44,18 @@ const QUICK_ACTIONS: readonly QuickAction[] = [
 
 const QUICK_COLS: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4' };
 
-const columns: readonly Column<RecentApplication>[] = [
-  { id: 'reference', header: 'Reference', rowHeader: true, cell: (r) => <span className="ref font-medium">{r.reference}</span>, sub: (r) => r.product, sortValue: (r) => r.reference },
-  { id: 'applicant', header: 'Applicant', cell: (r) => r.applicant, sub: (r) => r.applicantType, sortValue: (r) => r.applicant },
+const columns: readonly Column<ApplicationSummary>[] = [
+  { id: 'reference', header: 'Reference', rowHeader: true, cell: (r) => <span className="ref font-medium">{r.reference}</span>, sub: (r) => r.product.name, sortValue: (r) => r.reference },
+  { id: 'applicant', header: 'Applicant', cell: (r) => r.primary_applicant.display_name, sub: (r) => r.segment.toUpperCase(), sortValue: (r) => r.primary_applicant.display_name },
   {
     id: 'amount',
     header: 'Amount',
     align: 'right',
-    cell: (r) => <MoneyText amount={r.amount.amount} currency={r.amount.currency} compact />,
-    sortValue: (r) => Number(r.amount.amount),
+    cell: (r) => (r.requested_amount ? <MoneyText amount={r.requested_amount.amount} currency={r.requested_amount.currency} compact /> : '—'),
+    sortValue: (r) => Number(r.requested_amount?.amount ?? 0),
   },
   { id: 'status', header: 'Stage', cell: (r) => <StatusBadge status={r.status} />, sortValue: (r) => r.status },
-  { id: 'sla', header: 'SLA', cell: (r) => <SlaChip state={r.sla.state} remaining={r.sla.remaining} /> },
+  { id: 'updated', header: 'Updated', cell: (r) => <DateTimeText value={r.status_changed_at} style="relative-day" />, sortValue: (r) => r.status_changed_at },
 ];
 
 function PeriodPill({ children }: { children: string }) {
@@ -60,6 +66,9 @@ export function DashboardPage() {
   const { me, permissions } = useSession();
   const toast = useToast();
   const { data, isPending } = useQuery(dashboardQuery);
+  const canView = permissions.has('application:view');
+  const recent = useQuery({ queryKey: ['applications', 'list', { recent: true }], queryFn: () => applicationsApi.list({ size: 6 }), enabled: canView });
+  const stats = useQuery({ ...statsQuery, enabled: canView });
   const quick = QUICK_ACTIONS.filter((a) => a.anyOf.some((p) => permissions.has(p))).slice(0, 4);
   const menu = (label: string) => (
     <KebabMenu
@@ -86,14 +95,15 @@ export function DashboardPage() {
 
   const firstName = me.name.split(' ')[0] ?? me.name;
   const slaTotal = data.sla.onTrack + data.sla.atRisk + data.sla.breached;
-  const stageTotal = data.byStage.reduce((s, x) => s + x.count, 0);
+  const byStatus = stats.data?.by_status ?? {};
+  const stageSlices = STATUS_GROUPS.filter((g) => g.id !== 'closed').map((g) => ({ label: g.label, value: countFor(byStatus, g.statuses) }));
 
   return (
     <div className="space-y-6">
       {data.isSample && (
         <p className="flex items-center gap-2 text-body-sm text-tertiary">
           <Info aria-hidden="true" className="h-icon-sm w-icon-sm text-indicator" />
-          Welcome back, {firstName}. Figures below are sample data until operational reporting ships (P1).
+          Welcome back, {firstName}. Applications and the stage chart are live; the other figures are sample data until operational reporting ships (P1-RPT-01).
         </p>
       )}
 
@@ -210,13 +220,14 @@ export function DashboardPage() {
         {/* Right column */}
         <div className="min-w-0 space-y-6 xl:order-3">
           <Card aria-labelledby="stage-title">
-            <CardHeader title="Pipeline by stage" titleId="stage-title" actions={<PeriodPill>Live</PeriodPill>} />
-            <DonutChart
-              title="Pipeline by stage"
-              centerLabel="Applications"
-              centerValue={formatNumber(stageTotal)}
-              slices={data.byStage.map((s) => ({ label: s.label, value: s.count, display: <MoneyText amount={s.value.amount} compact /> }))}
-            />
+            <CardHeader title="Pipeline by stage" titleId="stage-title" subtitle="Open applications in your scope" actions={<PeriodPill>Live</PeriodPill>} />
+            {!canView ? (
+              <p className="text-body-sm text-secondary">Requires the application:view permission.</p>
+            ) : stats.isPending ? (
+              <Skeleton className="h-[16rem] w-full" />
+            ) : (
+              <DonutChart title="Pipeline by stage" centerLabel="Open" centerValue={formatNumber(stats.data?.open ?? 0)} slices={stageSlices} />
+            )}
           </Card>
 
         </div>
@@ -234,7 +245,19 @@ export function DashboardPage() {
                   </Link>
                 }
               />
-              <DataTable caption="Recent applications" columns={columns} rows={data.recent} getRowId={(r) => r.id} rowHref={(r) => `/applications/${r.id}`} />
+              {canView ? (
+                <DataTable
+                  caption="Recent applications"
+                  columns={columns}
+                  rows={recent.data?.data}
+                  loading={recent.isPending}
+                  getRowId={(r) => r.id}
+                  rowHref={(r) => `/applications/${r.id}`}
+                  empty={<EmptyState title="No applications yet" headingLevel={3} />}
+                />
+              ) : (
+                <p className="text-body-sm text-secondary">Requires the application:view permission.</p>
+              )}
             </Card>
         </div>
         <div className="min-w-0 lg:col-span-2 xl:col-span-1">

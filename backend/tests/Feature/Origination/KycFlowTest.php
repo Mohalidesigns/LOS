@@ -103,7 +103,7 @@ it('blocks at KycScreening on a PEP hit until two different officers clear it; t
 
     $this->login($this->officerB);
     $done = $this->api('POST', "/api/v1/screening-alerts/{$alert['id']}/actions/confirm", ['reason' => 'Reviewed evidence DMS-4471; false positive'])->assertOk()->json('data');
-    expect($done)->toMatchArray(['status' => 'cleared', 'proposed_by' => $this->officerA->id, 'confirmed_by' => $this->officerB->id, 'evidence_ref' => 'DMS-4471']);
+    expect($done)->toMatchArray(['status' => 'cleared', 'party_name' => 'Emeka Obi', 'proposed_by' => $this->officerA->id, 'confirmed_by' => $this->officerB->id, 'evidence_ref' => 'DMS-4471']);
     expect(status($this, $c['app']))->toBe('documentation');
     $audit = DB::table('audit_events')->where('entity_id', $alert['id'])->orderBy('seq')->pluck('action')->all();
     expect($audit)->toBe(['compliance.screening_alert.raised', 'compliance.screening_alert.proposed', 'compliance.screening_alert.confirmed']);

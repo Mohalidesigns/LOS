@@ -3865,9 +3865,9 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         200:
-          description: 'The file'
+          description: 'The file, served with the media type sniffed at upload'
           content:
-            application/octet-stream:
+            '*/*':
               schema:
                 type: string
                 format: binary

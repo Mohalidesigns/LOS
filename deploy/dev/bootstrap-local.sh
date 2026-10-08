@@ -7,11 +7,13 @@
 #
 # Usage:
 #   deploy/dev/bootstrap-local.sh [setup]     everything (default, idempotent)
-#   deploy/dev/bootstrap-local.sh serve       php artisan serve on 127.0.0.1:8000
+#   deploy/dev/bootstrap-local.sh serve       php artisan serve on 127.0.0.1:8091 (SERVE_PORT=...)
 #   deploy/dev/bootstrap-local.sh totp EMAIL  print the current TOTP code for an admin
 #   deploy/dev/bootstrap-local.sh login EMAIL sign in via the API (smoke test, needs a running server)
 #   deploy/dev/bootstrap-local.sh reset-mfa EMAIL  clear an admin's MFA so the next login re-enrols
 #   deploy/dev/bootstrap-local.sh reset --yes drop ALL tables in the dev DB, forget licence + MFA secrets
+#   deploy/dev/bootstrap-local.sh seed-demo  demo org, product, business users + roles, parties, applications
+#                                            (needs a running API: run 'serve' in another terminal first)
 #
 # Prerequisites: PHP 8.4 + composer deps in backend/vendor, PostgreSQL with the
 # `fundly` DB and fundly_owner / fundly_app roles (deploy/sql/00-provision-roles.sql),
@@ -34,7 +36,9 @@ DB_OWNER_USERNAME="${DB_OWNER_USERNAME:-fundly_owner}"
 DB_OWNER_PASSWORD="${DB_OWNER_PASSWORD:-owner_dev_pw}"
 
 SERVE_HOST="${SERVE_HOST:-127.0.0.1}"
-SERVE_PORT="${SERVE_PORT:-8000}"
+# 8091 by default: port 8000 is often taken by another local Laravel app. Override
+# with SERVE_PORT (or API_BASE for a server you run yourself).
+SERVE_PORT="${SERVE_PORT:-${FUNDLY_API_PORT:-8091}}"
 API_BASE="${API_BASE:-http://$SERVE_HOST:$SERVE_PORT}"
 SPA_ORIGIN="${SPA_ORIGIN:-http://localhost:5173}"
 
@@ -46,6 +50,15 @@ ADMIN1_PASSWORD="${ADMIN1_PASSWORD:-Ada-Dev-Passw0rd!}"
 ADMIN2_NAME="${ADMIN2_NAME:-Bo Checker}"
 ADMIN2_EMAIL="${ADMIN2_EMAIL:-bo@fundly.test}"
 ADMIN2_PASSWORD="${ADMIN2_PASSWORD:-Bo-Dev-Passw0rd!}"
+
+# seed-demo business users (created through the API; MFA enrols on their first scripted login)
+DEMO_PASSWORD="${DEMO_PASSWORD:-Demo-Dev-Passw0rd!}"
+DEMO_LO_NAME="${DEMO_LO_NAME:-Lola Originator}"
+DEMO_LO_EMAIL="${DEMO_LO_EMAIL:-lola@fundly.test}"
+DEMO_CMP1_NAME="${DEMO_CMP1_NAME:-Chidi Compliance}"
+DEMO_CMP1_EMAIL="${DEMO_CMP1_EMAIL:-chidi@fundly.test}"
+DEMO_CMP2_NAME="${DEMO_CMP2_NAME:-Ngozi Compliance}"
+DEMO_CMP2_EMAIL="${DEMO_CMP2_EMAIL:-ngozi@fundly.test}"
 
 LICENCE_MODULES="${LICENCE_MODULES:-*}"
 LICENCE_MAX_USERS="${LICENCE_MAX_USERS:-200}"
@@ -77,6 +90,7 @@ password_for() {
   case "$1" in
     "$ADMIN1_EMAIL") printf '%s' "$ADMIN1_PASSWORD" ;;
     "$ADMIN2_EMAIL") printf '%s' "$ADMIN2_PASSWORD" ;;
+    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
     *) local v="${FUNDLY_DEV_PASSWORD:-}"; [[ -n "$v" ]] || die "no password known for $1 (set FUNDLY_DEV_PASSWORD)"; printf '%s' "$v" ;;
   esac
 }
@@ -154,6 +168,7 @@ api() {
   BODY="$(cat "$out")"; rm -f "$out"
 }
 
+# Fundly answers /health with 200; another app on the same port usually 404s.
 server_up() { curl -fsS -o /dev/null "$API_BASE/health" 2>/dev/null; }
 
 STARTED_PID=""
@@ -446,6 +461,296 @@ print_summary() {
 EOF
 }
 
+# ---------------------------------------------------------------- seed-demo
+# Demo data for the staff SPA, created through the public API (maker-checker
+# included) so it exercises the same rules as a real tenant. Idempotent-ish:
+# every step looks for what an earlier run created before creating it again.
+#
+#   ada (maker) / bo (checker)  org DEMO + branches, users, roles, product
+#   lola  Loan Officer + Documentation Officer      originates, uploads, verifies
+#   chidi Compliance Officer + Branch Manager       proposes alert dispositions, recommends, approves waivers
+#   ngozi Compliance Officer                        confirms dispositions (four-eyes)
+# Admins (tenant_administrator) hold no application permissions on purpose:
+# sign in to the SPA as lola / chidi / ngozi to work applications.
+
+DEMO_PRODUCT_KEY="${DEMO_PRODUCT_KEY:-sme-term-loan}"
+
+idem() { printf 'seed-%s' "$(uuidgen | tr 'A-Z' 'a-z')"; }
+apost() { # path [json] [extra curl args...]
+  local path="$1" body="${2:-}"; shift 2 || shift $#
+  [[ -n "$body" ]] || body='{}'
+  api POST "$path" "$body" -H "Idempotency-Key: $(idem)" "$@"
+}
+expect() { # "codes regex" what
+  [[ "$HTTP_STATUS" =~ ^($1)$ ]] || die "$2 -> HTTP $HTTP_STATUS: $BODY"
+}
+
+seed_org() {
+  heading "Organisation: legal entity DEMO with branches LAGOS and KANO (as $ADMIN1_EMAIL)"
+  api GET '/api/v1/legal-entities?page%5Bsize%5D=100' ''; expect 200 "list legal entities"
+  LE_ID="$(jq -r '.data[] | select(.code=="DEMO") | .id' <<<"$BODY" | head -1)"
+  if [[ -z "$LE_ID" ]]; then
+    apost /api/v1/legal-entities '{"code":"DEMO","name":"Demo Bank Plc","jurisdiction":"NG","licence_category":"commercial_bank","base_currency":"NGN","timezone":"Africa/Lagos","org_level_labels":["Branch"]}'
+    expect 201 "create legal entity"; LE_ID="$(jq -r '.data.id' <<<"$BODY")"; ok "legal entity DEMO $LE_ID"
+  else info "legal entity DEMO exists: $LE_ID"; fi
+  local code name
+  for pair in "LAGOS:Lagos Island" "KANO:Kano Main"; do
+    code="${pair%%:*}"; name="${pair#*:}"
+    api GET "/api/v1/org-units?filter%5Blegal_entity_id%5D=$LE_ID&page%5Bsize%5D=100" ''; expect 200 "list org units"
+    local id; id="$(jq -r --arg c "$code" '.data[] | select(.code==$c) | .id' <<<"$BODY" | head -1)"
+    if [[ -z "$id" ]]; then
+      apost /api/v1/org-units "$(jq -nc --arg le "$LE_ID" --arg c "$code" --arg n "$name" '{legal_entity_id:$le,code:$c,name:$n}')"
+      expect 201 "create org unit $code"; id="$(jq -r '.data.id' <<<"$BODY")"; ok "branch $code $id"
+    else info "branch $code exists: $id"; fi
+    [[ "$code" == LAGOS ]] && LAGOS_ID="$id" || KANO_ID="$id"
+  done
+}
+
+# -> echoes user id (creates the user when missing)
+seed_user() { # email name
+  api GET '/api/v1/users?page%5Bsize%5D=100' ''; expect 200 "list users"
+  local id; id="$(jq -r --arg e "$1" '.data[] | select((.email|ascii_downcase)==($e|ascii_downcase)) | .id' <<<"$BODY" | head -1)"
+  if [[ -z "$id" ]]; then
+    apost /api/v1/users "$(jq -nc --arg e "$1" --arg n "$2" --arg p "$DEMO_PASSWORD" --arg le "$LE_ID" --arg ou "$LAGOS_ID" \
+      '{kind:"human",email:$e,name:$n,password:$p,home_legal_entity_id:$le,home_org_unit_id:$ou}')"
+    expect 201 "create user $1"; id="$(jq -r '.data.id' <<<"$BODY")"; ok "user $1 $id" >&2
+  else info "user $1 exists: $id" >&2; fi
+  printf '%s' "$id"
+}
+
+# -> echoes role id: a tenant role cloned from a library template, plus optional
+# extra permissions (role permission changes are maker-checker: ada requests, bo approves).
+seed_role() { # code name template_key [extra_permission...]
+  local code="$1" name="$2" tpl_key="$3"; shift 3
+  JAR="$ADA_JAR"
+  api GET '/api/v1/roles?page%5Bsize%5D=100' ''; expect 200 "list roles"
+  local id tpl role
+  id="$(jq -r --arg c "$code" '.data[] | select(.code==$c and (.is_template|not)) | .id' <<<"$BODY" | head -1)"
+  if [[ -z "$id" ]]; then
+    tpl="$(jq -r --arg t "$tpl_key" '.data[] | select(.is_template and (.template_key==$t or .code==$t)) | .id' <<<"$BODY" | head -1)"
+    [[ -n "$tpl" ]] || die "role template '$tpl_key' not found"
+    apost "/api/v1/roles/$tpl/actions/clone" "$(jq -nc --arg c "$code" --arg n "$name" '{code:$c,name:$n,description:"seed-demo"}')"
+    expect 201 "clone role $tpl_key"; id="$(jq -r '.data.id' <<<"$BODY")"; ok "role $code cloned from $tpl_key" >&2
+  else info "role $code exists" >&2; fi
+  if (( $# > 0 )); then
+    api GET "/api/v1/roles/$id" ''; expect 200 "get role $code"; role="$BODY"
+    local missing; missing="$(jq -c --args '.data.permissions as $have | [$ARGS.positional[] | select(. as $p | ($have | index($p)) == null)]' "$@" <<<"$role")"
+    if [[ "$missing" != "[]" ]]; then
+      api PUT "/api/v1/roles/$id/permissions" "$(jq -c --argjson add "$missing" '{permissions: (.data.permissions + $add), reason: "seed-demo: originators pick legal entity and branch"}' <<<"$role")"
+      expect 202 "request permissions for $code"
+      local cr; cr="$(jq -r '.data.id' <<<"$BODY")"
+      JAR="$BO_JAR"; approve_cr "$cr"; expect 200 "approve permissions for $code"; JAR="$ADA_JAR"
+      ok "role $code += $(jq -r 'join(", ")' <<<"$missing") (change request $cr)" >&2
+    fi
+  fi
+  printf '%s' "$id"
+}
+
+# Request (ada) and approve (bo) one assignment at a time: a second request for
+# the same user goes stale once the first executes (the user record changed).
+seed_assignment() { # user_id role_id label   (needs ADA_JAR + BO_JAR)
+  JAR="$ADA_JAR"
+  api GET "/api/v1/role-assignments?filter%5Buser_id%5D=$1&filter%5Bactive%5D=true&page%5Bsize%5D=100" ''; expect 200 "list assignments"
+  if jq -e --arg r "$2" '.data[] | select(.role_id==$r and .revoked_at==null)' <<<"$BODY" >/dev/null; then info "$3: already assigned"; return; fi
+  api GET '/api/v1/change-requests?filter%5Bstatus%5D=pending&page%5Bsize%5D=100' ''; expect 200 "list change requests"
+  local cr attempt; cr="$(jq -r --arg u "$1" --arg r "$2" '.data[] | select(.payload.user_id==$u and .payload.role_id==$r) | .id' <<<"$BODY" | head -1)"
+  for attempt in 1 2; do
+    if [[ -z "$cr" ]]; then
+      JAR="$ADA_JAR"
+      apost /api/v1/role-assignments "$(jq -nc --arg u "$1" --arg r "$2" --arg f "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{user_id:$u,role_id:$r,scope:{},valid_from:$f,reason:"seed-demo"}')"
+      expect 202 "request assignment $3"; cr="$(jq -r '.data.id' <<<"$BODY")"
+    fi
+    JAR="$BO_JAR"; approve_cr "$cr"
+    if [[ "$HTTP_STATUS" == 200 ]]; then ok "$3: assigned (change request $cr approved by $ADMIN2_EMAIL)"; JAR="$ADA_JAR"; return; fi
+    [[ "$HTTP_STATUS" == 409 && "$attempt" == 1 ]] || die "approve assignment $3 -> HTTP $HTTP_STATUS: $BODY"
+    info "$3: request $cr was stale; raising a new one"; cr=""
+  done
+}
+
+seed_product_author() { # as ada: artefact, version, submit; leaves PRODUCT_* set
+  heading "Product '$DEMO_PRODUCT_KEY' (author: $ADMIN1_EMAIL)"
+  local base=/api/v1/config-artifacts/product content
+  api GET "$base?page%5Bsize%5D=100" ''; expect 200 "list product artefacts"
+  PRODUCT_ARTIFACT="$(jq -r --arg k "$DEMO_PRODUCT_KEY" '.data[] | select(.key==$k) | .id' <<<"$BODY" | head -1)"
+  PRODUCT_ACTIVE="$(jq -r --arg k "$DEMO_PRODUCT_KEY" '.data[] | select(.key==$k) | .active_version_id // empty' <<<"$BODY" | head -1)"
+  if [[ -n "$PRODUCT_ACTIVE" ]]; then info "already active (version $PRODUCT_ACTIVE)"; PRODUCT_VERSION=""; return; fi
+  if [[ -z "$PRODUCT_ARTIFACT" ]]; then
+    apost "$base" "$(jq -nc --arg k "$DEMO_PRODUCT_KEY" '{key:$k,name:"SME Term Loan",description:"Amortising term loan for SMEs (seed-demo)"}')"
+    expect 201 "create product artefact"; PRODUCT_ARTIFACT="$(jq -r '.data.id' <<<"$BODY")"
+  fi
+  # Reuse an in-flight version from an interrupted run.
+  api GET "$base/$PRODUCT_ARTIFACT/versions?page%5Bsize%5D=100" ''; expect 200 "list versions"
+  PRODUCT_VERSION="$(jq -r '[.data[] | select(.status=="draft" or .status=="in_review" or .status=="submitted" or .status=="approved")] | last | .id // empty' <<<"$BODY")"
+  PRODUCT_VSTATUS="$(jq -r --arg v "$PRODUCT_VERSION" '.data[] | select(.id==$v) | .status' <<<"$BODY")"
+  if [[ -z "$PRODUCT_VERSION" ]]; then
+    content='{"category":"sme_term_loan","segment":"sme","currency":"NGN","applicant_types":["limited_company","individual"],
+      "amount":{"min":"500000.00","max":"50000000.00"},"tenor_months":{"min":3,"max":36},
+      "interest":{"basis":"reducing_balance","rate_percent":"24.5000"},"repayment_frequency":"monthly","moratorium_months":{"max":3},
+      "fees":[{"code":"MGMT","name":"Management fee","type":"upfront","calc":"percent","value":"1.0000"},
+              {"code":"CRI","name":"Credit life insurance","type":"upfront","calc":"percent","value":"0.5000"}],
+      "penalty":{"rate_percent":"2.0000"},"prepayment":{"allowed":true,"fee_percent":"1.0000"},
+      "eligibility":[{"code":"MIN_TRADING","description":"At least 12 months trading history"}],
+      "checklist":[
+        {"code":"CAC_CERT","name":"CAC certificate of incorporation","mandatory":true,"applies_to":{"applicant_types":["limited_company"]}},
+        {"code":"STATEMENT_6M","name":"6 months bank statements","mandatory":true},
+        {"code":"AUDITED_FS","name":"Audited financial statements","mandatory":true,"applies_to":{"amount_min":"10000000.00"}},
+        {"code":"GOVT_ID","name":"Government ID","mandatory":true,"applies_to":{"applicant_types":["individual"]}},
+        {"code":"BOARD_RES","name":"Board resolution to borrow","mandatory":false,"applies_to":{"applicant_types":["limited_company"]}}],
+      "bindings":{"workflow":"sme-standard","rule_set":"sme-policy","approval_matrix":"sme-matrix"},
+      "offer_validity_days":30,"approval_validity_days":60}'
+    apost "$base/$PRODUCT_ARTIFACT/versions" "$(jq -c '{content: ., notes: "seed-demo"}' <<<"$content")"
+    expect 201 "create product version"; PRODUCT_VERSION="$(jq -r '.data.id' <<<"$BODY")"; PRODUCT_VSTATUS=draft
+    ok "version $PRODUCT_VERSION drafted"
+  fi
+  if [[ "$PRODUCT_VSTATUS" == draft ]]; then
+    apost "$base/$PRODUCT_ARTIFACT/versions/$PRODUCT_VERSION/actions/submit" '{"reason":"seed-demo"}'; expect 200 "submit version"
+    PRODUCT_VSTATUS=submitted; ok "submitted for review"
+  fi
+}
+
+seed_product_review() { # as bo
+  [[ -n "$PRODUCT_VERSION" ]] || return 0
+  local base=/api/v1/config-artifacts/product
+  if [[ "$PRODUCT_VSTATUS" != approved ]]; then
+    apost "$base/$PRODUCT_ARTIFACT/versions/$PRODUCT_VERSION/actions/approve" '{"reason":"seed-demo review"}'; expect 200 "approve version"
+    ok "version approved by $ADMIN2_EMAIL"
+  fi
+}
+
+seed_product_activate_request() { # as ada -> PRODUCT_CR
+  PRODUCT_CR=""
+  [[ -n "$PRODUCT_VERSION" ]] || return 0
+  api GET '/api/v1/change-requests?filter%5Bstatus%5D=pending&page%5Bsize%5D=100' ''; expect 200 "list change requests"
+  PRODUCT_CR="$(jq -r --arg v "$PRODUCT_VERSION" '.data[] | select((.payload|tostring)|contains($v)) | .id' <<<"$BODY" | head -1)"
+  if [[ -z "$PRODUCT_CR" ]]; then
+    apost "/api/v1/config-artifacts/product/$PRODUCT_ARTIFACT/versions/$PRODUCT_VERSION/actions/activate" '{"reason":"seed-demo go-live"}'
+    expect 202 "request activation"; PRODUCT_CR="$(jq -r '.data.id' <<<"$BODY")"
+  fi
+  ok "activation change request $PRODUCT_CR"
+}
+
+# -> echoes party id; finds by display name first
+seed_party() { # display_name json
+  api GET "/api/v1/parties?filter%5Bq%5D=$(jq -rn --arg q "$1" '$q|@uri')&page%5Bsize%5D=25" ''; expect 200 "search parties"
+  local id; id="$(jq -r --arg n "$1" '.data[] | select(.display_name==$n) | .id' <<<"$BODY" | head -1)"
+  if [[ -z "$id" ]]; then
+    apost /api/v1/parties "$2"; expect 201 "create party $1"; id="$(jq -r '.data.id' <<<"$BODY")"; ok "party $1" >&2
+    local purpose
+    for purpose in data_processing credit_bureau; do
+      apost "/api/v1/parties/$id/consents" "$(jq -nc --arg p "$purpose" '{purpose:$p,action:"grant",channel:"branch",terms_version:"T&C-2026.1",evidence_ref:"signed-form-001"}')"
+      expect 201 "consent $purpose for $1"
+    done
+  else info "party $1 exists" >&2; fi
+  printf '%s' "$id"
+}
+
+# -> echoes application id; one demo application per primary party
+seed_application() { # party_id amount tenor purpose
+  api GET "/api/v1/applications?filter%5Bparty_id%5D=$1&page%5Bsize%5D=5" ''; expect 200 "list applications"
+  local id; id="$(jq -r '.data[0].id // empty' <<<"$BODY")"
+  if [[ -z "$id" ]]; then
+    apost /api/v1/applications "$(jq -nc --arg le "$LE_ID" --arg ou "$LAGOS_ID" --arg k "$DEMO_PRODUCT_KEY" --arg p "$1" --arg a "$2" --argjson t "$3" --arg pu "$4" \
+      '{legal_entity_id:$le,org_unit_id:$ou,product_key:$k,primary_party_id:$p,channel:"staff",requested_amount:$a,tenor_months:$t,purpose:$pu,repayment_frequency:"monthly"}')"
+    expect 201 "create application"; id="$(jq -r '.data.id' <<<"$BODY")"; ok "application $(jq -r '.data.reference' <<<"$BODY") (draft)" >&2
+  else info "application for party exists: $(jq -r '.data[0].reference' <<<"$BODY") ($(jq -r '.data[0].status' <<<"$BODY"))" >&2; fi
+  printf '%s' "$id"
+}
+
+seed_submit() { # application id
+  api GET "/api/v1/applications/$1" '' -D "$DEV_DIR/seed-headers"; expect 200 "get application"
+  [[ "$(jq -r '.data.status' <<<"$BODY")" == draft ]] || { info "already submitted"; return; }
+  local etag; etag="$(awk 'tolower($1)=="etag:"{print $2}' "$DEV_DIR/seed-headers" | tr -d '\r')"
+  apost "/api/v1/applications/$1/actions/submit" '{}' -H "If-Match: $etag"; expect 200 "submit application"
+  ok "submitted $(jq -r '.data.reference' <<<"$BODY")"
+}
+
+cmd_seed_demo() {
+  require_tools
+  command -v uuidgen >/dev/null || die "'uuidgen' is required"
+  server_up || die "API not running at $API_BASE (run '$0 serve' in another terminal)"
+  local tid; tid="$(sql_value "select id from tenants where slug = '$TENANT_SLUG'")"
+  [[ -n "$tid" ]] || die "tenant $TENANT_SLUG not found; run '$0 setup' first"
+
+  heading "Simulator adapters (identity verification, screening, ...)"
+  artisan integration:bind-simulators || die "integration:bind-simulators failed"
+
+  login "$ADMIN2_EMAIL"; BO_JAR="$JAR"
+  login "$ADMIN1_EMAIL"; ADA_JAR="$JAR"
+  seed_org
+  heading "Demo users and roles (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
+  local lola chidi ngozi r_lo r_doc r_cmp r_bm
+  lola="$(seed_user "$DEMO_LO_EMAIL" "$DEMO_LO_NAME")"
+  chidi="$(seed_user "$DEMO_CMP1_EMAIL" "$DEMO_CMP1_NAME")"
+  ngozi="$(seed_user "$DEMO_CMP2_EMAIL" "$DEMO_CMP2_NAME")"
+  r_lo="$(seed_role demo_loan_officer 'Loan Officer (demo)' loan_officer legal_entity:read org_unit:read)"
+  r_doc="$(seed_role demo_documentation_officer 'Documentation Officer (demo)' documentation_officer)"
+  r_cmp="$(seed_role demo_compliance_officer 'Compliance Officer (demo)' compliance_officer)"
+  r_bm="$(seed_role demo_branch_manager 'Branch Manager (demo)' branch_manager)"
+  seed_assignment "$lola" "$r_lo" "lola: loan officer"
+  seed_assignment "$lola" "$r_doc" "lola: documentation officer"
+  seed_assignment "$chidi" "$r_cmp" "chidi: compliance officer"
+  seed_assignment "$chidi" "$r_bm" "chidi: branch manager"
+  seed_assignment "$ngozi" "$r_cmp" "ngozi: compliance officer"
+
+  JAR="$ADA_JAR"; seed_product_author
+  JAR="$BO_JAR"; seed_product_review
+  JAR="$ADA_JAR"; seed_product_activate_request
+  if [[ -n "$PRODUCT_CR" ]]; then
+    JAR="$BO_JAR"; approve_cr "$PRODUCT_CR"; expect 200 "approve product activation"
+    ok "product $DEMO_PRODUCT_KEY is live"
+  fi
+  rm -f "$ADA_JAR" "$BO_JAR"
+
+  heading "Parties and applications (as $DEMO_LO_EMAIL)"
+  login "$DEMO_LO_EMAIL"
+  local company director person app1 app2
+  company="$(seed_party 'Adebayo Foods Limited' "$(jq -nc --arg ou "$LAGOS_ID" '{type:"limited_company",company_name:"Adebayo Foods Limited",registration_number:"RC1234567",incorporation_date:"2015-03-01",sector:"agro_processing",phone:"08031234567",email:"finance@adebayofoods.ng",tin:"12345678-0001",address:{line1:"14 Broad Street",city:"Lagos",state:"Lagos",country:"NG"},org_unit_id:$ou}')")"
+  director="$(seed_party 'Funke Adebayo' "$(jq -nc --arg ou "$LAGOS_ID" '{type:"individual",first_name:"Funke",last_name:"Adebayo",date_of_birth:"1980-05-17",gender:"female",nationality:"NG",phone:"08021234567",email:"funke@adebayofoods.ng",identities:[{type:"bvn",value:"22212345678"}],org_unit_id:$ou}')")"
+  local rel
+  for rel in 'director:null' 'shareholder:"60.00"'; do
+    api GET "/api/v1/parties/$company/relationships" ''; expect 200 "list relationships"
+    if ! jq -e --arg d "$director" --arg r "${rel%%:*}" '.data.relationships[] | select(.party.id==$d and .role==$r)' <<<"$BODY" >/dev/null; then
+      apost "/api/v1/parties/$company/relationships" "$(jq -nc --arg d "$director" --arg r "${rel%%:*}" --argjson pct "${rel#*:}" '{related_party_id:$d,role:$r,ownership_percent:$pct}')"
+      expect 201 "add ${rel%%:*}"; ok "Funke Adebayo recorded as ${rel%%:*} of Adebayo Foods Limited"
+    fi
+  done
+  person="$(seed_party 'Chinedu Eze' "$(jq -nc --arg ou "$KANO_ID" '{type:"individual",first_name:"Chinedu",last_name:"Eze",date_of_birth:"1988-11-02",gender:"male",nationality:"NG",phone:"08035550123",email:"chinedu.eze@example.ng",identities:[{type:"bvn",value:"22298765432"}],org_unit_id:$ou}')")"
+  app1="$(seed_application "$company" '12500000.00' 24 'Purchase of a cassava processing line')"
+  app2="$(seed_application "$person" '2000000.00' 12 'Working capital for retail shop')"
+  seed_submit "$app2"
+  # "Emeka Obi" is on the screening simulator's synthetic PEP register: this one raises an alert.
+  local pep app3
+  pep="$(seed_party 'Emeka Obi' "$(jq -nc --arg ou "$LAGOS_ID" '{type:"individual",first_name:"Emeka",last_name:"Obi",date_of_birth:"1970-01-15",gender:"male",nationality:"NG",phone:"08033330001",identities:[{type:"bvn",value:"22211122233"}],org_unit_id:$ou}')")"
+  app3="$(seed_application "$pep" '5000000.00' 12 'Equipment purchase')"
+  seed_submit "$app3"
+  heading "Running due outbox jobs (screening runs asynchronously)"
+  # The scheduler's outbox.dispatch pushes a DispatchOutboxJob onto the database queue; a worker runs it.
+  artisan schedule:run >/dev/null 2>&1 || info "schedule:run reported an error"
+  artisan queue:work --stop-when-empty --tries=3 >/dev/null 2>&1 || info "queue:work reported an error (see storage/logs)"
+  rm -f "$JAR" "$DEV_DIR/seed-headers"
+
+  heading "MFA enrolment for the compliance demo users"
+  local who
+  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL"; do
+    if [[ -f "$(secret_file_for "$who")" && -n "$(sql_value "select coalesce(mfa_confirmed_at::text, '') from users where lower(email) = lower('$who')" "$tid")" ]]; then
+      info "$who: enrolled, secret on file"
+    else login "$who"; rm -f "$JAR"; fi
+  done
+
+  heading "Demo data ready"
+  cat <<EOF
+    Sign in to the SPA as (password $DEMO_PASSWORD, TOTP via '$0 totp <email>'):
+      $DEMO_LO_EMAIL     Loan Officer + Documentation Officer (create, submit, upload, verify)
+      $DEMO_CMP1_EMAIL    Compliance Officer + Branch Manager (propose alert dispositions, recommend, approve waivers)
+      $DEMO_CMP2_EMAIL    Compliance Officer (confirm dispositions proposed by chidi)
+    Draft application:      Adebayo Foods Limited, NGN 12.5M / 24 months  ($app1)
+    Submitted application:  Chinedu Eze, NGN 2M / 12 months               ($app2)
+    Screening alert:        Emeka Obi (synthetic PEP), NGN 5M             ($app3)
+    Screening runs asynchronously (outbox -> database queue). seed-demo drains it once; for live
+    updates keep both running in backend/:  php artisan schedule:work   and   php artisan queue:work
+EOF
+}
+
 # ---------------------------------------------------------------- commands
 cmd_setup() {
   require_tools
@@ -464,6 +769,10 @@ cmd_setup() {
 
 cmd_serve() {
   [[ -f "$ENV_FILE" ]] || die "no backend/.env; run '$0 setup' first"
+  if command -v lsof >/dev/null && lsof -nP -iTCP:"$SERVE_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    server_up && die "a Fundly API is already listening on $SERVE_HOST:$SERVE_PORT"
+    die "port $SERVE_PORT is used by another program (not Fundly: $API_BASE/health is not 200). Pick a free one: SERVE_PORT=8092 $0 serve, and start Vite with FUNDLY_BACKEND_URL=http://127.0.0.1:8092"
+  fi
   cd "$BACKEND_DIR" && exec php artisan serve --host="$SERVE_HOST" --port="$SERVE_PORT"
 }
 
@@ -512,6 +821,7 @@ case "${1:-setup}" in
   login) shift; cmd_login "$@" ;;
   reset-mfa) shift; cmd_reset_mfa "$@" ;;
   reset) shift; cmd_reset "$@" ;;
-  -h|--help|help) sed -n '2,20p' "$0" ;;
-  *) die "unknown command '$1' (setup|serve|totp|login|reset-mfa|reset)" ;;
+  seed-demo) cmd_seed_demo ;;
+  -h|--help|help) sed -n '2,22p' "$0" ;;
+  *) die "unknown command '$1' (setup|serve|totp|login|reset-mfa|reset|seed-demo)" ;;
 esac

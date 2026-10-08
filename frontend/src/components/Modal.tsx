@@ -40,6 +40,14 @@ export function Modal({ open, onClose, title, description, children, footer, dis
     }
   }, [open]);
 
+  // Unmounted while open (conditionally rendered dialogs): still return focus to the opener.
+  useEffect(
+    () => () => {
+      if (opener.current instanceof HTMLElement && document.contains(opener.current)) opener.current.focus();
+    },
+    [],
+  );
+
   return (
     // Backdrop click is a pointer convenience; keyboard users close with Escape (native <dialog>).
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
@@ -56,7 +64,7 @@ export function Modal({ open, onClose, title, description, children, footer, dis
         if (dismissible && e.target === e.currentTarget) onClose();
       }}
       className={cn(
-        'm-auto w-[calc(100%-2rem)] max-w-modal rounded-overlay border-0 bg-surface p-0 text-primary shadow-modal backdrop:bg-overlay',
+        '!m-auto w-[calc(100%-2rem)] max-w-modal rounded-overlay border-0 bg-surface p-0 text-primary shadow-modal backdrop:bg-overlay',
         className,
       )}
     >

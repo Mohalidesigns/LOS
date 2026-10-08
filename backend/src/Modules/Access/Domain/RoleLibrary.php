@@ -24,6 +24,7 @@ final class RoleLibrary
         return [
             'loan_officer' => ['name' => 'Loan Officer / RM', 'description' => 'Captures and originates applications for own customers.', 'permissions' => [
                 Permission::ApplicationView, Permission::ApplicationOriginate, Permission::PartyManage, Permission::DocumentUpload, Permission::ReportView,
+                Permission::LegalEntityRead, Permission::OrgUnitRead,
             ]],
             'documentation_officer' => ['name' => 'Documentation Officer', 'description' => 'Collects and verifies application documents.', 'permissions' => [
                 Permission::ApplicationView, Permission::DocumentUpload, Permission::DocumentVerify,

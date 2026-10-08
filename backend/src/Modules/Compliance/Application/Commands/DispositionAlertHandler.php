@@ -10,6 +10,7 @@ use Fundly\Modules\Compliance\Contracts\Events\ScreeningAlertResolved;
 use Fundly\Modules\Compliance\Domain\AlertStatus;
 use Fundly\Modules\Compliance\Domain\FourEyes;
 use Fundly\Modules\Compliance\Infrastructure\Models\ScreeningAlert;
+use Fundly\Modules\Party\Contracts\PartyDirectory;
 use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Bus\Command;
 use Fundly\Shared\Bus\CommandContext;
@@ -19,7 +20,7 @@ use Fundly\Shared\Exceptions\NotFound;
 
 final class DispositionAlertHandler implements CommandHandler
 {
-    public function __construct(private readonly ApplicationReader $applications, private readonly Clock $clock) {}
+    public function __construct(private readonly ApplicationReader $applications, private readonly PartyDirectory $parties, private readonly Clock $clock) {}
 
     /** @return array{data: array<string, mixed>} */
     public function handle(Command $command, CommandContext $context): array
@@ -52,6 +53,6 @@ final class DispositionAlertHandler implements CommandHandler
             reasonText: $command->reason,
         ));
 
-        return ['data' => AlertPresenter::present($alert->refresh())];
+        return ['data' => AlertPresenter::present($alert->refresh(), $this->parties->find($alert->party_id)?->displayName)];
     }
 }

@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, LabelHTMLAttributes, ReactNode, Ref, SelectHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, LabelHTMLAttributes, ReactNode, Ref, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import { AlertCircle, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -155,6 +155,39 @@ export function Checkbox({ id, name, label, description, className, ref, ...rest
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+export type TextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  label: string;
+  helper?: ReactNode;
+  error?: string | undefined;
+  ref?: Ref<HTMLTextAreaElement>;
+};
+
+export function TextArea({ id, name, label, helper, error, className, required, rows = 3, ref, ...rest }: TextAreaProps) {
+  const areaId = id ?? `t-${name ?? label.replace(/\W+/g, '-').toLowerCase()}`;
+  const helperId = helper ? `${areaId}-help` : undefined;
+  const errorId = error ? `${areaId}-error` : undefined;
+  return (
+    <div className={className}>
+      <InputLabel htmlFor={areaId} required={required}>
+        {label}
+      </InputLabel>
+      <textarea
+        ref={ref}
+        id={areaId}
+        name={name}
+        rows={rows}
+        required={required}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={[errorId, helperId].filter(Boolean).join(' ') || undefined}
+        className={cn(controlBase, 'py-2.5', error ? 'border-danger-fill' : 'border-control')}
+        {...rest}
+      />
+      <InputError id={errorId}>{error}</InputError>
+      {helper && <HelperText id={helperId}>{helper}</HelperText>}
     </div>
   );
 }

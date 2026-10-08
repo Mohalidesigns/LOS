@@ -70,6 +70,8 @@ final class ProblemRenderer
             $e instanceof MethodNotAllowedHttpException => [405, 'method-not-allowed', 'Method not allowed', 'This method is not supported for this resource.', [], $this->stringHeaders($e->getHeaders())],
             $e instanceof ThrottleRequestsException => [429, 'too-many-requests', 'Too many requests', 'Rate limit exceeded. Retry later.', [], $this->stringHeaders($e->getHeaders())],
             $e instanceof QueryException && $e->getCode() === '23505' => [409, 'conflict', 'Conflict', 'The resource conflicts with an existing one.', [], []],
+            // Laravel converts TokenMismatchException to a plain 419 HttpException before rendering.
+            $e instanceof HttpExceptionInterface && $e->getStatusCode() === 419 => [419, 'csrf-token-mismatch', 'CSRF token mismatch', 'The CSRF token is missing or invalid.', [], []],
             $e instanceof HttpExceptionInterface => [$e->getStatusCode(), 'http-error', 'HTTP error', $e->getStatusCode() < 500 ? $e->getMessage() : 'Server error.', [], $this->stringHeaders($e->getHeaders())],
             default => [500, 'internal-error', 'Internal server error', 'An unexpected error occurred. Quote the correlation id when reporting it.', [], []],
         };

@@ -68,7 +68,7 @@ it('hashes, scans, encrypts and versions a clean upload; the content round-trips
     $key = DB::table('document_versions')->where('id', $v['id'])->value('storage_key');
     expect(Storage::disk('documents')->get($key))->not->toContain('%PDF');
     $res = $this->get("http://{$this->tenant->host}/api/v1/documents/{$doc['id']}/versions/{$v['id']}/content", ['Referer' => 'http://localhost/'])->assertOk();
-    expect($res->getContent())->toBe($bytes)->and($res->headers->get('Digest'))->toBe('sha-256='.base64_encode(hash('sha256', $bytes, true)));
+    expect($res->headers->get('Content-Type'))->toBe('application/pdf')->and($res->getContent())->toBe($bytes)->and($res->headers->get('Digest'))->toBe('sha-256='.base64_encode(hash('sha256', $bytes, true)));
     expect(DB::table('audit_events')->where('action', 'document.content.read')->where('entity_id', $doc['id'])->exists())->toBeTrue();
 
     // a second upload to the same item is version 2 and resets review
@@ -151,6 +151,13 @@ it('waives only through the configured authority (maker-checker) and moves Docum
     $last = collect($this->api('GET', "/api/v1/applications/{$this->loan['id']}/timeline")->json('data'))->last();
     expect($last['payload'])->toMatchArray(['to' => 'assessment', 'reason_code' => 'CHECKLIST_COMPLETE'])->and($last['actor']['id'])->toBe('system:workflow');
 })->group('FR-DOC-008', 'FR-SEC-007', 'LOS-FR-282');
+
+it('refuses to let the uploader verify their own document (segregation of duties)', function () {
+    $cac = item($this, 'CAC_CERT');
+    $this->login($this->docOfficer);
+    upload($this, pdf('own'), $cac['id'])->assertCreated();
+    $this->api('POST', "/api/v1/checklist-items/{$cac['id']}/actions/verify")->assertStatus(422)->assertJsonPath('detail', 'You uploaded this document; a different officer must verify it.');
+})->group('FR-SEC-006');
 
 it('denies uploads and reviews without the document permissions and outside scope', function () {
     $viewer = $this->userWith([Permission::ApplicationView]);

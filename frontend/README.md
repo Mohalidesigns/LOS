@@ -9,19 +9,65 @@ cookie session (TRD §2.2 / §3, D-031). Tasks P0-UX-01 + P0-FE-01.
 ```bash
 # 1. Backend (once): env, migrations, dev tenant, admins, licence, MFA
 ../deploy/dev/bootstrap-local.sh            # see the script header for subcommands
-../deploy/dev/bootstrap-local.sh serve      # php artisan serve on 127.0.0.1:8000
+../deploy/dev/bootstrap-local.sh serve      # php artisan serve on 127.0.0.1:8091 (SERVE_PORT=… to change)
 
-# 2. Frontend
+# 2. Demo data (needs the API running): org, live product, business users, parties, applications
+../deploy/dev/bootstrap-local.sh seed-demo
+
+# 3. Async work (screening runs from the outbox via the database queue) — keep both running
+(cd ../backend && php artisan schedule:work)
+(cd ../backend && php artisan queue:work)
+
+# 4. Frontend
 npm ci
-npm run dev                                 # http://localhost:5173
+FUNDLY_BACKEND_URL=http://127.0.0.1:8091 npm run dev -- --port 5174
 ```
+
+The backend port defaults to **8091** because 8000/8010 are often taken by other
+local Laravel apps (the script refuses to start on a port another app holds, and
+`/health` must answer 200 for it to count as Fundly). The Claude launch config
+`fundly-frontend` (`Loanoriginator/.claude/launch.json`) starts Vite on 5174 with
+`FUNDLY_BACKEND_URL=http://127.0.0.1:8091`. `localhost:5174` is already in
+`SANCTUM_STATEFUL_DOMAINS`.
 
 Sign in with a dev admin that the bootstrap printed, for example `ada@fundly.test`.
 Get the current authenticator code with `../deploy/dev/bootstrap-local.sh totp ada@fundly.test`.
 Each code works once per 30-second window, so if the script just used one, wait for the next.
 
+### Demo data (`seed-demo`)
+
+`seed-demo` drives the public API with curl (maker-checker included), so it
+exercises the same rules as a real tenant. It is idempotent: re-running it finds
+what earlier runs created. It:
+
+1. binds the simulator adapters (`php artisan integration:bind-simulators`);
+2. as **ada**, creates legal entity `DEMO` with branches `LAGOS` and `KANO`;
+3. creates three business users (password `Demo-Dev-Passw0rd!`, override with
+   `DEMO_PASSWORD`), clones library role templates into tenant roles and
+   assigns them; every assignment and the extra role permissions are requested
+   by **ada** and approved by **bo** (a request for the same user goes stale once
+   the previous one executes, so they are done one at a time);
+4. authors the `sme-term-loan` product (content as in
+   `backend/tests/Support/LendingFixtures.php::smeTermLoan()` plus an optional
+   board-resolution item), **bo** reviews, **ada** requests activation (202) and
+   **bo** approves the change request;
+5. as **lola**, creates Adebayo Foods Limited (+ director/shareholder Funke
+   Adebayo), Chinedu Eze and Emeka Obi with consents, one draft and two
+   submitted applications, then runs the scheduler + queue once so screening
+   happens (Emeka Obi is on the simulator's synthetic PEP list → an open alert);
+6. signs chidi and ngozi in once so their MFA secrets are on file.
+
+| User | Roles (cloned templates) | Use it for |
+|---|---|---|
+| `lola@fundly.test` | Loan Officer (+ `legal_entity:read`, `org_unit:read`), Documentation Officer | new application wizard, submit, KYC verify/consents, upload, verify, waiver request |
+| `chidi@fundly.test` | Compliance Officer, Branch Manager | propose alert dispositions, recommend, approve waivers |
+| `ngozi@fundly.test` | Compliance Officer | confirm dispositions chidi proposed (four-eyes) |
+
+The admins (tenant administrator) deliberately hold no application permissions.
+TOTP for any of them: `../deploy/dev/bootstrap-local.sh totp <email>`.
+
 Vite proxies `/api`, `/sanctum`, `/health` and `/ready` to `FUNDLY_BACKEND_URL`
-(default `http://127.0.0.1:8000`). The proxy uses `changeOrigin: false`, so
+(default `http://127.0.0.1:8091`, the bootstrap default). The proxy uses `changeOrigin: false`, so
 Laravel sees `Host: localhost:5173`. Sanctum then treats the browser as a
 stateful first-party SPA, and the `fundly_session` and `XSRF-TOKEN` cookies
 land on the Vite origin. If you run Vite on a different port
@@ -54,8 +100,16 @@ src/
     auth/         LoginPage + login state machine, session queries,
                   StepUpProvider / useStepUp, safe post-login redirect
     navigation/   nav config (permission-driven) + Sidebar
-    dashboard/    DashboardPage + api.ts adapter (MOCK until P1-RPT-01)
-    placeholders/ routed EmptyState pages for P1+ modules
+    applications/ queues (/applications, /pipeline), wizard/ (/applications/new),
+                  case/ (/applications/:id + tabs), domain/ (pure, tested: stage
+                  tracker mapping, action availability, status groups), queries.ts
+                  (TanStack keys + useIfMatchMutation)
+    parties/      /parties, /parties/:id, shared PartyCreateForm (live dedupe),
+                  PartySearch, IdentitiesPanel, ConsentsPanel, DirectorsEditor
+    compliance/   /compliance/alerts queue + drawer, fourEyes.ts (tested)
+    dashboard/    DashboardPage + api.ts adapter (recent applications and the
+                  stage donut are live; the rest MOCK until P1-RPT-01)
+    placeholders/ routed EmptyState pages for modules not built yet
   design-tokens/  tokens.css (single source of truth) + tailwind-preset.js
   lib/            formatting (en-NG, ₦, Africa/Lagos), cn()
 ```
@@ -82,6 +136,14 @@ src/
   signed in, the session bridge clears the query cache and routes to
   `/login?reason=session-ended`, which shows the "Your session ended" banner.
   A 401 from login, MFA or step-up means bad credentials and is shown inline.
+- Multipart uploads go through the same client: pass the typed `body` plus
+  `bodySerializer: formBody({...fields, file})`; openapi-fetch leaves
+  Content-Type to the browser (boundary) and the policy (XSRF, Idempotency-Key,
+  419/step-up retries) applies unchanged. Binary downloads use `parseAs: 'blob'`
+  and `saveBlob()` (`lib/download.ts`, short-lived object URL).
+- `src/api/lending.ts` names the generated types and wraps the P1 endpoints;
+  application reads/mutations return `{ data, etag }` so the next mutation can
+  send `If-Match`.
 - Lint forbids `fetch`, `XMLHttpRequest` and `axios` everywhere else.
 
 ### Auth and session
@@ -160,12 +222,30 @@ token architecture follows **D-027**.
 
 The dashboard has 3 columns at ≥ 1280 px, 2 at ≥ 1024 px and 1 below that.
 
+## Origination slice (P1-FE-02)
+
+| Route | Screen | Notes |
+|---|---|---|
+| `/applications`, `/pipeline` | WRK-03 / WRK-02 | stat tiles from `applicationStats`, status-group chips, search, "Mine only", cursor "Load more"; filters live in the URL |
+| `/applications/new` | APP-01..03 | product cards → find/create applicant (Zod mirrors backend rules, live `matchParties` dedupe, `possible_duplicates` card, inline directors for companies) → legal entity/branch + terms validated against the product range → review → `createApplication` (one Idempotency-Key per review) |
+| `/applications/:id` (+ `/kyc`, `/documents`, `/timeline`) | APP-04..10 | context bar with the status/permission-chosen primary action, Actions menu (hold, return, withdraw, cancel, recommend) with reason codes, 12-step stage tracker, route tabs (arrow keys). Every mutation sends `If-Match`; a 412 shows "This application changed — reload" and keeps typed input. KYC gate and the case header poll every 10 s while screening is pending |
+| `/compliance/alerts` | CMP-01/02 | status chips, drawer via `?alert=` (deep-linkable from the KYC tab), propose / confirm with the four-eyes rules and the server's refusal shown verbatim |
+| `/parties`, `/parties/:id` | PTY-01 lite | search, masked identifiers + Verify, consents grant/withdraw + history, directors/owners, the customer's applications |
+
+Permission-aware actions stay visible but inert (`aria-disabled`, reason as
+tooltip and screen-reader text) via `Button disabledReason`.
+
 ## Known gaps
 - **Dashboard figures are mock data.** `features/dashboard/api.ts` is marked
   `TODO(P1-RPT-01): replace with /api/v1/reports/operational`. The page says
   it is sample data. Nav count badges come from the same adapter.
-- Search and notifications are placeholders that show a toast. Placeholder
-  routes show EmptyStates until their modules ship.
+- Notifications are a placeholder toast; the title-bar search opens
+  `/applications?q=…`. Inbox, Products, Users and Audit are still placeholders.
+- Upload progress is phase-based (uploading → scanned clean / quarantined), not
+  per-byte: `fetch` has no upload progress and XHR is outside the client policy.
+- Timeline actors are shown as "You", "Workflow engine" or a short staff id:
+  the timeline API returns actor ids only.
+- PII "Reveal" (`POST /pii/unmask`) is not in the P1 contract; values stay masked.
 - Tailwind v3 is mandated. `npm audit` flags its build-time dependencies
   (`braces`, `micromatch` via chokidar/fast-glob). They are dev-only and
   never ship to the browser.

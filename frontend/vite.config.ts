@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 
-const BACKEND = process.env.FUNDLY_BACKEND_URL ?? 'http://127.0.0.1:8000';
+const BACKEND = process.env.FUNDLY_BACKEND_URL ?? 'http://127.0.0.1:8091';
 
 /**
  * Same-origin dev setup: the browser only ever talks to http://localhost:5173.

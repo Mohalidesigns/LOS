@@ -139,3 +139,50 @@ Local dev: `deploy/dev/bootstrap-local.sh` (synthetic dev accounts only).
 - ProblemRenderer returns `http-error` for Laravel's 419; give it
   `csrf-token-mismatch` (small backend fix).
 - Tailwind v3 dev-dependency advisories (build-time only) clear with Tailwind v4.
+
+## Milestone 3 — Documents and the origination UI (2026-10-08)
+
+**Gate results:** Pest **219 passed, 0 failed** (10,983 assertions); Larastan
+L8 0 errors; Pint pass. Frontend `npm run verify`: 107 Vitest tests, ESLint 0
+warnings, contrast 125 pairs / 0 failing, build OK.
+
+### Backend — M07 Documents (P1-DOC-01/02)
+- `MalwareScanPort` (new): `clamav-clamd` INSTREAM adapter for installations,
+  EICAR-detecting simulator for UAT/tests.
+- Upload pipeline: sniff type → size/format policy → **SHA-256 before storage**
+  → scan → clean files encrypted (XChaCha20-Poly1305, per-tenant
+  `document_dek`, version id as AAD) and written once; infected files keep
+  only hash + signature (`document_versions_quarantine_chk` makes a stored
+  infected version impossible); content reads return 423 for quarantined
+  versions and are audited; downloads carry the sniffed type + `Digest`.
+- Immutable `document_versions`; cross-application duplicate detection by hash.
+- Checklist derived from the pinned product (type / amount band), statuses per
+  FR-DOC-007, verify (with validity) / reject, uploader ≠ verifier,
+  `documents:expire`, waivers through maker-checker at the item's configured
+  authority (`document:waive_approve` or `application:approve`), and an
+  event-driven Documentation → Assessment move.
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-DOC-001 | Partial: web/API multipart; camera, email and scanner channels P4 | `DocumentTest` |
+| FR-DOC-002 / 004 / 005 | Done | `DocumentTest` |
+| FR-DOC-006 | Partial: hash duplicates; content similarity with IDP (P2) | `DocumentTest` |
+| FR-DOC-007 / 008 / 009 | Done (`extracted` status arrives with IDP) | `DocumentTest` |
+
+### Frontend — P1-FE-02 origination slice
+Applications list / pipeline, new-application wizard (product → customer with
+live dedupe and inline directors → branch and terms → review), case workspace
+with stage tracker and tabs (Summary, Applicant & KYC with the CDD gate,
+Documents with upload / quarantine / verify / waiver, Timeline with as-at),
+compliance alert queue with four-eyes drawer, customers. If-Match on every
+mutation with a 412 recovery banner. `deploy/dev/bootstrap-local.sh seed-demo`
+builds a demo tenant (users lola / chidi / ngozi) through the API.
+
+### Fixes from UI review
+Loan officer template can read legal entities / org units; disposition
+response carries the party name; 419 renders `csrf-token-mismatch`.
+
+### Gaps carried forward
+Submit response reflects the pre-automation state (UI refetches); timeline has
+no actor display names; screening needs a queue worker locally
+(`php artisan queue:work`); PII unmask endpoint and resumable uploads.

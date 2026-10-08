@@ -58,10 +58,10 @@ final class DocumentController
         $c = $this->queries->content($id, $versionId, $this->principal->require());
 
         return new Response($c['bytes'], 200, [
-            'Content-Type' => 'application/octet-stream',
+            // The sniffed type recorded at upload; nosniff stops the browser second-guessing it.
+            'Content-Type' => $c['mime_type'],
             'Content-Disposition' => 'attachment; filename="'.addcslashes($c['filename'], '"\\').'"',
             'X-Content-Type-Options' => 'nosniff',
-            'X-Document-Media-Type' => $c['mime_type'],
             'Digest' => 'sha-256='.base64_encode((string) hex2bin($c['sha256'])),
             'Cache-Control' => 'no-store',
         ]);

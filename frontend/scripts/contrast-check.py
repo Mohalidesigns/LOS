@@ -187,6 +187,16 @@ PAIRS += [
     ("--focus-ring-color", "--color-warning-bg", "ui", "Focus ring in warning banner"),
     ("--focus-ring-color", "--color-danger-bg", "ui", "Focus ring in danger banner"),
     ("--focus-ring-color", "--color-info-bg", "ui", "Focus ring in info banner"),
+    # P1-FE-02 origination slice
+    ("--color-text-on-accent", "--color-accent-graphic", "ui", "Check mark in a completed stage dot"),
+    ("--color-text-on-accent", "--color-accent", "text", "Selected filter chip label"),
+    ("--color-text-on-accent-fill", "--color-accent-fill", "text", "Current stage / step number on lime"),
+    ("--color-text-primary", "--color-accent-subtle", "text", "Selected product card / party chip"),
+    ("--color-text-secondary", "--color-bg-subtle", "text", "Upload drop-zone text"),
+    ("--color-success-fg", "--color-bg-muted", "ui", "KYC condition met icon"),
+    ("--color-warning-fg", "--color-bg-muted", "ui", "KYC condition unmet icon"),
+    ("--color-danger-fg", "--color-bg-danger-wash@--color-bg", "text", "Quarantined version label"),
+    ("--color-text-tertiary", "--color-bg-danger-wash@--color-bg", "text", "Meta in quarantined version row"),
     # large text
     ("--color-text-heading", "--color-bg", "large", "Stat card value 28px"),
     ("--color-text-on-brand", "--color-bg-brand", "large", "Hero amount 34px"),

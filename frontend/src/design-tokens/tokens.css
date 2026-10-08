@@ -318,6 +318,7 @@
   --layout-stage-w: 186px;
   --layout-props-w: 300px;
   --layout-drawer-w: 300px;     /* mobile nav drawer */
+  --layout-panel-w: min(520px, 100vw); /* right-hand detail panel (alert drawer) */
   --layout-peek-w: min(1080px, 92vw);
   --layout-form-max: 880px;
   --layout-portal-max: 560px;

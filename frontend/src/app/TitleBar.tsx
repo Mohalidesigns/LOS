@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router';
 import { Bell, Menu, Search } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
@@ -16,6 +17,7 @@ export type TitleBarProps = {
 export function TitleBar({ title, userName, userMeta, onOpenNav, hasNotifications = false }: TitleBarProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -39,7 +41,8 @@ export function TitleBar({ title, userName, userMeta, onOpenNav, hasNotification
         className="order-last w-full sm:order-none sm:w-auto"
         onSubmit={(e) => {
           e.preventDefault();
-          toast.show('Search arrives with the application module (P1).', 'info');
+          const q = searchRef.current?.value.trim() ?? '';
+          void navigate(q ? `/applications?q=${encodeURIComponent(q)}` : '/applications');
         }}
       >
         <label htmlFor="global-search" className="sr-only">
@@ -50,7 +53,7 @@ export function TitleBar({ title, userName, userMeta, onOpenNav, hasNotification
             ref={searchRef}
             id="global-search"
             type="search"
-            placeholder="Search applications, customers…"
+            placeholder="Search applications…"
             className="h-12 w-full rounded-pill border border-transparent bg-neutral pl-5 pr-16 text-body text-primary placeholder:text-placeholder hover:border-control sm:w-search"
           />
           <span aria-hidden="true" className="pointer-events-none absolute right-12 top-1/2 hidden -translate-y-1/2 rounded-mark border border-strong px-1.5 text-micro text-tertiary lg:inline">

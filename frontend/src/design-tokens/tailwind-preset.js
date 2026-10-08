@@ -281,6 +281,7 @@ const fundlyPreset = {
       stage: v('layout-stage-w'),
       props: v('layout-props-w'),
       drawer: v('layout-drawer-w'),
+      panel: v('layout-panel-w'),
       peek: v('layout-peek-w'),
       search: v('layout-search-w'),
     },

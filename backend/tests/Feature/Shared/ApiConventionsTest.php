@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use Fundly\Modules\Access\Domain\Permission;
+use Fundly\Shared\Http\ProblemRenderer;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 beforeEach(function () {
     $this->tenant = $this->provisionTenant();
@@ -81,3 +84,10 @@ it('exposes liveness and readiness probes that report RLS enforcement', function
     $this->api('GET', '/health')->assertOk()->assertJsonPath('status', 'ok');
     $this->api('GET', '/ready')->assertOk()->assertJsonPath('checks.rls_enforced', 'ok')->assertJsonPath('checks.database', 'ok');
 });
+
+it('renders Laravel\'s 419 (CSRF token mismatch) with the csrf-token-mismatch problem code', function () {
+    // The framework skips CSRF checks under unit tests, so render the exception it raises directly.
+    $response = app(ProblemRenderer::class)->render(new HttpException(419, 'CSRF token mismatch.'), Request::create('/api/v1/auth/logout', 'POST'));
+    expect($response->getStatusCode())->toBe(419)
+        ->and(json_decode((string) $response->getContent(), true))->toMatchArray(['code' => 'csrf-token-mismatch', 'status' => 419]);
+})->group('FR-SEC-019');

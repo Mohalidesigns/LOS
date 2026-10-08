@@ -74,7 +74,7 @@ export function DataTable<T>({
   const showEmpty = !loading && sorted.length === 0;
 
   return (
-    <div className={cn('overflow-auto rounded-control', maxHeightClass)} aria-busy={loading || undefined}>
+    <div className={cn('relative overflow-auto rounded-control', maxHeightClass)} aria-busy={loading || undefined}>
       <table className="w-full border-separate border-spacing-0 text-table">
         <caption className={cn(hideCaption ? 'sr-only' : 'mb-2 text-left text-body-sm text-tertiary')}>
           {caption}
