@@ -7,7 +7,9 @@ namespace Fundly\Modules\Conditions\Infrastructure;
 use Fundly\Modules\Conditions\Application\Commands\RunPreDisbursementCheck;
 use Fundly\Modules\Conditions\Application\ConditionFile;
 use Fundly\Modules\Conditions\Contracts\ConditionsGate;
+use Fundly\Modules\Conditions\Contracts\OpenCondition;
 use Fundly\Modules\Conditions\Contracts\VerifiedDestination;
+use Fundly\Modules\Conditions\Infrastructure\Models\Condition;
 use Fundly\Shared\Bus\CommandBus;
 use Fundly\Shared\Crypto\FieldEncryptor;
 use Fundly\Shared\Security\Principal;
@@ -41,6 +43,12 @@ final class DatabaseConditionsGate implements ConditionsGate
         }
 
         return array_values($out);
+    }
+
+    public function openSubsequent(string $applicationId): array
+    {
+        return array_values(Condition::query()->where('application_id', $applicationId)->where('kind', 'subsequent')->whereIn('status', ['open', 'waiver_pending'])->orderBy('created_at')->get()
+            ->map(static fn (Condition $c): OpenCondition => new OpenCondition($c->id, $c->kind, $c->description, $c->mandatory, $c->owner_id, $c->due_date?->toDateString()))->all());
     }
 
     public function verifiedDestination(string $applicationId): ?VerifiedDestination

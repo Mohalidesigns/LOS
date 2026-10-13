@@ -55,6 +55,8 @@ tags:
 - name: Offers
 - name: Conditions
 - name: Disbursement
+- name: Handover
+- name: Webhooks
 # <<< generated: tags
 paths:
   /health:
@@ -5388,6 +5390,322 @@ paths:
         - sessionCookie: []
         - bearerToken: []
       x-idempotency-key: required
+  '/api/v1/applications/{id}/handover':
+    get:
+      summary: 'Handover package, retention and webhook deliveries for an application'
+      operationId: getApplicationHandover
+      tags:
+        - Handover
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      application_id:
+                        type: string
+                        format: uuid
+                      package:
+                        oneOf:
+                          - $ref: '#/components/schemas/HandoverPackage'
+                          - type: 'null'
+                      retention:
+                        type:
+                          - object
+                          - 'null'
+                        properties:
+                          category:
+                            type: string
+                          trigger:
+                            type: string
+                          starts_on:
+                            type: string
+                            format: date
+                          retain_until:
+                            type: string
+                            format: date
+                          legal_hold:
+                            type: boolean
+                          basis:
+                            type: string
+                        required:
+                          - category
+                          - trigger
+                          - starts_on
+                          - retain_until
+                          - legal_hold
+                          - basis
+                      deliveries:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WebhookDelivery'
+                    required:
+                      - application_id
+                      - package
+                      - retention
+                      - deliveries
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/handover-packages/{id}':
+    get:
+      summary: 'A handover package (exact content that was hashed); servicing systems fetch it after facility.created'
+      operationId: getHandoverPackage
+      tags:
+        - Handover
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HandoverPackage'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/handover-packages/{id}/actions/acknowledge':
+    post:
+      summary: 'Servicing acknowledges the handover'
+      operationId: acknowledgeHandover
+      tags:
+        - Handover
+      x-permission: 'handover:acknowledge'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+              required:
+                - note
+      responses:
+        200:
+          description: Acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HandoverPackage'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/webhook-endpoints:
+    get:
+      summary: 'Webhook subscriber endpoints'
+      operationId: listWebhookEndpoints
+      tags:
+        - Webhooks
+      x-permission: 'integration:read'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookEndpoint'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Register an endpoint. The signing secret is in this response only; deliveries carry Fundly-Signature: t=<unix>,v1=<HMAC-SHA256(secret, "<t>.<body>")>.'
+      operationId: registerWebhookEndpoint
+      tags:
+        - Webhooks
+      x-permission: 'webhook:manage'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+                events:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - name
+                - url
+                - events
+      responses:
+        201:
+          description: Registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/WebhookEndpoint'
+                      - type: object
+                        properties:
+                          secret:
+                            type: string
+                        required:
+                          - secret
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/webhook-endpoints/{id}/actions/disable':
+    post:
+      summary: 'Disable an endpoint'
+      operationId: disableWebhookEndpoint
+      tags:
+        - Webhooks
+      x-permission: 'webhook:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: Disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WebhookEndpoint'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/webhook-deliveries:
+    get:
+      summary: 'Webhook delivery log, newest first'
+      operationId: listWebhookDeliveries
+      tags:
+        - Webhooks
+      x-permission: 'integration:read'
+      parameters:
+        - name: 'filter[subject_type]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'e.g. application'
+        - name: 'filter[subject_id]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'subject id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookDelivery'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/webhook-deliveries/{id}/actions/redeliver':
+    post:
+      summary: 'Send a delivery again (same event id; receivers de-duplicate on Fundly-Event-Id)'
+      operationId: redeliverWebhook
+      tags:
+        - Webhooks
+      x-permission: 'webhook:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WebhookDelivery'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
 # <<< generated: paths
 components:
   securitySchemes:
@@ -9989,4 +10307,180 @@ components:
         - ran_by
         - ran_at
         - break_items
+    HandoverPackage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        disbursement_id:
+          type: string
+          format: uuid
+        sha256:
+          type: string
+        servicing_org_unit_id:
+          type: string
+          format: uuid
+        webhook_event_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        content:
+          type: object
+        acknowledgement:
+          type:
+            - object
+            - 'null'
+          properties:
+            by:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - id
+                - name
+            at:
+              type: string
+              format: date-time
+            note:
+              type: string
+          required:
+            - by
+            - at
+            - note
+      required:
+        - id
+        - application_id
+        - disbursement_id
+        - sha256
+        - servicing_org_unit_id
+        - webhook_event_id
+        - created_at
+        - content
+        - acknowledgement
+    WebhookEndpoint:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum:
+            - active
+            - disabled
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - url
+        - events
+        - status
+        - created_by
+        - created_at
+    WebhookDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        event_type:
+          type:
+            - string
+            - 'null'
+        subject:
+          type:
+            - object
+            - 'null'
+          properties:
+            type:
+              type: string
+            id:
+              type: string
+          required:
+            - type
+            - id
+        endpoint:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        status:
+          type: string
+          enum:
+            - pending
+            - delivered
+            - failing
+            - skipped
+        attempts:
+          type: integer
+        last_http_status:
+          type:
+            - integer
+            - 'null'
+        last_error:
+          type:
+            - string
+            - 'null'
+        last_attempt_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        delivered_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - event_id
+        - event_type
+        - subject
+        - endpoint
+        - status
+        - attempts
+        - last_http_status
+        - last_error
+        - last_attempt_at
+        - delivered_at
+        - created_at
 # <<< generated: schemas

@@ -10,7 +10,9 @@ use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Disbursement\Application\DisbursementFile;
 use Fundly\Modules\Disbursement\Application\ReleaseDisbursementAction;
 use Fundly\Modules\Disbursement\Console\ReconcileCommand;
+use Fundly\Modules\Disbursement\Contracts\DisbursementRegister;
 use Fundly\Modules\Disbursement\Infrastructure\BookingSagaOutboxHandler;
+use Fundly\Modules\Disbursement\Infrastructure\DatabaseDisbursementRegister;
 use Fundly\Modules\Disbursement\Infrastructure\Models\Disbursement;
 use Fundly\Modules\Disbursement\Infrastructure\Models\ReconciliationBreak;
 use Fundly\Shared\Security\ResourceAttributes;
@@ -23,6 +25,7 @@ final class DisbursementServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(DisbursementFile::class);
+        $this->app->scoped(DisbursementRegister::class, DatabaseDisbursementRegister::class);
     }
 
     public function boot(ResourceResolver $resources, OutboxHandlerRegistry $outbox): void

@@ -10,6 +10,7 @@ use Fundly\Integration\Ports\MalwareScan\ScanVerdict;
 use Fundly\Integration\Runtime\IntegrationGateway;
 use Fundly\Modules\Document\Contracts\ArchivedDocument;
 use Fundly\Modules\Document\Contracts\DocumentArchive;
+use Fundly\Modules\Document\Contracts\DocumentReference;
 use Fundly\Modules\Document\Domain\UploadPolicy;
 use Fundly\Modules\Document\Infrastructure\DocumentVault;
 use Fundly\Modules\Document\Infrastructure\Models\Document;
@@ -56,6 +57,19 @@ final class VaultDocumentArchive implements DocumentArchive
         }
 
         return $this->store($applicationId, $documentType, $title, UploadPolicy::safeFilename($originalName), $sniffed, $bytes, $actorId, $verdict->engine);
+    }
+
+    public function references(string $applicationId): array
+    {
+        $out = [];
+        foreach (Document::query()->where('application_id', $applicationId)->orderBy('created_at')->orderBy('id')->get() as $doc) {
+            $v = DocumentVersion::query()->where('document_id', $doc->id)->where('scan_status', 'clean')->orderByDesc('version_no')->first();
+            if ($v !== null) {
+                $out[] = new DocumentReference($doc->id, $v->id, $v->version_no, $doc->document_type, $doc->title, $v->filename, $v->mime_type, $v->sha256, $v->uploaded_at->toDateTimeImmutable());
+            }
+        }
+
+        return $out;
     }
 
     public function content(string $versionId): ?string

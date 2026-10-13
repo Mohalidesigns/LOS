@@ -674,3 +674,89 @@ reconciliation and change-request read).
   listen to `FacilityBooked`.
 - CBA product codes are derived from the product key until P4 adapter
   mappings exist.
+
+## Milestone 9 — Handover and outbound webhooks (2026-10-14)
+
+**Gate results:** Pest **278 passed, 0 failed**; Larastan L8 0 errors; Pint
+pass. Frontend `npm run verify`: 158 tests, contrast pass, build OK. Dev
+smoke test: `handover:create` packaged the booked DEMO-2026-000006. The
+package holds 5 document references (statements, ID, offer letter, executed
+agreement, advice) and the CRI insurance item, with retention until
+2031-10-13. chidi acknowledged it.
+
+### Outbound webhooks (Integration, TRD §10.1; FR-NTF-001 webhook channel)
+- `webhook_endpoints`: the signing secret is generated server-side, shown
+  once at registration, and stored encrypted. Endpoints must be https;
+  plain http is allowed only to a local receiver outside production.
+  Endpoints subscribe to event types or `*`.
+- `WebhookPublisher::publish()` runs inside the caller's command, so the
+  event, its deliveries and their outbox messages commit with the business
+  change.
+- Delivery uses outbox topic `webhook.deliver` and sends these headers:
+  - `Fundly-Signature: t=<unix>,v1=<HMAC-SHA256(secret, "<t>.<body>")>`
+  - `Fundly-Event-Id`, `Fundly-Event-Type`, `Fundly-Delivery-Id`
+
+  A 2xx marks the delivery delivered. Anything else is logged (attempts,
+  HTTP status, error) and retried with backoff. A disabled endpoint is
+  skipped. Redelivery reuses the same event id.
+- API: `GET/POST /webhook-endpoints`,
+  `POST /webhook-endpoints/{id}/actions/disable`, `GET /webhook-deliveries`
+  (filterable by subject), `POST /webhook-deliveries/{id}/actions/redeliver`.
+  Permissions: `webhook:manage` (tenant administrator template) and
+  `integration:read`.
+
+### Handover (M15, P1-HND-01)
+- New `Handover` module. On `FacilityBooked` it creates a package for
+  servicing. The package is stored as the exact JSON that was hashed, with
+  its SHA-256, and contains:
+  - application and product
+  - borrower and parties, with the CBA customer id
+  - facility: loan account, principal, net disbursed, rate, tenor, value
+    date, maturity, posting reference, fees deducted, booked schedule
+  - agreement: hash and template version
+  - **document references**: id, version, type, hash and API href
+    (FR-HND-002 references; records/DMS transfer is P4-INT-09)
+  - **open conditions subsequent** (FR-HND-003)
+  - **insurance items**: fees whose code is in
+    `fundly.handover.insurance_fee_codes`, with cover until maturity
+  - collateral: empty until P1-COL-01
+  - the servicing org unit and the retention summary
+- It publishes `facility.created` with identifiers, terms and a link to the
+  package only, and **no personal data**: receivers fetch the package
+  through the API (FR-HND-001).
+- Servicing acknowledges the package once (`handover:acknowledge`, on the
+  branch manager template).
+- **Retention** (FR-HND-004): a `retention_records` row is created on
+  booking. Category `origination_record`, trigger `fixed_from_booking`,
+  `fundly.retention.origination_years` (default 5) [verify, G-29], with a
+  legal-hold flag. Origination evidence is append-only, so nothing is
+  purged by handover.
+- New contracts: `DocumentArchive::references()`,
+  `ConditionsGate::openSubsequent()` and `Disbursement/DisbursementRegister`.
+  `handover:create` backfills booked applications without a package.
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-HND-001 / 003 / 004 | Done | `HandoverTest` (demo step 17) |
+| FR-HND-002 | Partial: durable references; DMS transfer P4-INT-09 | `HandoverTest` |
+| FR-NTF-001 | Partial: webhook channel; email / in-app with P1-NTF-01 | `HandoverTest` |
+
+### Frontend
+- **Handover tab:**
+  - package hash and status, with acknowledge
+  - conditions subsequent, insurance and collateral handed over
+  - document references with download
+  - facility.created delivery status per endpoint
+  - retention
+- **Webhooks page** under Administration: endpoints (add, with the secret
+  shown once and a copy button; disable) and the delivery log (redeliver).
+- `features/handover/domain.ts` has 2 unit tests.
+
+### Gaps carried forward
+- Not checked in the browser this session; verified through feature tests
+  and the API smoke test.
+- The dev tenant's administrator role predates `webhook:manage`. New
+  tenants get it from the template. For the dev tenant, grant it through a
+  role change request by a second administrator who does not hold the role.
+- Facility closure from the LMS (to restart retention at
+  relationship end) is P4.

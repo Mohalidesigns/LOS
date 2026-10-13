@@ -21,6 +21,13 @@ interface DocumentArchive
      */
     public function storeUploaded(string $applicationId, string $documentType, string $title, string $tempPath, string $originalName, string $actorId): ArchivedDocument;
 
+    /**
+     * The latest clean version of every document on the application, oldest document first.
+     *
+     * @return list<DocumentReference>
+     */
+    public function references(string $applicationId): array;
+
     /** Decrypted bytes of a clean version (for delivery by the owning module); null when unknown or not readable. */
     public function content(string $versionId): ?string;
 }

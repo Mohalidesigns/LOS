@@ -12,6 +12,7 @@ use Fundly\Modules\Conditions\ConditionsServiceProvider;
 use Fundly\Modules\Credit\CreditServiceProvider;
 use Fundly\Modules\Disbursement\DisbursementServiceProvider;
 use Fundly\Modules\Document\DocumentServiceProvider;
+use Fundly\Modules\Handover\HandoverServiceProvider;
 use Fundly\Modules\Licensing\LicensingServiceProvider;
 use Fundly\Modules\Offer\OfferServiceProvider;
 use Fundly\Modules\Party\PartyServiceProvider;
@@ -38,5 +39,6 @@ return [
     OfferServiceProvider::class,
     ConditionsServiceProvider::class,
     DisbursementServiceProvider::class,
+    HandoverServiceProvider::class,
     WorkflowServiceProvider::class,
 ];

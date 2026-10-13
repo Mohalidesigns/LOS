@@ -51,6 +51,7 @@ enum Permission: string
 
     // Integration runtime (M17)
     case IntegrationRead = 'integration:read';
+    case WebhookManage = 'webhook:manage';
 
     // ---- P1+ business permissions (catalogue only in P0) ----
     case ApplicationView = 'application:view';
@@ -77,6 +78,7 @@ enum Permission: string
     case DisbursementCheck = 'disbursement:check';
     case DisbursementRetry = 'disbursement:retry';
     case ReconciliationRun = 'reconciliation:run';
+    case HandoverAcknowledge = 'handover:acknowledge';
     case ProductManage = 'product:manage';
     case ProductActivate = 'product:activate';
     case TaskReassign = 'task:reassign';
@@ -100,7 +102,7 @@ enum Permission: string
             'user', 'role', 'permission', 'role_assignment', 'sod_rule', 'delegation', 'change_request' => 'access',
             'audit' => 'audit',
             'licence' => 'licensing',
-            'integration' => 'integration',
+            'integration', 'webhook' => 'integration',
             default => 'origination',
         };
     }

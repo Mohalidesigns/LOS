@@ -103,6 +103,14 @@ return [
         'schedule_tolerance' => (string) env('FUNDLY_SCHEDULE_TOLERANCE', '1.00'),
     ],
 
+    // Handover and retention (FR-HND-003/004): fee codes that are insurance premiums; origination-record retention [verify, G-29].
+    'handover' => [
+        'insurance_fee_codes' => array_values(array_filter(explode(',', (string) env('FUNDLY_INSURANCE_FEE_CODES', 'CRI')))),
+    ],
+    'retention' => [
+        'origination_years' => (int) env('FUNDLY_RETENTION_ORIGINATION_YEARS', 5),
+    ],
+
     // Conditions (FR-CPR-003/005): a pre-disbursement check stays valid for this long; account names must match at least this score (0-100).
     'conditions' => [
         'check_valid_hours' => (int) env('FUNDLY_PRE_DISBURSEMENT_CHECK_HOURS', 24),

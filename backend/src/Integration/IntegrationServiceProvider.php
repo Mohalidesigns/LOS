@@ -37,6 +37,8 @@ use Fundly\Integration\Simulators\Identity\IdentitySimulator;
 use Fundly\Integration\Simulators\MalwareScan\MalwareScanSimulator;
 use Fundly\Integration\Simulators\PdfRender\PdfRenderSimulator;
 use Fundly\Integration\Simulators\Screening\ScreeningSimulator;
+use Fundly\Integration\Webhooks\WebhookDeliveryHandler;
+use Fundly\Integration\Webhooks\WebhookPublisher;
 use Fundly\Shared\Audit\AuditTrail;
 use Fundly\Shared\Clock\Clock;
 use Fundly\Shared\Http\RequestContext;
@@ -160,5 +162,6 @@ final class IntegrationServiceProvider extends ServiceProvider
 
         $handlers->register(CreateLoanAccountHandler::TOPIC, CreateLoanAccountHandler::class);
         $handlers->register(DisburseHandler::TOPIC, DisburseHandler::class);
+        $handlers->register(WebhookPublisher::TOPIC, WebhookDeliveryHandler::class);
     }
 }

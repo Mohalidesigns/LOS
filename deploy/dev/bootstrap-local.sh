@@ -897,7 +897,7 @@ cmd_seed_demo() {
   r_lo="$(seed_role demo_loan_officer 'Loan Officer (demo)' loan_officer legal_entity:read org_unit:read)"
   r_doc="$(seed_role demo_documentation_officer 'Documentation Officer (demo)' documentation_officer)"
   r_cmp="$(seed_role demo_compliance_officer 'Compliance Officer (demo)' compliance_officer)"
-  r_bm="$(seed_role demo_branch_manager 'Branch Manager (demo)' branch_manager)"
+  r_bm="$(seed_role demo_branch_manager 'Branch Manager (demo)' branch_manager handover:acknowledge)"
   r_sca="$(seed_role demo_senior_credit_analyst 'Senior Credit Analyst (demo)' senior_credit_analyst)"
   # approval matrix levels name these role codes
   r_ap1="$(seed_role credit_approver 'Credit Approver' credit_approver)"
@@ -1002,6 +1002,9 @@ cmd_seed_demo() {
   heading "Conditions: open the register for accepted cases"
   artisan conditions:open || info "conditions:open reported an error"
 
+  heading "Handover: package booked cases that have none"
+  artisan handover:create || info "handover:create reported an error"
+
   heading "MFA enrolment for the compliance demo users"
   local who
   for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL" "$DEMO_AP1_EMAIL" "$DEMO_AP2_EMAIL" "$DEMO_LG_EMAIL" "$DEMO_MK_EMAIL" "$DEMO_CK_EMAIL"; do
@@ -1014,7 +1017,7 @@ cmd_seed_demo() {
   cat <<EOF
     Sign in to the SPA as (password $DEMO_PASSWORD, TOTP via '$0 totp <email>'):
       $DEMO_LO_EMAIL     Loan Officer + Documentation Officer (create, submit, upload, verify)
-      $DEMO_CMP1_EMAIL    Compliance Officer + Branch Manager (propose alert dispositions, recommend, approve waivers)
+      $DEMO_CMP1_EMAIL    Compliance Officer + Branch Manager (propose alert dispositions, recommend, approve waivers, acknowledge handovers)
       $DEMO_CMP2_EMAIL    Compliance Officer + Documentation Officer (confirm dispositions, verify lola's uploads)
       $DEMO_CA_EMAIL    Senior Credit Analyst (pull bureau, run decision, exceptions, credit memo, recommend)
       $DEMO_AP1_EMAIL     Credit Approver, L1 (limit NGN 20M)

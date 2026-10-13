@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fundly\Integration\Runtime\Http\IntegrationController;
+use Fundly\Integration\Webhooks\Http\WebhookController;
 use Fundly\Modules\Access\Http\Controllers\AssignmentController;
 use Fundly\Modules\Access\Http\Controllers\AuthController;
 use Fundly\Modules\Access\Http\Controllers\ChangeRequestController;
@@ -19,6 +20,7 @@ use Fundly\Modules\Conditions\Http\Controllers\ConditionController;
 use Fundly\Modules\Credit\Http\Controllers\CreditController;
 use Fundly\Modules\Disbursement\Http\Controllers\DisbursementController;
 use Fundly\Modules\Document\Http\Controllers\DocumentController;
+use Fundly\Modules\Handover\Http\Controllers\HandoverController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
 use Fundly\Modules\Offer\Http\Controllers\OfferController;
 use Fundly\Modules\Party\Http\Controllers\PartyController;
@@ -164,6 +166,11 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('reconciliation-breaks', [DisbursementController::class, 'breaks'])->middleware('authz:reconciliation:run')->name('reconciliation-breaks.index');
     Route::post('reconciliation-breaks/{id}/actions/resolve', [DisbursementController::class, 'resolve'])->middleware(['authz:reconciliation:run', 'idempotent'])->name('reconciliation-breaks.resolve');
 
+    // Handover (FR-HND-001/003/004): package to servicing, facility.created webhook, retention
+    Route::get('applications/{id}/handover', [HandoverController::class, 'forApplication'])->middleware('authz:application:view')->name('handover.show');
+    Route::get('handover-packages/{id}', [HandoverController::class, 'show'])->middleware('authz:application:view')->name('handover-packages.show');
+    Route::post('handover-packages/{id}/actions/acknowledge', [HandoverController::class, 'acknowledge'])->middleware(['authz:handover:acknowledge', 'idempotent'])->name('handover-packages.acknowledge');
+
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
     Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');
     Route::post('applications/{id}/kyc/actions/rescreen', [ComplianceController::class, 'rescreen'])->middleware(['authz:screening:review', 'idempotent'])->name('applications.kyc.rescreen');
@@ -227,4 +234,11 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('adapter-bindings', [IntegrationController::class, 'bindings'])->middleware('authz:integration:read')->name('adapter-bindings.index');
     Route::get('adapter-bindings/{id}', [IntegrationController::class, 'binding'])->middleware('authz:integration:read')->name('adapter-bindings.show');
     Route::get('integration-calls', [IntegrationController::class, 'calls'])->middleware('authz:integration:read')->name('integration-calls.index');
+
+    // Outbound webhooks (TRD §10.1): HMAC-signed, retried through the outbox, delivery log
+    Route::get('webhook-endpoints', [WebhookController::class, 'endpoints'])->middleware('authz:integration:read')->name('webhook-endpoints.index');
+    Route::post('webhook-endpoints', [WebhookController::class, 'register'])->middleware(['authz:webhook:manage', 'idempotent'])->name('webhook-endpoints.store');
+    Route::post('webhook-endpoints/{id}/actions/disable', [WebhookController::class, 'disable'])->middleware(['authz:webhook:manage', 'idempotent'])->name('webhook-endpoints.disable');
+    Route::get('webhook-deliveries', [WebhookController::class, 'deliveries'])->middleware('authz:integration:read')->name('webhook-deliveries.index');
+    Route::post('webhook-deliveries/{id}/actions/redeliver', [WebhookController::class, 'redeliver'])->middleware(['authz:webhook:manage', 'idempotent'])->name('webhook-deliveries.redeliver');
 });

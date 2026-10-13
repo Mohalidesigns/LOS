@@ -30,7 +30,7 @@ final class RoleLibrary
                 Permission::ApplicationView, Permission::DocumentUpload, Permission::DocumentVerify,
             ]],
             'branch_manager' => ['name' => 'Branch Manager', 'description' => 'Oversees branch pipeline, reassigns work.', 'permissions' => [
-                Permission::ApplicationView, Permission::ApplicationRecommend, Permission::TaskReassign, Permission::ReportView, Permission::DelegationCreate, Permission::DocumentWaiveApprove,
+                Permission::ApplicationView, Permission::ApplicationRecommend, Permission::TaskReassign, Permission::ReportView, Permission::DelegationCreate, Permission::DocumentWaiveApprove, Permission::HandoverAcknowledge,
             ]],
             'credit_analyst' => ['name' => 'Credit Analyst', 'description' => 'Assesses credit risk and prepares the credit memo.', 'permissions' => [
                 Permission::ApplicationView, Permission::CreditAnalyse, Permission::BureauPull,
@@ -73,7 +73,7 @@ final class RoleLibrary
                 Permission::RoleAssignmentRead, Permission::RoleAssignmentRequest, Permission::RoleAssignmentApprove,
                 Permission::SodRuleRead, Permission::SodRuleManage, Permission::DelegationRead, Permission::DelegationCreate,
                 Permission::ChangeRequestRead, Permission::AuditRead, Permission::AuditVerify, Permission::LicenceRead, Permission::LicenceImportRequest,
-                Permission::LicenceImportApprove, Permission::IntegrationRead,
+                Permission::LicenceImportApprove, Permission::IntegrationRead, Permission::WebhookManage,
             ]],
             'auditor' => ['name' => 'Auditor', 'description' => 'Read-only, unrestricted scope, no operational actions.', 'permissions' => array_merge($read, [Permission::AuditVerify])],
             'regulator_examiner' => ['name' => 'Regulator / Examiner', 'description' => 'Read-only access for examinations; assign with a validity end date.', 'permissions' => [

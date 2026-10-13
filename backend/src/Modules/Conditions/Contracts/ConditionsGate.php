@@ -18,6 +18,13 @@ interface ConditionsGate
      */
     public function revalidate(string $applicationId, string $tenantId): array;
 
+    /**
+     * Conditions subsequent still open: they follow the loan into servicing.
+     *
+     * @return list<OpenCondition>
+     */
+    public function openSubsequent(string $applicationId): array;
+
     /** The account the latest passing, in-date check verified; null when there is none. */
     public function verifiedDestination(string $applicationId): ?VerifiedDestination;
 }

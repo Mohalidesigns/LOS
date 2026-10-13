@@ -27,6 +27,10 @@ final class Journey
 
     public UserCredentials $ops;
 
+    public ?UserCredentials $maker = null;
+
+    public ?UserCredentials $checker = null;
+
     /** @var array<string, array<string, mixed>> */
     public array $org;
 
@@ -98,5 +102,20 @@ final class Journey
         $t->api('POST', "/api/v1/applications/{$app['id']}/pre-disbursement-checks", ['bank_code' => '058', 'account_no' => '0123456789'])->assertCreated()->assertJsonPath('data.passed', true);
 
         return $app;
+    }
+
+    /** Maker makes the instruction, a separate checker releases it, and the outbox runs the booking saga. */
+    public function book(array $app): array
+    {
+        $t = $this->t;
+        $this->maker ??= $t->userWith([Permission::ApplicationView, Permission::DisbursementMake]);
+        $this->checker ??= $t->userWith([Permission::ApplicationView, Permission::DisbursementCheck, Permission::DisbursementRetry, Permission::ReconciliationRun, Permission::ChangeRequestRead]);
+        $t->login($this->maker);
+        $d = $t->api('POST', "/api/v1/applications/{$app['id']}/disbursements")->assertCreated()->json('data');
+        $t->login($this->checker);
+        $t->api('POST', "/api/v1/change-requests/{$d['change_request_id']}/actions/approve", ['reason' => 'Instruction matches the agreement'])->assertOk();
+        LendingFixtures::drainOutbox($t);
+
+        return $t->api('GET', "/api/v1/applications/{$app['id']}/disbursements")->assertOk()->json('data.0');
     }
 }
