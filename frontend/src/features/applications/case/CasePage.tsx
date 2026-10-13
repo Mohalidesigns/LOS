@@ -18,6 +18,7 @@ export const CASE_TABS = [
   { path: 'kyc', label: 'Applicant & KYC' },
   { path: 'documents', label: 'Documents' },
   { path: 'credit', label: 'Credit' },
+  { path: 'approval', label: 'Approval' },
   { path: 'timeline', label: 'Timeline' },
 ] as const;
 

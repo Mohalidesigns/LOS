@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Building2,
   FileStack,
+  Gavel,
   Inbox,
   LayoutGrid,
   Package,
@@ -32,6 +33,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { id: 'dashboard', label: 'Dashboard', to: '/', icon: LayoutGrid, anyOf: [] },
       { id: 'inbox', label: 'Inbox', to: '/inbox', icon: Inbox, anyOf: ['application:view'], countKey: 'inbox' },
+      { id: 'approvals', label: 'Approvals', to: '/approvals', icon: Gavel, anyOf: ['application:approve'] },
       { id: 'pipeline', label: 'Pipeline', to: '/pipeline', icon: Workflow, anyOf: ['application:view'] },
       { id: 'applications', label: 'Applications', to: '/applications', icon: FileStack, anyOf: ['application:view'] },
       { id: 'parties', label: 'Customers', to: '/parties', icon: Building2, anyOf: ['party:manage'] },

@@ -42,6 +42,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, handle: { title: 'Dashboard' }, lazy: async () => ({ Component: (await import('@/features/dashboard/DashboardPage')).default }) },
       { path: 'inbox', handle: { title: 'Inbox' }, lazy: async () => ({ Component: (await placeholders()).InboxPage }) },
+      { path: 'approvals', handle: { title: 'Approvals' }, lazy: async () => ({ Component: (await import('@/features/approvals/ApprovalInboxPage')).default }) },
       { path: 'pipeline', handle: { title: 'Pipeline' }, lazy: async () => ({ Component: (await applicationsList()).PipelinePage }) },
       { path: 'applications', handle: { title: 'Applications' }, lazy: async () => ({ Component: (await applicationsList()).ApplicationsPage }) },
       { path: 'applications/new', handle: { title: 'New application' }, lazy: async () => ({ Component: (await import('@/features/applications/wizard/NewApplicationPage')).default }) },
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
           { path: 'kyc', handle: { title: 'Application · Applicant & KYC' }, lazy: async () => ({ Component: (await import('@/features/applications/case/KycTab')).KycTab }) },
           { path: 'documents', handle: { title: 'Application · Documents' }, lazy: async () => ({ Component: (await import('@/features/applications/case/DocumentsTab')).DocumentsTab }) },
           { path: 'credit', handle: { title: 'Application · Credit' }, lazy: async () => ({ Component: (await import('@/features/applications/case/CreditTab')).CreditTab }) },
+          { path: 'approval', handle: { title: 'Application · Approval' }, lazy: async () => ({ Component: (await import('@/features/approvals/ApprovalTab')).ApprovalTab }) },
           { path: 'timeline', handle: { title: 'Application · Timeline' }, lazy: async () => ({ Component: (await import('@/features/applications/case/TimelineTab')).TimelineTab }) },
         ],
       },

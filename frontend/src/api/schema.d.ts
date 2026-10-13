@@ -1428,6 +1428,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/applications/{id}/approval-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Approval requests for an application, newest first */
+        get: operations["listApplicationApprovalRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approval-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Approval inbox: open requests whose current level one of my roles is eligible for */
+        get: operations["listApprovalInbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approval-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An approval request with its decision packet (FR-APV-010) */
+        get: operations["getApprovalRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approval-requests/{id}/actions/vote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Vote at the current authority level. Rationale is mandatory; reason codes are required for conditional approval, decline and counter-offer. Above the matrix threshold a step-up within the last 5 minutes is required. */
+        post: operations["voteOnApprovalRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2410,6 +2478,193 @@ export interface components {
             authored_by: string;
             /** Format: date-time */
             authored_at: string;
+        };
+        ApprovalLevel: {
+            index: number;
+            code: string;
+            name: string;
+            roles: string[];
+            /** @enum {string} */
+            mode: "single";
+            /** @enum {string} */
+            added_by: "matrix" | "exception" | "no_eligible_approver";
+            note: string | null;
+            /** @enum {string} */
+            state: "awaiting_vote" | "queued" | "not_reached" | "approve" | "approve_with_conditions" | "decline" | "counter_offer";
+        };
+        ApprovalVote: {
+            /** Format: uuid */
+            id: string;
+            level_index: number;
+            level_code: string;
+            voter: {
+                id: string;
+                name: string | null;
+            };
+            /** @enum {string} */
+            decision: "approve" | "approve_with_conditions" | "decline" | "counter_offer";
+            rationale: string;
+            reason_codes: string[];
+            conditions: {
+                /** @enum {string} */
+                kind: "precedent" | "subsequent";
+                description: string;
+            }[];
+            counter_terms: {
+                amount: components["schemas"]["Money"];
+                tenor_months: number;
+            } | null;
+            authority_basis: {
+                /** Format: uuid */
+                assignment_id: string;
+                role_code: string;
+                role_name: string;
+                /** Format: uuid */
+                delegation_id: string | null;
+                delegated_by: string | null;
+                effective_limit: components["schemas"]["Money"];
+                /** @enum {string} */
+                limit_source: "assignment_scope" | "user" | "role" | "org_unit";
+                limit_components: {
+                    source: string;
+                    ref: string;
+                    amount: components["schemas"]["Money"];
+                }[];
+                level?: {
+                    index: number;
+                    code: string;
+                    name: string;
+                    added_by: string;
+                };
+                matrix?: {
+                    key: string;
+                    version_no: number;
+                    row: number | null;
+                };
+                exposure?: components["schemas"]["Money"];
+            };
+            stepped_up: boolean;
+            step_up_ref: string | null;
+            /** Format: date-time */
+            voted_at: string;
+        };
+        ApprovalCondition: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "precedent" | "subsequent";
+            description: string;
+            /** @enum {string} */
+            status: "open" | "satisfied" | "waived";
+            /** Format: uuid */
+            vote_id: string;
+        };
+        ApprovalRequest: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            application_reference: string;
+            sequence: number;
+            /** @enum {string} */
+            status: "pending" | "approved" | "declined" | "counter_offered" | "expired" | "superseded";
+            matrix: {
+                key: string;
+                /** Format: uuid */
+                version_id: string;
+                version_no: number;
+                row: number | null;
+            };
+            levels: components["schemas"]["ApprovalLevel"][];
+            current_level: number | null;
+            exposure: components["schemas"]["Money"];
+            /** Format: uuid */
+            decision_id: string | null;
+            originator: {
+                id: string;
+                name: string | null;
+            };
+            recommended_by: {
+                id: string;
+                name: string | null;
+            };
+            /** Format: date-time */
+            opened_at: string;
+            /** Format: date-time */
+            decided_at: string | null;
+            validity_days: number;
+            /** Format: date-time */
+            valid_until: string | null;
+            counter_terms: {
+                amount: components["schemas"]["Money"];
+                tenor_months: number;
+            } | null;
+            votes: components["schemas"]["ApprovalVote"][];
+            conditions: components["schemas"]["ApprovalCondition"][];
+            facts: Record<string, never>;
+            routing_trace: {
+                row: number;
+                when: string;
+                result: boolean;
+            }[];
+            my_eligibility: {
+                can_vote: boolean;
+                blockers: string[];
+                basis: null | Record<string, never>;
+                step_up_required: boolean;
+            };
+        };
+        ApprovalPacket: {
+            application: {
+                /** Format: uuid */
+                id: string;
+                reference: string;
+                status: string;
+                product: {
+                    key: string;
+                    name: string;
+                    version_no: number;
+                };
+                segment: string;
+                channel: string;
+                requested_amount: components["schemas"]["Money"] | null;
+                tenor_months: number | null;
+                purpose?: string | null;
+                applicant_count: number;
+            };
+            credit: null | {
+                /** Format: uuid */
+                decision_id: string;
+                outcome: string;
+                risk_grade: string;
+                recommended_terms: {
+                    amount: components["schemas"]["Money"];
+                    tenor_months: number;
+                    rate_percent: string;
+                };
+                exception_count: number;
+                max_exception_severity: string | null;
+                memo_recommendation: string | null;
+                is_routed_decision: boolean;
+            };
+            bureau_valid: boolean;
+            history: {
+                /** Format: uuid */
+                id: string;
+                sequence: number;
+                status: string;
+                /** Format: date-time */
+                opened_at: string;
+                /** Format: date-time */
+                decided_at: string | null;
+                votes: {
+                    level_code: string;
+                    decision: string;
+                    voter_id: string;
+                    /** Format: date-time */
+                    voted_at: string;
+                }[];
+            }[];
         };
     };
     responses: {
@@ -5799,6 +6054,133 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["CreditMemo"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listApplicationApprovalRequests: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ApprovalRequest"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listApprovalInbox: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ApprovalRequest"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getApprovalRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ApprovalRequest"] & {
+                            packet: components["schemas"]["ApprovalPacket"];
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    voteOnApprovalRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    decision: "approve" | "approve_with_conditions" | "decline" | "counter_offer";
+                    rationale: string;
+                    reason_codes?: string[];
+                    conditions?: {
+                        /** @enum {string} */
+                        kind: "precedent" | "subsequent";
+                        description: string;
+                    }[];
+                    counter_terms?: {
+                        amount: string;
+                        tenor_months: number;
+                    } | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Vote recorded; the request moved to the next level or reached its outcome */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ApprovalRequest"];
                     };
                 };
             };
