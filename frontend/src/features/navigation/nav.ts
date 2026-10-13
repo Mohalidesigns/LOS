@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Banknote,
   Building2,
   FileStack,
   Gavel,
@@ -34,6 +35,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'dashboard', label: 'Dashboard', to: '/', icon: LayoutGrid, anyOf: [] },
       { id: 'inbox', label: 'Inbox', to: '/inbox', icon: Inbox, anyOf: ['application:view'], countKey: 'inbox' },
       { id: 'approvals', label: 'Approvals', to: '/approvals', icon: Gavel, anyOf: ['application:approve'] },
+      { id: 'disbursement-ops', label: 'Disbursement ops', to: '/operations/disbursements', icon: Banknote, anyOf: ['disbursement:check', 'reconciliation:run'] },
       { id: 'pipeline', label: 'Pipeline', to: '/pipeline', icon: Workflow, anyOf: ['application:view'] },
       { id: 'applications', label: 'Applications', to: '/applications', icon: FileStack, anyOf: ['application:view'] },
       { id: 'parties', label: 'Customers', to: '/parties', icon: Building2, anyOf: ['party:manage'] },

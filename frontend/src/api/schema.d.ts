@@ -1685,6 +1685,127 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/applications/{id}/disbursements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Disbursement instructions for an application, newest first */
+        get: operations["listApplicationDisbursements"];
+        put?: never;
+        /** Make a disbursement instruction (maker). Release is a change request of type disbursement.release for a checker who is neither the maker nor an approver, with step-up. */
+        post: operations["createDisbursement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disbursements/{id}/actions/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw an instruction before release */
+        post: operations["cancelDisbursement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disbursements/{id}/actions/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run the booking saga again with the same instruction and step keys (never a second posting) */
+        post: operations["retryDisbursement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disbursement-exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Disbursement exception queue: failed (retryable / needing intervention) and compensated instructions */
+        get: operations["listDisbursementExceptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reconciliation-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent reconciliation runs with their breaks */
+        get: operations["listReconciliationRuns"];
+        put?: never;
+        /** Reconcile LOS disbursement postings with the CBA for a period (default: yesterday and today) */
+        post: operations["runReconciliation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reconciliation-breaks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open reconciliation breaks */
+        get: operations["listReconciliationBreaks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reconciliation-breaks/{id}/actions/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve a break with the investigation outcome */
+        post: operations["resolveReconciliationBreak"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3091,6 +3212,150 @@ export interface components {
                 ready_for_release: boolean;
                 blockers: string[];
             };
+        };
+        Disbursement: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            application_reference: string;
+            sequence: number;
+            /** @enum {string} */
+            status: "pending_release" | "pending_cba" | "failed_retryable" | "failed_intervention" | "compensated" | "booked" | "cancelled";
+            principal: {
+                amount: string;
+                currency: string;
+            };
+            net: {
+                amount: string;
+                currency: string;
+            };
+            fees: {
+                code: string;
+                name: string;
+                amount: string;
+            }[];
+            /** Format: date */
+            value_date: string;
+            destination: {
+                bank_code: string;
+                account: string;
+                account_name: string | null;
+                /** Format: uuid */
+                check_id: string;
+            };
+            /** Format: uuid */
+            change_request_id: string | null;
+            made_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date-time */
+            made_at: string;
+            released_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date-time */
+            released_at: string | null;
+            cba: {
+                customer_id: string | null;
+                loan_account_no: string | null;
+                posting_ref: string | null;
+                fee_posting_refs: string[];
+            };
+            variance: {
+                within_tolerance: boolean;
+                tolerance: string;
+                max_difference: string;
+                offered_count: number;
+                booked_count: number;
+                mismatches: {
+                    number: number;
+                    field: string;
+                    offered: string | null;
+                    booked: string | null;
+                    difference: string;
+                }[];
+            } | null;
+            schedule: {
+                number: number;
+                due_date: string;
+                principal: string;
+                interest: string;
+                total: string;
+                closing_balance: string;
+            }[];
+            last_error: {
+                code: string;
+                message: string | null;
+            } | null;
+            saga_runs: number;
+            /** Format: date-time */
+            booked_at: string | null;
+            advice: {
+                /** Format: uuid */
+                document_id: string;
+                /** Format: uuid */
+                version_id: string;
+            } | null;
+            cancelled: {
+                by: {
+                    id: string;
+                    name: string | null;
+                } | null;
+                /** Format: date-time */
+                at: string;
+                reason: string | null;
+            } | null;
+            steps: {
+                run: number;
+                step: string;
+                /** @enum {string} */
+                outcome: "succeeded" | "skipped" | "failed" | "compensated";
+                detail: Record<string, never>;
+                error_code: string | null;
+                /** Format: date-time */
+                occurred_at: string;
+            }[];
+        };
+        ReconciliationBreak: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            run_id: string;
+            /** @enum {string} */
+            kind: "missing_in_cba" | "missing_in_los" | "amount_mismatch";
+            reference: string;
+            posting_ref: string | null;
+            account_no: string | null;
+            los_amount: string | null;
+            cba_amount: string | null;
+            currency: string | null;
+            /** Format: uuid */
+            disbursement_id: string | null;
+            /** @enum {string} */
+            status: "open" | "resolved";
+            resolved_by: string | null;
+            /** Format: date-time */
+            resolved_at: string | null;
+            resolution_note: string | null;
+        };
+        ReconciliationRun: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            los_postings: number;
+            cba_postings: number;
+            matched: number;
+            breaks: number;
+            ran_by: string;
+            /** Format: date-time */
+            ran_at: string;
+            break_items: components["schemas"]["ReconciliationBreak"][];
         };
     };
     responses: {
@@ -7048,6 +7313,274 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["PreDisbursementCheck"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listApplicationDisbursements: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Disbursement"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createDisbursement: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    value_date?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Instruction made; awaiting release */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Disbursement"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    cancelDisbursement: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Cancelled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Disbursement"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    retryDisbursement: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Disbursement"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listDisbursementExceptions: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Disbursement"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listReconciliationRuns: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReconciliationRun"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    runReconciliation: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    from?: string | null;
+                    /** Format: date */
+                    to?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Run recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReconciliationRun"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listReconciliationBreaks: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReconciliationBreak"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    resolveReconciliationBreak: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Resolved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReconciliationBreak"];
                     };
                 };
             };
