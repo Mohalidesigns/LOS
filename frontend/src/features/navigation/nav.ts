@@ -10,6 +10,7 @@ import {
   ScrollText,
   ShieldAlert,
   UsersRound,
+  Webhook,
   Workflow,
 } from 'lucide-react';
 
@@ -54,7 +55,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     id: 'administration',
     label: 'Administration',
-    items: [{ id: 'users', label: 'Users & roles', to: '/admin/users', icon: UsersRound, anyOf: ['user:read'] }],
+    items: [
+      { id: 'users', label: 'Users & roles', to: '/admin/users', icon: UsersRound, anyOf: ['user:read'] },
+      { id: 'webhooks', label: 'Webhooks', to: '/admin/webhooks', icon: Webhook, anyOf: ['integration:read', 'webhook:manage'] },
+    ],
   },
   {
     id: 'assurance',
