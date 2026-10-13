@@ -557,3 +557,120 @@ disbursement (it has no CPs).
   Conditions module is the system of record for fulfilment.
 - No change-request inbox in the SPA yet, so document waivers still need
   the API.
+
+## Milestone 8 — Disbursement, booking saga and reconciliation (2026-10-14)
+
+**Gate results:** Pest **274 passed, 0 failed**; Larastan L8 0 errors; Pint
+pass. Frontend `npm run verify`: 156 tests, contrast pass, build OK. Smoke
+test on the seeded dev stack, DEMO-2026-000006 (Amaka Nwosu, NGN 3M):
+- femi re-ran the check (passed)
+- tolu made the instruction: net NGN 2,955,000.00 after MGMT and CRI fees,
+  to 058/******6789 (NWOSU AMAKA)
+- bayo released it with step-up
+- the outbox worker ran ensure customer → loan account 9000000001 →
+  disburse → fees → schedule check (variance 0) → book → advice
+- the application is **Booked**
+- reconciliation matched 3 of 3 postings, with 0 breaks
+
+That completes demo steps 4–18 on one application, from capture to booked.
+
+### Disbursement (M14, P1-DSB-01/02)
+- New `Disbursement` module. It reaches other modules only through
+  contracts: `ConditionsGate` (now with `revalidate()`), `OfferRegister`
+  (now with the disclosed fees and net amount), `ApprovalRegister` (now with
+  `voterIds`), `PartyDirectory`, `IdentityNumberResolver`,
+  `DocumentArchive`, `ProductCatalogue`, `ChangeRequestGateway` and
+  `ApplicationLifecycle`. It publishes `FacilityBooked` for handover
+  (P1-HND-01).
+- **Maker-checker release** (FR-DSB-009): the maker makes the instruction.
+  Upfront fees are deducted, the destination is the verified account, and
+  one live instruction is allowed per application. Release is a
+  `disbursement.release` change request:
+  - the checker holds `disbursement:check`
+  - the checker is not the maker, and not anyone who voted on the approval
+    (policy flag `fundly.disbursement.checker_not_approver`, default on)
+  - the change-request route requires a step-up
+
+  Release re-runs the pre-disbursement check, re-checks approval validity,
+  and confirms the account did not change (D-053). The application moves
+  ReadyForDisbursement → Disbursing.
+- **Booking saga** (FR-DSB-001/004..007, FR-CBA-009, LOS-FR-313): an outbox
+  job with these steps:
+  1. ensure customer (find by LOS reference, else create, new-to-bank)
+  2. create the loan account with the accepted terms; the instruction id is
+     the LOS facility reference
+  3. disburse the net amount
+  4. post the upfront fees
+  5. fetch the CBA schedule and compare it with the offer's
+  6. Booked, then the advice
+
+  How it stays safe:
+  - **Stable keys:** every step uses one idempotency key and records its
+    result, so re-runs skip completed steps.
+  - **Unknown outcomes:** a timeout after sending is looked up by reference
+    before anything is resent.
+  - **Transient failures** park the instruction as `failed_retryable`, and
+    the outbox retries it with backoff.
+  - **Interventions** (variance, lapsed approval, anything unexpected) park
+    it as `failed_intervention`.
+  - **Rejections:** a definite rejection of the disbursement closes the
+    account (compensation), marks the instruction `compensated`, and allows
+    a fresh instruction (D-040b). Past the disbursement nothing is
+    compensated automatically.
+  - **Retry** (`disbursement:retry`) reuses the same instruction and keys.
+  - **Schedule variance:** each instalment's principal, interest and total
+    are compared within a tolerance (default 1.00). The CBA schedule is
+    stored only when it passes.
+- **Advice** (FR-DSB-011): a PDF with amounts, fees deducted, destination,
+  and the schedule as booked, filed under Documents. Delivery comes with
+  P1-NTF-01.
+- **Exception queue** (PR-08): `GET /disbursement-exceptions`.
+- **Reconciliation** (FR-DSB-008, FR-CBA-017): `reconciliation:run` runs
+  daily at 02:00 and on demand. It matches LOS disbursement and fee postings
+  against CBA postings by posting reference. Breaks are `missing_in_los`,
+  `missing_in_cba` or `amount_mismatch`, and are resolved with a note.
+- **CBA simulator:**
+  - loan accounts keep their terms, so `getSchedule` is real
+  - fee charges are recorded as postings
+  - binding config `orphan_postings` injects CBA-only postings for the
+    reconciliation demo
+- Permissions `disbursement:retry` and `reconciliation:run`; the
+  disbursement checker template also gets `change_request:read`. The
+  change-request exclusion message is now neutral ("your own access or a
+  decision you took part in").
+- Tests share a new `tests/Support/Journey.php`, which builds the
+  journey-to-ready fixture through the real API.
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-DSB-001 / 004 / 005 / 006 / 007 / 009 / 011, FR-CBA-009, LOS-FR-313 | Done | `DisbursementTest`, `DisbursementDomainTest` |
+| FR-DSB-002 | Partial: single full disbursement; tranches, revolving and third-party payout P3 | `DisbursementTest` |
+| FR-DSB-008, FR-CBA-017 | Done | `DisbursementTest` (demo step 18) |
+| FR-DSB-010 / 012 | Not started: mandates P4; reversal P3 | — |
+
+### Frontend (P1-FE-04 disbursement slice)
+- **Disbursement tab:**
+  - a make-instruction panel listing the blockers
+  - the instruction: amounts, destination, maker and checker
+  - **Release / Reject** for the checker, with a client mirror of the
+    four-eyes rule; the server decides
+  - cancel, retry, and the error banner
+  - booking progress, which polls every 5 seconds while the saga runs and
+    notes "confirmed by reference lookup, not re-sent"
+  - the booked schedule with its variance, and the advice download
+- **Disbursement ops page** (`/operations/disbursements`): the exception
+  queue, and reconciliation (run now, open breaks with resolve, recent
+  runs).
+- `features/disbursement/domain.ts` has 4 unit tests.
+
+### Demo seed
+tolu (Disbursement Maker) and bayo (Disbursement Checker, with retry,
+reconciliation and change-request read).
+
+### Gaps carried forward
+- Not checked in the browser: the pane could not be displayed in this
+  session. Verified through the API smoke test and feature tests.
+- Handover (P1-HND-01: `facility.created` webhook, handover package) should
+  listen to `FacilityBooked`.
+- CBA product codes are derived from the product key until P4 adapter
+  mappings exist.

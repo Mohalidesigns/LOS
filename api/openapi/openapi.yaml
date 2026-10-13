@@ -54,6 +54,7 @@ tags:
 - name: Approvals
 - name: Offers
 - name: Conditions
+- name: Disbursement
 # <<< generated: tags
 paths:
   /health:
@@ -5081,6 +5082,312 @@ paths:
         - sessionCookie: []
         - bearerToken: []
       x-idempotency-key: required
+  '/api/v1/applications/{id}/disbursements':
+    get:
+      summary: 'Disbursement instructions for an application, newest first'
+      operationId: listApplicationDisbursements
+      tags:
+        - Disbursement
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Disbursement'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Make a disbursement instruction (maker). Release is a change request of type disbursement.release for a checker who is neither the maker nor an approver, with step-up.'
+      operationId: createDisbursement
+      tags:
+        - Disbursement
+      x-permission: 'disbursement:make'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value_date:
+                  type:
+                    - string
+                    - 'null'
+                  format: date
+      responses:
+        201:
+          description: 'Instruction made; awaiting release'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Disbursement'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/disbursements/{id}/actions/cancel':
+    post:
+      summary: 'Withdraw an instruction before release'
+      operationId: cancelDisbursement
+      tags:
+        - Disbursement
+      x-permission: 'disbursement:make'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+              required:
+                - reason
+      responses:
+        200:
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Disbursement'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/disbursements/{id}/actions/retry':
+    post:
+      summary: 'Run the booking saga again with the same instruction and step keys (never a second posting)'
+      operationId: retryDisbursement
+      tags:
+        - Disbursement
+      x-permission: 'disbursement:retry'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Disbursement'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/disbursement-exceptions:
+    get:
+      summary: 'Disbursement exception queue: failed (retryable / needing intervention) and compensated instructions'
+      operationId: listDisbursementExceptions
+      tags:
+        - Disbursement
+      x-permission: 'disbursement:check'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Disbursement'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  /api/v1/reconciliation-runs:
+    get:
+      summary: 'Recent reconciliation runs with their breaks'
+      operationId: listReconciliationRuns
+      tags:
+        - Disbursement
+      x-permission: 'reconciliation:run'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReconciliationRun'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Reconcile LOS disbursement postings with the CBA for a period (default: yesterday and today)'
+      operationId: runReconciliation
+      tags:
+        - Disbursement
+      x-permission: 'reconciliation:run'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type:
+                    - string
+                    - 'null'
+                  format: date
+                to:
+                  type:
+                    - string
+                    - 'null'
+                  format: date
+      responses:
+        201:
+          description: 'Run recorded'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReconciliationRun'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/reconciliation-breaks:
+    get:
+      summary: 'Open reconciliation breaks'
+      operationId: listReconciliationBreaks
+      tags:
+        - Disbursement
+      x-permission: 'reconciliation:run'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReconciliationBreak'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/reconciliation-breaks/{id}/actions/resolve':
+    post:
+      summary: 'Resolve a break with the investigation outcome'
+      operationId: resolveReconciliationBreak
+      tags:
+        - Disbursement
+      x-permission: 'reconciliation:run'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+              required:
+                - note
+      responses:
+        200:
+          description: Resolved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReconciliationBreak'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
 # <<< generated: paths
 components:
   securitySchemes:
@@ -9229,4 +9536,457 @@ components:
         - conditions
         - checks
         - readiness
+    Disbursement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        application_reference:
+          type: string
+        sequence:
+          type: integer
+        status:
+          type: string
+          enum:
+            - pending_release
+            - pending_cba
+            - failed_retryable
+            - failed_intervention
+            - compensated
+            - booked
+            - cancelled
+        principal:
+          type: object
+          properties:
+            amount:
+              type: string
+            currency:
+              type: string
+          required:
+            - amount
+            - currency
+        net:
+          type: object
+          properties:
+            amount:
+              type: string
+            currency:
+              type: string
+          required:
+            - amount
+            - currency
+        fees:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              name:
+                type: string
+              amount:
+                type: string
+            required:
+              - code
+              - name
+              - amount
+        value_date:
+          type: string
+          format: date
+        destination:
+          type: object
+          properties:
+            bank_code:
+              type: string
+            account:
+              type: string
+            account_name:
+              type:
+                - string
+                - 'null'
+            check_id:
+              type: string
+              format: uuid
+          required:
+            - bank_code
+            - account
+            - account_name
+            - check_id
+        change_request_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        made_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        made_at:
+          type: string
+          format: date-time
+        released_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        released_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        cba:
+          type: object
+          properties:
+            customer_id:
+              type:
+                - string
+                - 'null'
+            loan_account_no:
+              type:
+                - string
+                - 'null'
+            posting_ref:
+              type:
+                - string
+                - 'null'
+            fee_posting_refs:
+              type: array
+              items:
+                type: string
+          required:
+            - customer_id
+            - loan_account_no
+            - posting_ref
+            - fee_posting_refs
+        variance:
+          type:
+            - object
+            - 'null'
+          properties:
+            within_tolerance:
+              type: boolean
+            tolerance:
+              type: string
+            max_difference:
+              type: string
+            offered_count:
+              type: integer
+            booked_count:
+              type: integer
+            mismatches:
+              type: array
+              items:
+                type: object
+                properties:
+                  number:
+                    type: integer
+                  field:
+                    type: string
+                  offered:
+                    type:
+                      - string
+                      - 'null'
+                  booked:
+                    type:
+                      - string
+                      - 'null'
+                  difference:
+                    type: string
+                required:
+                  - number
+                  - field
+                  - offered
+                  - booked
+                  - difference
+          required:
+            - within_tolerance
+            - tolerance
+            - max_difference
+            - offered_count
+            - booked_count
+            - mismatches
+        schedule:
+          type: array
+          items:
+            type: object
+            properties:
+              number:
+                type: integer
+              due_date:
+                type: string
+              principal:
+                type: string
+              interest:
+                type: string
+              total:
+                type: string
+              closing_balance:
+                type: string
+            required:
+              - number
+              - due_date
+              - principal
+              - interest
+              - total
+              - closing_balance
+        last_error:
+          type:
+            - object
+            - 'null'
+          properties:
+            code:
+              type: string
+            message:
+              type:
+                - string
+                - 'null'
+          required:
+            - code
+            - message
+        saga_runs:
+          type: integer
+        booked_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        advice:
+          type:
+            - object
+            - 'null'
+          properties:
+            document_id:
+              type: string
+              format: uuid
+            version_id:
+              type: string
+              format: uuid
+          required:
+            - document_id
+            - version_id
+        cancelled:
+          type:
+            - object
+            - 'null'
+          properties:
+            by:
+              type:
+                - object
+                - 'null'
+              properties:
+                id:
+                  type: string
+                name:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - id
+                - name
+            at:
+              type: string
+              format: date-time
+            reason:
+              type:
+                - string
+                - 'null'
+          required:
+            - by
+            - at
+            - reason
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              run:
+                type: integer
+              step:
+                type: string
+              outcome:
+                type: string
+                enum:
+                  - succeeded
+                  - skipped
+                  - failed
+                  - compensated
+              detail:
+                type: object
+              error_code:
+                type:
+                  - string
+                  - 'null'
+              occurred_at:
+                type: string
+                format: date-time
+            required:
+              - run
+              - step
+              - outcome
+              - detail
+              - error_code
+              - occurred_at
+      required:
+        - id
+        - application_id
+        - application_reference
+        - sequence
+        - status
+        - principal
+        - net
+        - fees
+        - value_date
+        - destination
+        - change_request_id
+        - made_by
+        - made_at
+        - released_by
+        - released_at
+        - cba
+        - variance
+        - schedule
+        - last_error
+        - saga_runs
+        - booked_at
+        - advice
+        - cancelled
+        - steps
+    ReconciliationBreak:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - missing_in_cba
+            - missing_in_los
+            - amount_mismatch
+        reference:
+          type: string
+        posting_ref:
+          type:
+            - string
+            - 'null'
+        account_no:
+          type:
+            - string
+            - 'null'
+        los_amount:
+          type:
+            - string
+            - 'null'
+        cba_amount:
+          type:
+            - string
+            - 'null'
+        currency:
+          type:
+            - string
+            - 'null'
+        disbursement_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        status:
+          type: string
+          enum:
+            - open
+            - resolved
+        resolved_by:
+          type:
+            - string
+            - 'null'
+        resolved_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        resolution_note:
+          type:
+            - string
+            - 'null'
+      required:
+        - id
+        - run_id
+        - kind
+        - reference
+        - posting_ref
+        - account_no
+        - los_amount
+        - cba_amount
+        - currency
+        - disbursement_id
+        - status
+        - resolved_by
+        - resolved_at
+        - resolution_note
+    ReconciliationRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        los_postings:
+          type: integer
+        cba_postings:
+          type: integer
+        matched:
+          type: integer
+        breaks:
+          type: integer
+        ran_by:
+          type: string
+        ran_at:
+          type: string
+          format: date-time
+        break_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReconciliationBreak'
+      required:
+        - id
+        - from
+        - to
+        - los_postings
+        - cba_postings
+        - matched
+        - breaks
+        - ran_by
+        - ran_at
+        - break_items
 # <<< generated: schemas

@@ -170,7 +170,7 @@ final class ChangeRequestService implements ChangeRequestGateway
             throw new AccessDenied($cr->required_checker_permission, 'sod_conflict', null, 'Four-eyes: the checker must be a different person from the maker.');
         }
         if (in_array($checker->id, $excluded, true)) {
-            throw new AccessDenied($cr->required_checker_permission, 'sod_conflict', null, 'You cannot approve a change that concerns your own access.');
+            throw new AccessDenied($cr->required_checker_permission, 'sod_conflict', null, 'You are excluded from checking this change: it concerns your own access or a decision you took part in.');
         }
     }
 

@@ -4,14 +4,29 @@ declare(strict_types=1);
 
 namespace Fundly\Modules\Conditions\Infrastructure;
 
+use Fundly\Modules\Conditions\Application\Commands\RunPreDisbursementCheck;
 use Fundly\Modules\Conditions\Application\ConditionFile;
 use Fundly\Modules\Conditions\Contracts\ConditionsGate;
 use Fundly\Modules\Conditions\Contracts\VerifiedDestination;
+use Fundly\Shared\Bus\CommandBus;
 use Fundly\Shared\Crypto\FieldEncryptor;
+use Fundly\Shared\Security\Principal;
+use Fundly\Shared\Security\SystemIdentity;
 
 final class DatabaseConditionsGate implements ConditionsGate
 {
-    public function __construct(private readonly ConditionFile $file, private readonly FieldEncryptor $crypto) {}
+    public function __construct(private readonly ConditionFile $file, private readonly FieldEncryptor $crypto, private readonly CommandBus $bus) {}
+
+    public function revalidate(string $applicationId, string $tenantId): array
+    {
+        $destination = $this->verifiedDestination($applicationId);
+        if ($destination === null) {
+            return $this->releaseBlockers($applicationId);
+        }
+        $this->bus->dispatch(new RunPreDisbursementCheck($applicationId, $destination->bankCode, $destination->accountNo), Principal::system($tenantId, SystemIdentity::Workflow));
+
+        return $this->releaseBlockers($applicationId);
+    }
 
     public function releaseBlockers(string $applicationId): array
     {

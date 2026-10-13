@@ -13,7 +13,10 @@ use Fundly\Shared\Money\Money;
  */
 final readonly class AcceptedOffer
 {
-    /** @param list<array{number: int, due_date: string, principal: string, interest: string, total: string, closing_balance: string}> $schedule */
+    /**
+     * @param  list<array{number: int, due_date: string, principal: string, interest: string, total: string, closing_balance: string}>  $schedule
+     * @param  list<array{code: string, name: string, type: string, amount: string, costed: bool}>  $fees  as disclosed in the key facts
+     */
     public function __construct(
         public string $offerId,
         public string $agreementId,
@@ -25,5 +28,7 @@ final readonly class AcceptedOffer
         public string $agreementSha256,
         public string $templateVersionId,
         public DateTimeImmutable $executedAt,
+        public array $fees = [],
+        public ?Money $netDisbursed = null,
     ) {}
 }

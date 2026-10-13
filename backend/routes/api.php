@@ -17,6 +17,7 @@ use Fundly\Modules\Audit\Http\Controllers\AuditController;
 use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
 use Fundly\Modules\Conditions\Http\Controllers\ConditionController;
 use Fundly\Modules\Credit\Http\Controllers\CreditController;
+use Fundly\Modules\Disbursement\Http\Controllers\DisbursementController;
 use Fundly\Modules\Document\Http\Controllers\DocumentController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
 use Fundly\Modules\Offer\Http\Controllers\OfferController;
@@ -151,6 +152,17 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::post('conditions/{id}/actions/satisfy', [ConditionController::class, 'satisfy'])->middleware(['authz:condition:manage', 'idempotent'])->name('conditions.satisfy');
     Route::post('conditions/{id}/actions/request-waiver', [ConditionController::class, 'requestWaiver'])->middleware(['authz:condition:manage', 'idempotent'])->name('conditions.request-waiver');
     Route::post('applications/{id}/pre-disbursement-checks', [ConditionController::class, 'check'])->middleware(['authz:condition:manage', 'idempotent'])->name('pre-disbursement-checks.store');
+
+    // Disbursement (FR-DSB-001..011): release is a change request (disbursement.release) approved by a checker with step-up
+    Route::get('applications/{id}/disbursements', [DisbursementController::class, 'forApplication'])->middleware('authz:application:view')->name('disbursements.index');
+    Route::post('applications/{id}/disbursements', [DisbursementController::class, 'create'])->middleware(['authz:disbursement:make', 'idempotent'])->name('disbursements.store');
+    Route::post('disbursements/{id}/actions/cancel', [DisbursementController::class, 'cancel'])->middleware(['authz:disbursement:make', 'idempotent'])->name('disbursements.cancel');
+    Route::post('disbursements/{id}/actions/retry', [DisbursementController::class, 'retry'])->middleware(['authz:disbursement:retry', 'idempotent'])->name('disbursements.retry');
+    Route::get('disbursement-exceptions', [DisbursementController::class, 'exceptions'])->middleware('authz:disbursement:check')->name('disbursement-exceptions.index');
+    Route::get('reconciliation-runs', [DisbursementController::class, 'runs'])->middleware('authz:reconciliation:run')->name('reconciliation-runs.index');
+    Route::post('reconciliation-runs', [DisbursementController::class, 'reconcile'])->middleware(['authz:reconciliation:run', 'idempotent'])->name('reconciliation-runs.store');
+    Route::get('reconciliation-breaks', [DisbursementController::class, 'breaks'])->middleware('authz:reconciliation:run')->name('reconciliation-breaks.index');
+    Route::post('reconciliation-breaks/{id}/actions/resolve', [DisbursementController::class, 'resolve'])->middleware(['authz:reconciliation:run', 'idempotent'])->name('reconciliation-breaks.resolve');
 
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
     Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');

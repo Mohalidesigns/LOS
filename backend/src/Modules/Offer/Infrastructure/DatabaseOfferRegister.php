@@ -23,6 +23,8 @@ final class DatabaseOfferRegister implements OfferRegister
 
         /** @var list<array{number: int, due_date: string, principal: string, interest: string, total: string, closing_balance: string}> $schedule */
         $schedule = $o->schedule;
+        /** @var list<array{code: string, name: string, type: string, amount: string, costed: bool}> $fees */
+        $fees = array_values((array) ($o->key_facts['fees'] ?? []));
 
         return new AcceptedOffer(
             offerId: $o->id,
@@ -35,6 +37,8 @@ final class DatabaseOfferRegister implements OfferRegister
             agreementSha256: $a->sha256,
             templateVersionId: $a->template_version_id,
             executedAt: $a->executed_at->toDateTimeImmutable(),
+            fees: $fees,
+            netDisbursed: isset($o->key_facts['net_disbursed']) ? Money::of((string) $o->key_facts['net_disbursed'], (string) $t['amount']['currency']) : null,
         );
     }
 }

@@ -10,7 +10,10 @@ use Fundly\Shared\Money\Money;
 /** The standing approval of an application, as offers, CPs and disbursement need it. */
 final readonly class ApprovalView
 {
-    /** @param list<ApprovalConditionView> $conditions */
+    /**
+     * @param  list<ApprovalConditionView>  $conditions
+     * @param  list<string>  $voterIds  everyone who voted on this request (for checker ≠ approver, FR-DSB-009)
+     */
     public function __construct(
         public string $requestId,
         public string $status,
@@ -20,6 +23,7 @@ final readonly class ApprovalView
         public ?Money $counterAmount,
         public ?int $counterTenorMonths,
         public array $conditions,
+        public array $voterIds = [],
     ) {}
 
     /** Approved and still within validity: disbursement re-checks this at release (FR-APV-012). */

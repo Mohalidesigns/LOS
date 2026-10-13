@@ -75,6 +75,8 @@ enum Permission: string
     case ConditionWaiveApprove = 'condition:waive_approve';
     case DisbursementMake = 'disbursement:make';
     case DisbursementCheck = 'disbursement:check';
+    case DisbursementRetry = 'disbursement:retry';
+    case ReconciliationRun = 'reconciliation:run';
     case ProductManage = 'product:manage';
     case ProductActivate = 'product:activate';
     case TaskReassign = 'task:reassign';

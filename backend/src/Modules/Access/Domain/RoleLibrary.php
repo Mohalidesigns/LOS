@@ -60,7 +60,7 @@ final class RoleLibrary
                 Permission::ApplicationView, Permission::DisbursementMake, Permission::ConditionManage,
             ]],
             'disbursement_checker' => ['name' => 'Disbursement Checker', 'description' => 'Releases disbursements (four-eyes).', 'permissions' => [
-                Permission::ApplicationView, Permission::DisbursementCheck,
+                Permission::ApplicationView, Permission::DisbursementCheck, Permission::DisbursementRetry, Permission::ReconciliationRun, Permission::ChangeRequestRead,
             ]],
             'product_manager' => ['name' => 'Product Manager', 'description' => 'Designs products and drafts configuration.', 'permissions' => [
                 Permission::ProductManage, Permission::ConfigRead, Permission::ConfigAuthor, Permission::ConfigActivateRequest,

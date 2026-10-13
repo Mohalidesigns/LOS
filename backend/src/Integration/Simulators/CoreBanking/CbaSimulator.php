@@ -325,6 +325,9 @@ final class CbaSimulator implements AccountsPort, CollateralPort, CoreBankingPor
                 'account_no' => $no, 'cba_reference' => $ref, 'customer_id' => $request->cbaCustomerId, 'product_code' => $request->productCode,
                 'principal' => $request->principal->toStorage(), 'currency' => $request->principal->currency->code, 'status' => 'active',
                 'los_facility_id' => $request->losFacilityId,
+                // the terms, so getSchedule returns the schedule this account actually amortises on
+                'rate_percent' => $request->ratePercent, 'tenor_months' => $request->tenorMonths, 'frequency' => $request->frequency,
+                'moratorium_months' => $request->moratoriumMonths, 'start_date' => $request->startDate, 'day_count' => $request->dayCount,
             ]);
             $this->store->putIfAbsent('loan_by_los', $request->losFacilityId, ['account_no' => $no, 'cba_reference' => $ref]);
 
@@ -395,10 +398,16 @@ final class CbaSimulator implements AccountsPort, CollateralPort, CoreBankingPor
 
     public function postCharges(string $loanAccountNo, array $items, string $idempotencyKey): array
     {
-        $r = $this->mutate('postings.charges', $idempotencyKey, function () use ($items): array {
+        $r = $this->mutate('postings.charges', $idempotencyKey, function () use ($loanAccountNo, $items, $idempotencyKey): array {
             $refs = [];
-            foreach ($items as $_) {
-                $refs[] = sprintf('SIMP%010d', $this->store->increment('sequence', 'posting'));
+            foreach (array_values($items) as $i => $item) {
+                $ref = sprintf('SIMP%010d', $this->store->increment('sequence', 'posting'));
+                $this->store->putIfAbsent('posting', $ref, [
+                    'posting_ref' => $ref, 'reference' => $idempotencyKey.'#'.($i + 1), 'idempotency_key' => $idempotencyKey,
+                    'account_no' => $loanAccountNo, 'amount' => $item->amount->toStorage(), 'currency' => $item->amount->currency->code,
+                    'status' => 'posted', 'value_date' => date('Y-m-d'),
+                ]);
+                $refs[] = $ref;
             }
 
             return ['refs' => $refs];
@@ -491,7 +500,16 @@ final class CbaSimulator implements AccountsPort, CollateralPort, CoreBankingPor
         $this->inject('schedule.get');
         $a = $this->store->get('loan_account', $loanAccountNo) ?? throw new BusinessRejectionError('CBA.LOAN_ACCOUNT.NOT_FOUND', 'Loan account not found.');
 
-        return $this->generateSchedule(new ScheduleRequest((string) $a['product_code'], Money::of((string) $a['principal'], (string) $a['currency']), '24', 12, 'monthly', 0, '2026-01-01', '30/360'));
+        return $this->generateSchedule(new ScheduleRequest(
+            (string) $a['product_code'],
+            Money::of((string) $a['principal'], (string) $a['currency']),
+            (string) ($a['rate_percent'] ?? '24'),
+            (int) ($a['tenor_months'] ?? 12),
+            (string) ($a['frequency'] ?? 'monthly'),
+            (int) ($a['moratorium_months'] ?? 0),
+            (string) ($a['start_date'] ?? '2026-01-01'),
+            (string) ($a['day_count'] ?? '30/360'),
+        ));
     }
 
     // ---- Unsupported in the simulator manifest (routed to manual_task by the runtime) ------
@@ -562,8 +580,11 @@ final class CbaSimulator implements AccountsPort, CollateralPort, CoreBankingPor
     {
         $this->inject('reconciliation.postings');
 
+        // `orphan_postings` in the binding config: postings the CBA holds that the LOS never made (reconciliation demo)
+        $orphans = is_array($this->config['orphan_postings'] ?? null) ? array_values(array_filter($this->config['orphan_postings'], 'is_array')) : [];
+
         return array_values(array_map(fn (array $p): Posting => $this->posting($p), array_filter(
-            $this->store->all('posting'),
+            array_merge(array_values($this->store->all('posting')), $orphans),
             static fn (array $p): bool => (string) $p['value_date'] >= $from && (string) $p['value_date'] <= $to,
         )));
     }

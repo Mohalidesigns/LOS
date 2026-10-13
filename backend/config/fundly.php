@@ -97,6 +97,12 @@ return [
         'bureau_validity_days' => (int) env('FUNDLY_BUREAU_VALIDITY_DAYS', 30),
     ],
 
+    // Disbursement (FR-DSB-009, LOS-FR-313): checker may not have voted on the approval; per-instalment schedule tolerance at booking.
+    'disbursement' => [
+        'checker_not_approver' => (bool) env('FUNDLY_DISBURSEMENT_CHECKER_NOT_APPROVER', true),
+        'schedule_tolerance' => (string) env('FUNDLY_SCHEDULE_TOLERANCE', '1.00'),
+    ],
+
     // Conditions (FR-CPR-003/005): a pre-disbursement check stays valid for this long; account names must match at least this score (0-100).
     'conditions' => [
         'check_valid_hours' => (int) env('FUNDLY_PRE_DISBURSEMENT_CHECK_HOURS', 24),

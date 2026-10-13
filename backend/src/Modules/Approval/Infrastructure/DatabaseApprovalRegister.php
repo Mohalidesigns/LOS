@@ -36,6 +36,7 @@ final class DatabaseApprovalRegister implements ApprovalRegister
             counterAmount: is_array($counter['amount'] ?? null) ? Money::fromArray($counter['amount']) : null,
             counterTenorMonths: is_int($counter['tenor_months'] ?? null) ? $counter['tenor_months'] : null,
             conditions: $conditions,
+            voterIds: array_values(array_map('strval', ApprovalVote::query()->where('request_id', $r->id)->pluck('voter_id')->all())),
         );
     }
 }

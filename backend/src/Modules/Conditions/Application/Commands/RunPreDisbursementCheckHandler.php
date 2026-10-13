@@ -51,7 +51,7 @@ final class RunPreDisbursementCheckHandler implements CommandHandler
     {
         assert($command instanceof RunPreDisbursementCheck);
         $app = $this->file->application($command->applicationId);
-        if (! in_array($app->status, [CanonicalStatus::ConditionsPrecedent, CanonicalStatus::ReadyForDisbursement], true)) {
+        if (! in_array($app->status, [CanonicalStatus::ConditionsPrecedent, CanonicalStatus::ReadyForDisbursement, CanonicalStatus::Disbursing], true)) {
             throw new DomainRuleViolation("The pre-disbursement check runs once the offer is accepted and before release; this application is {$app->status->value}.");
         }
         $now = $this->file->now();
