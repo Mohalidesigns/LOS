@@ -12,6 +12,7 @@ use Fundly\Modules\Access\Http\Controllers\RoleController;
 use Fundly\Modules\Access\Http\Controllers\SodController;
 use Fundly\Modules\Access\Http\Controllers\UserController;
 use Fundly\Modules\Application\Http\Controllers\ApplicationController;
+use Fundly\Modules\Approval\Http\Controllers\ApprovalController;
 use Fundly\Modules\Audit\Http\Controllers\AuditController;
 use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
 use Fundly\Modules\Credit\Http\Controllers\CreditController;
@@ -125,6 +126,12 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('applications/{id}/exceptions', [CreditController::class, 'exceptions'])->middleware('authz:application:view')->name('exceptions.index');
     Route::get('applications/{id}/credit-memo', [CreditController::class, 'memo'])->middleware('authz:application:view')->name('credit-memo.show');
     Route::post('applications/{id}/credit-memo', [CreditController::class, 'saveMemo'])->middleware(['authz:credit:analyse', 'idempotent'])->name('credit-memo.store');
+
+    // Approvals (FR-APV-001..012): routing happens on recommend; matrix and limits are config artifacts (maker-checker)
+    Route::get('applications/{id}/approval-requests', [ApprovalController::class, 'forApplication'])->middleware('authz:application:view')->name('approval-requests.index');
+    Route::get('approval-requests', [ApprovalController::class, 'inbox'])->middleware('authz:application:approve')->name('approval-requests.inbox');
+    Route::get('approval-requests/{id}', [ApprovalController::class, 'show'])->middleware('authz:application:view')->name('approval-requests.show');
+    Route::post('approval-requests/{id}/actions/vote', [ApprovalController::class, 'vote'])->middleware(['authz:application:approve', 'idempotent'])->name('approval-requests.vote');
 
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
     Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');

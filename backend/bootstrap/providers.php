@@ -5,6 +5,7 @@ use App\Providers\AppServiceProvider;
 use Fundly\Integration\IntegrationServiceProvider;
 use Fundly\Modules\Access\AccessServiceProvider;
 use Fundly\Modules\Application\ApplicationServiceProvider;
+use Fundly\Modules\Approval\ApprovalServiceProvider;
 use Fundly\Modules\Audit\AuditServiceProvider;
 use Fundly\Modules\Compliance\ComplianceServiceProvider;
 use Fundly\Modules\Credit\CreditServiceProvider;
@@ -30,5 +31,6 @@ return [
     ComplianceServiceProvider::class,
     DocumentServiceProvider::class,
     CreditServiceProvider::class,
+    ApprovalServiceProvider::class,
     WorkflowServiceProvider::class,
 ];

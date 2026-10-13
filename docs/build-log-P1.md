@@ -237,3 +237,110 @@ the `sme-policy` rule set, analyst user tunde and cases in Assessment.
 ### Gaps carried forward
 Actor display names on credit records; tighter OpenAPI types for `facts` /
 `trace`; approval matrix and voting (P1-APV-01/02) are next.
+
+## Milestone 5 — Approval matrix, authority and voting (2026-10-13)
+
+**Gate results:** Pest **245 passed, 0 failed** (18,009 assertions); Larastan
+L8 0 errors. Frontend `npm run verify`: 142 tests, contrast pass, build OK.
+Checked in the browser against the seeded stack: kemi (L1) voted
+"approve with conditions" on DEMO-2026-000002, which moved it to Approved
+with a 60-day validity and one open CP.
+
+### Approvals (M11, P1-APV-01/02)
+- New `Approval` module (Contracts / Domain / Application / Infrastructure /
+  Http). Other modules are reached only through contracts: `ApplicationReader`,
+  `ApplicationLifecycle`, `CreditFile`, `ProductCatalogue`,
+  `ActiveConfiguration`, `OrganisationDirectory`, plus a new Access contract
+  `AuthorityDirectory`. It answers "who holds `application:approve` for this
+  resource, through which assignment or delegation". It also returns staff
+  display names, which closes the actor-name gap for approvals.
+- **Matrix** = `approval.matrix` configuration, bound by the product's
+  `bindings.approval_matrix` and activated through maker-checker. It holds
+  ordered levels (code, name, eligible role codes, mode) and a routing
+  decision table over `exposure`, `decision`, `exceptions`, `product`,
+  `application`, `collateral` and `customer` facts, run by the same V1
+  evaluator. It also sets escalation rules, a step-up threshold and an
+  optional validity. Only `single` mode validates; parallel and quorum are
+  P3 (FR-APV-003 ◐, D-038d).
+- **Routing:** when an application becomes Recommended, `ApprovalProgression`
+  opens a request as `system:workflow` and advances Recommended → Approval in
+  the same transaction. The request records the matrix version and row, the
+  facts, the routing trace and the chain. Escalation (FR-APV-007) works in two
+  ways:
+  - a medium-or-higher exception adds the next level up;
+  - a level nobody can approve is replaced by the next level up.
+- **Authority limits:** `approval.authority_limits` holds limits per role,
+  org unit and user. The effective limit is the minimum of these and the
+  assignment scope's `max_amount` (FR-APV-002). If no limit applies there is
+  no authority: approvals fail closed (D-044). Delegations reuse Access
+  delegations, and a delegated grant is capped by the delegator's limits
+  (FR-APV-006).
+- **Votes** are append-only and immutable (FR-APV-008/009). Each records:
+  - decision: approve, approve with conditions, decline or counter-offer
+  - rationale (mandatory)
+  - reason codes (mandatory except for a plain approval)
+  - conditions, which become `approval_conditions` CP/CS rows
+  - counter terms, which must be below the exposure
+  - the full authority basis: assignment, role, delegation, effective limit
+    and its source, all limit components, level, matrix row, exposure
+  - the step-up reference
+- **Approver SoD** (FR-APV-005): the voter cannot be the originator, the
+  recommender or an earlier voter on the request. Refusals are 403s and are
+  audited as `authz.denied` (`approver_sod` / `approval_authority`). Approval
+  also needs a current bureau report (FR-CMP-020). Above the matrix threshold
+  a step-up within the last 5 minutes is required (FR-SEC-013).
+- **Validity** (FR-APV-012): the final approval sets `valid_until` from the
+  matrix or the product's `approval_validity_days`. The hourly
+  `approvals:expire` job moves lapsed approvals, and an application still in
+  Approved, to Expired. `ApprovalRegister::current()->isValidAt()` is the
+  hook for the disbursement re-check.
+- **Decision packet** (FR-APV-010): `GET /approval-requests/{id}` returns the
+  application, the routed vs latest credit decision, exceptions, the memo
+  recommendation, bureau currency, earlier requests and `my_eligibility`
+  (can_vote, blockers, basis, step_up_required).
+- API: `GET /applications/{id}/approval-requests`, `GET /approval-requests`
+  (my inbox), `GET /approval-requests/{id}`,
+  `POST /approval-requests/{id}/actions/vote` (fragment `p5-approvals.php`).
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-APV-001 | Done | `ApprovalTest` (routing, matrix validation) |
+| FR-APV-002 | Done | `ApprovalTest` (role / org-unit / user / scope limits), `ApprovalDomainTest` |
+| FR-APV-003 | Partial: sequential single-approver levels; parallel / quorum P3 | `ApprovalTest` |
+| FR-APV-005 | Done | `ApprovalTest` (originator, recommender), `ApprovalDomainTest` (earlier voter) |
+| FR-APV-006 | Done | `ApprovalTest` (delegate capped by delegator limit) |
+| FR-APV-007 | Done | `ApprovalTest`, `ApprovalDomainTest` |
+| FR-APV-008 / 009 / 010 / 012 | Done | `ApprovalTest` |
+
+### Frontend (P1-FE-03 approval slice)
+- **Approval tab** on the case:
+  - the chain, with why each level is there
+  - votes with rationale, reason codes and authority basis
+  - conditions (CP/CS)
+  - a "Your vote" panel showing eligibility or the reasons you can't vote
+  - the decision packet
+  - earlier requests
+- **Vote dialog**: client rules mirror the API. Step-up is handled by the
+  existing `StepUpProvider` retry.
+- **Approvals inbox** (`/approvals`, nav item for `application:approve`).
+- `features/approvals/domain.ts` has 8 unit tests.
+
+### Demo seed
+`seed-demo` now activates `approval.matrix/sme-matrix` and
+`approval.authority_limits/default`. It adds kemi (Credit Approver, L1,
+NGN 20M) and segun (Head of Credit, L2, NGN 100M), and takes Chinedu Eze
+(NGN 2M) through bureau, decision, memo and recommend into Approval at L1.
+
+### Gaps carried forward
+- Vote → application status runs as a nested command in the vote
+  transaction, so `ApplicationStatusChanged` listeners for
+  approved / declined / counter_offered run before the outer commit. No
+  listener reacts to those states yet. Offer (M6) should listen to
+  `ApprovalDecided` instead.
+- Exposure is the requested amount. Connected exposure (FR-CRD-007) and
+  collateral coverage are null facts until P1-COL-01 / P3.
+- Conditions are recorded as `open`. Satisfying and waiving them belongs to
+  P1-CPR-01.
+- A routing failure (no matrix bound or active) is only logged. The case
+  stays Recommended and the tab explains this. There is no "re-route" action
+  yet.

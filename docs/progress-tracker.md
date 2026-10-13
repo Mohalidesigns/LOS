@@ -16,7 +16,7 @@ Requirement IDs marked ◐→Pn are partial in that task and completed in phase 
 | Phase | Gate status | Tasks | Not started | In progress | In review | Done | Blocked | Phase traceability (reqs with passing tests / reqs in phase) |
 |---|---|---|---|---|---|---|---|---|
 | P0 Foundation | Open (build started) | 24 | 0 | 24 | 0 | 0 | 0 | 0 / 53 |
-| P1 MVP origination | Open (build started 2026-10-08) | 51 | 36 | 6 | 9 | 0 | 0 | 0 / 155 |
+| P1 MVP origination | Open (build started 2026-10-08) | 51 | 34 | 6 | 11 | 0 | 0 | 0 / 155 |
 | P2 Documents & IDP | Not open | 13 | 13 | 0 | 0 | 0 | 0 | 0 / 24 |
 | P3 Decisioning & workflow depth | Not open | 21 | 21 | 0 | 0 | 0 | 0 | 0 / 25 |
 | P4 Live integrations & channels | Not open | 21 | 21 | 0 | 0 | 0 | 0 | 0 / 27 |
@@ -82,8 +82,8 @@ Requirement IDs marked ◐→Pn are partial in that task and completed in phase 
 | P1-WFL-01 | Workflow engine | `FR-WFL-001`, `FR-WFL-012` | BE Origination & Application | Not started | — | — | |
 | P1-WFL-02 | Routing (role/skill/branch/product/band/load), pull + push queues, reassignment and del… | `FR-WFL-003`, `FR-WFL-004`, `FR-WFL-005` ◐→P3, `FR-WFL-009`, `FR-WFL-010` | BE Origination & Application | Not started | — | — | |
 | P1-WFL-03 | Stage SLA enforcement + escalation, send-back with targeted rework, hold with SLA pause… | `FR-WFL-006`, `FR-WFL-007`, `FR-WFL-008`, `FR-WFL-011` | BE Origination & Application | Not started | — | — | |
-| P1-APV-01 | Approval matrix as decision table, effective limits (min user/role/org), sequential cha… | `FR-APV-001`, `FR-APV-002`, `FR-APV-003` ◐→P3, `FR-APV-005`, `FR-APV-006`, `FR-APV-007` | BE Decisioning & Approvals | Not started | — | — | |
-| P1-APV-02 | Votes with rationale/reason codes/authority basis/step-up ref, conditional approval → C… | `FR-APV-008`, `FR-APV-009`, `FR-APV-010`, `FR-APV-012` | BE Decisioning & Approvals | Not started | — | — | |
+| P1-APV-01 | Approval matrix as decision table, effective limits (min user/role/org), sequential cha… | `FR-APV-001`, `FR-APV-002`, `FR-APV-003` ◐→P3, `FR-APV-005`, `FR-APV-006`, `FR-APV-007` | BE Decisioning & Approvals | In review | — | local pest 245 passed; frontend verify 142 tests | M5: approval.matrix config (decision-table routing, escalation on exception / unstaffed level), authority limits (min of scope, user, role, org unit; fail closed, D-044), approver SoD, delegation via Access; parallel/quorum P3 |
+| P1-APV-02 | Votes with rationale/reason codes/authority basis/step-up ref, conditional approval → C… | `FR-APV-008`, `FR-APV-009`, `FR-APV-010`, `FR-APV-012` | BE Decisioning & Approvals | In review | — | local pest 245 passed; frontend verify 142 tests | M5: immutable votes with rationale, reason codes, authority basis and step-up ref; conditions → CP/CS rows; decision packet; validity + hourly approvals:expire |
 | P1-OFR-01 | Offer templates (versioned), key-facts/cost-of-credit per pack method, schedule from CB… | `FR-OFR-001`, `FR-OFR-002`, `FR-OFR-003`, `FR-CMP-025` | BE Disbursement & Integration Runtime | Not started | — | — | |
 | P1-OFR-02 | Offer delivery (email + printable), acceptance (wet-sign + e-sign stub), validity/remin… | `FR-OFR-004` ◐→P4, `FR-OFR-005`, `FR-OFR-006` ◐→P4, `FR-OFR-007`, `FR-OFR-008`, `FR-OFR-009`, `FR-OFR-010`, `LOS-FR-314` | BE Disbursement & Integration Runtime | Not started | — | — | |
 | P1-CPR-01 | CP/CS items, mandatory-CP hard block, pre-disbursement checklist, pre-disbursement re-s… | `FR-CPR-001`, `FR-CPR-002`, `FR-CPR-003`, `FR-CPR-004` ◐→P4, `FR-CPR-005` ◐→P4 | BE Disbursement & Integration Runtime | Not started | — | — | |
@@ -98,7 +98,7 @@ Requirement IDs marked ◐→Pn are partial in that task and completed in phase 
 | P1-UX-01 | MVP screen designs per role journey (capture → booked, auditor), states, empty/error st… | — | UI/UX | Not started | — | — | |
 | P1-FE-01 | Admin console UI | — | Frontend | Not started | — | — | |
 | P1-FE-02 | Origination UI | — | Frontend | In review | — | local pest 219 passed; frontend verify 107 tests | M3: applications list/pipeline, new-application wizard with dedupe, case workspace (summary, KYC, documents, timeline/as-at), compliance alert queue with four-eyes, customers |
-| P1-FE-03 | Assessment UI | — | Frontend | In progress | — | local pest 231 passed; frontend verify 134 tests | M4: Credit tab (bureau, decision, replay/trace, exceptions, memo, readiness); approval packet + voting follow with APV |
+| P1-FE-03 | Assessment UI | — | Frontend | In progress | — | local pest 245 passed; frontend verify 142 tests | M4: Credit tab; M5: Approval tab (chain, packet, votes with authority basis, vote dialog with step-up) and approvals inbox. Collateral UI follows P1-COL-01 |
 | P1-FE-04 | Execution UI | — | Frontend | Not started | — | — | |
 | P1-FE-05 | Accessibility and browser matrix certification of MVP screens (axe on every screen, man… | `NFR-014`, `NFR-015` † | Frontend | Not started | — | — | |
 | P1-QA-01 | MVP E2E suite (demo script §2.3) in Playwright, resilience tests with fault injection, … | — | QA/Test | Not started | — | — | |

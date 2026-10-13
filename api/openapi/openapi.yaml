@@ -51,6 +51,7 @@ tags:
 - name: Compliance
 - name: Documents
 - name: Credit
+- name: Approvals
 # <<< generated: tags
 paths:
   /health:
@@ -4368,6 +4369,176 @@ paths:
         - sessionCookie: []
         - bearerToken: []
       x-idempotency-key: required
+  '/api/v1/applications/{id}/approval-requests':
+    get:
+      summary: 'Approval requests for an application, newest first'
+      operationId: listApplicationApprovalRequests
+      tags:
+        - Approvals
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApprovalRequest'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  /api/v1/approval-requests:
+    get:
+      summary: 'Approval inbox: open requests whose current level one of my roles is eligible for'
+      operationId: listApprovalInbox
+      tags:
+        - Approvals
+      x-permission: 'application:approve'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApprovalRequest'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/approval-requests/{id}':
+    get:
+      summary: 'An approval request with its decision packet (FR-APV-010)'
+      operationId: getApprovalRequest
+      tags:
+        - Approvals
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/ApprovalRequest'
+                      - type: object
+                        properties:
+                          packet:
+                            $ref: '#/components/schemas/ApprovalPacket'
+                        required:
+                          - packet
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/approval-requests/{id}/actions/vote':
+    post:
+      summary: 'Vote at the current authority level. Rationale is mandatory; reason codes are required for conditional approval, decline and counter-offer. Above the matrix threshold a step-up within the last 5 minutes is required.'
+      operationId: voteOnApprovalRequest
+      tags:
+        - Approvals
+      x-permission: 'application:approve'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum:
+                    - approve
+                    - approve_with_conditions
+                    - decline
+                    - counter_offer
+                rationale:
+                  type: string
+                reason_codes:
+                  type: array
+                  items:
+                    type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      kind:
+                        type: string
+                        enum:
+                          - precedent
+                          - subsequent
+                      description:
+                        type: string
+                    required:
+                      - kind
+                      - description
+                counter_terms:
+                  type:
+                    - object
+                    - 'null'
+                  properties:
+                    amount:
+                      type: string
+                    tenor_months:
+                      type: integer
+                  required:
+                    - amount
+                    - tenor_months
+              required:
+                - decision
+                - rationale
+      responses:
+        200:
+          description: 'Vote recorded; the request moved to the next level or reached its outcome'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ApprovalRequest'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
 # <<< generated: paths
 components:
   securitySchemes:
@@ -7220,4 +7391,576 @@ components:
         - conditions
         - authored_by
         - authored_at
+    ApprovalLevel:
+      type: object
+      properties:
+        index:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        mode:
+          type: string
+          enum:
+            - single
+        added_by:
+          type: string
+          enum:
+            - matrix
+            - exception
+            - no_eligible_approver
+        note:
+          type:
+            - string
+            - 'null'
+        state:
+          type: string
+          enum:
+            - awaiting_vote
+            - queued
+            - not_reached
+            - approve
+            - approve_with_conditions
+            - decline
+            - counter_offer
+      required:
+        - index
+        - code
+        - name
+        - roles
+        - mode
+        - added_by
+        - note
+        - state
+    ApprovalVote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        level_index:
+          type: integer
+        level_code:
+          type: string
+        voter:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        decision:
+          type: string
+          enum:
+            - approve
+            - approve_with_conditions
+            - decline
+            - counter_offer
+        rationale:
+          type: string
+        reason_codes:
+          type: array
+          items:
+            type: string
+        conditions:
+          type: array
+          items:
+            type: object
+            properties:
+              kind:
+                type: string
+                enum:
+                  - precedent
+                  - subsequent
+              description:
+                type: string
+            required:
+              - kind
+              - description
+        counter_terms:
+          type:
+            - object
+            - 'null'
+          properties:
+            amount:
+              $ref: '#/components/schemas/Money'
+            tenor_months:
+              type: integer
+          required:
+            - amount
+            - tenor_months
+        authority_basis:
+          type: object
+          properties:
+            assignment_id:
+              type: string
+              format: uuid
+            role_code:
+              type: string
+            role_name:
+              type: string
+            delegation_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            delegated_by:
+              type:
+                - string
+                - 'null'
+            effective_limit:
+              $ref: '#/components/schemas/Money'
+            limit_source:
+              type: string
+              enum:
+                - assignment_scope
+                - user
+                - role
+                - org_unit
+            limit_components:
+              type: array
+              items:
+                type: object
+                properties:
+                  source:
+                    type: string
+                  ref:
+                    type: string
+                  amount:
+                    $ref: '#/components/schemas/Money'
+                required:
+                  - source
+                  - ref
+                  - amount
+            level:
+              type: object
+              properties:
+                index:
+                  type: integer
+                code:
+                  type: string
+                name:
+                  type: string
+                added_by:
+                  type: string
+              required:
+                - index
+                - code
+                - name
+                - added_by
+            matrix:
+              type: object
+              properties:
+                key:
+                  type: string
+                version_no:
+                  type: integer
+                row:
+                  type:
+                    - integer
+                    - 'null'
+              required:
+                - key
+                - version_no
+                - row
+            exposure:
+              $ref: '#/components/schemas/Money'
+          required:
+            - assignment_id
+            - role_code
+            - role_name
+            - delegation_id
+            - delegated_by
+            - effective_limit
+            - limit_source
+            - limit_components
+        stepped_up:
+          type: boolean
+        step_up_ref:
+          type:
+            - string
+            - 'null'
+        voted_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - level_index
+        - level_code
+        - voter
+        - decision
+        - rationale
+        - reason_codes
+        - conditions
+        - counter_terms
+        - authority_basis
+        - stepped_up
+        - step_up_ref
+        - voted_at
+    ApprovalCondition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - precedent
+            - subsequent
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - open
+            - satisfied
+            - waived
+        vote_id:
+          type: string
+          format: uuid
+      required:
+        - id
+        - kind
+        - description
+        - status
+        - vote_id
+    ApprovalRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        application_reference:
+          type: string
+        sequence:
+          type: integer
+        status:
+          type: string
+          enum:
+            - pending
+            - approved
+            - declined
+            - counter_offered
+            - expired
+            - superseded
+        matrix:
+          type: object
+          properties:
+            key:
+              type: string
+            version_id:
+              type: string
+              format: uuid
+            version_no:
+              type: integer
+            row:
+              type:
+                - integer
+                - 'null'
+          required:
+            - key
+            - version_id
+            - version_no
+            - row
+        levels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalLevel'
+        current_level:
+          type:
+            - integer
+            - 'null'
+        exposure:
+          $ref: '#/components/schemas/Money'
+        decision_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        originator:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        recommended_by:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        opened_at:
+          type: string
+          format: date-time
+        decided_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        validity_days:
+          type: integer
+        valid_until:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        counter_terms:
+          type:
+            - object
+            - 'null'
+          properties:
+            amount:
+              $ref: '#/components/schemas/Money'
+            tenor_months:
+              type: integer
+          required:
+            - amount
+            - tenor_months
+        votes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalVote'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalCondition'
+        facts:
+          type: object
+        routing_trace:
+          type: array
+          items:
+            type: object
+            properties:
+              row:
+                type: integer
+              when:
+                type: string
+              result:
+                type: boolean
+            required:
+              - row
+              - when
+              - result
+        my_eligibility:
+          type: object
+          properties:
+            can_vote:
+              type: boolean
+            blockers:
+              type: array
+              items:
+                type: string
+            basis:
+              oneOf:
+                - type: 'null'
+                - type: object
+            step_up_required:
+              type: boolean
+          required:
+            - can_vote
+            - blockers
+            - basis
+            - step_up_required
+      required:
+        - id
+        - application_id
+        - application_reference
+        - sequence
+        - status
+        - matrix
+        - levels
+        - current_level
+        - exposure
+        - decision_id
+        - originator
+        - recommended_by
+        - opened_at
+        - decided_at
+        - validity_days
+        - valid_until
+        - counter_terms
+        - votes
+        - conditions
+        - facts
+        - routing_trace
+        - my_eligibility
+    ApprovalPacket:
+      type: object
+      properties:
+        application:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            reference:
+              type: string
+            status:
+              type: string
+            product:
+              type: object
+              properties:
+                key:
+                  type: string
+                name:
+                  type: string
+                version_no:
+                  type: integer
+              required:
+                - key
+                - name
+                - version_no
+            segment:
+              type: string
+            channel:
+              type: string
+            requested_amount:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+            tenor_months:
+              type:
+                - integer
+                - 'null'
+            purpose:
+              type:
+                - string
+                - 'null'
+            applicant_count:
+              type: integer
+          required:
+            - id
+            - reference
+            - status
+            - product
+            - segment
+            - channel
+            - requested_amount
+            - tenor_months
+            - applicant_count
+        credit:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                decision_id:
+                  type: string
+                  format: uuid
+                outcome:
+                  type: string
+                risk_grade:
+                  type: string
+                recommended_terms:
+                  type: object
+                  properties:
+                    amount:
+                      $ref: '#/components/schemas/Money'
+                    tenor_months:
+                      type: integer
+                    rate_percent:
+                      type: string
+                  required:
+                    - amount
+                    - tenor_months
+                    - rate_percent
+                exception_count:
+                  type: integer
+                max_exception_severity:
+                  type:
+                    - string
+                    - 'null'
+                memo_recommendation:
+                  type:
+                    - string
+                    - 'null'
+                is_routed_decision:
+                  type: boolean
+              required:
+                - decision_id
+                - outcome
+                - risk_grade
+                - recommended_terms
+                - exception_count
+                - max_exception_severity
+                - memo_recommendation
+                - is_routed_decision
+        bureau_valid:
+          type: boolean
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              sequence:
+                type: integer
+              status:
+                type: string
+              opened_at:
+                type: string
+                format: date-time
+              decided_at:
+                type:
+                  - string
+                  - 'null'
+                format: date-time
+              votes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    level_code:
+                      type: string
+                    decision:
+                      type: string
+                    voter_id:
+                      type: string
+                    voted_at:
+                      type: string
+                      format: date-time
+                  required:
+                    - level_code
+                    - decision
+                    - voter_id
+                    - voted_at
+            required:
+              - id
+              - sequence
+              - status
+              - opened_at
+              - decided_at
+              - votes
+      required:
+        - application
+        - credit
+        - bureau_valid
+        - history
 # <<< generated: schemas

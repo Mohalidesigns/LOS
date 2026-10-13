@@ -12,11 +12,13 @@ use Fundly\Modules\Access\Application\Auth\AuthenticationService;
 use Fundly\Modules\Access\Application\Authorizer;
 use Fundly\Modules\Access\Application\ChangeRequests\ChangeActionRegistry;
 use Fundly\Modules\Access\Application\ChangeRequests\ChangeRequestService;
+use Fundly\Modules\Access\Application\GrantAuthorityDirectory;
 use Fundly\Modules\Access\Application\PermissionCatalogue;
 use Fundly\Modules\Access\Application\PrincipalActorProvider;
 use Fundly\Modules\Access\Application\Queries\AccessQueries;
 use Fundly\Modules\Access\Application\ScopeFilter;
 use Fundly\Modules\Access\Contracts\AccessProvisioning;
+use Fundly\Modules\Access\Contracts\AuthorityDirectory;
 use Fundly\Modules\Access\Contracts\ChangeRequestGateway;
 use Fundly\Modules\Access\Infrastructure\Models\ChangeRequest;
 use Fundly\Modules\Access\Infrastructure\Models\PersonalAccessToken;
@@ -48,6 +50,7 @@ final class AccessServiceProvider extends ServiceProvider
         $this->app->scoped(ChangeRequestService::class);
         $this->app->scoped(ChangeRequestGateway::class, ChangeRequestService::class);
         $this->app->scoped(AccessProvisioning::class, AccessProvisioner::class);
+        $this->app->scoped(AuthorityDirectory::class, GrantAuthorityDirectory::class);
         $this->app->scoped(AuthenticationService::class);
         $this->app->when(AuthenticationService::class)->needs(StatefulGuard::class)->give(fn (Application $app) => $app->make('auth')->guard('web'));
     }

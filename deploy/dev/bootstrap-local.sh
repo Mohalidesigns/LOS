@@ -13,7 +13,7 @@
 #   deploy/dev/bootstrap-local.sh reset-mfa EMAIL  clear an admin's MFA so the next login re-enrols
 #   deploy/dev/bootstrap-local.sh reset --yes drop ALL tables in the dev DB, forget licence + MFA secrets
 #   deploy/dev/bootstrap-local.sh seed-demo  demo org, product, rule set, business users + roles, parties,
-#                                            applications (two in Assessment for the Credit tab)
+#                                            applications (one in Assessment, one in Approval at L1)
 #                                            (needs a running API: run 'serve' in another terminal first)
 #
 # Prerequisites: PHP 8.4 + composer deps in backend/vendor, PostgreSQL with the
@@ -62,6 +62,10 @@ DEMO_CMP2_NAME="${DEMO_CMP2_NAME:-Ngozi Compliance}"
 DEMO_CMP2_EMAIL="${DEMO_CMP2_EMAIL:-ngozi@fundly.test}"
 DEMO_CA_NAME="${DEMO_CA_NAME:-Tunde Analyst}"
 DEMO_CA_EMAIL="${DEMO_CA_EMAIL:-tunde@fundly.test}"
+DEMO_AP1_NAME="${DEMO_AP1_NAME:-Kemi Approver}"
+DEMO_AP1_EMAIL="${DEMO_AP1_EMAIL:-kemi@fundly.test}"
+DEMO_AP2_NAME="${DEMO_AP2_NAME:-Segun Head of Credit}"
+DEMO_AP2_EMAIL="${DEMO_AP2_EMAIL:-segun@fundly.test}"
 DEMO_RULE_SET_KEY="${DEMO_RULE_SET_KEY:-sme-policy}"
 
 LICENCE_MODULES="${LICENCE_MODULES:-*}"
@@ -94,7 +98,7 @@ password_for() {
   case "$1" in
     "$ADMIN1_EMAIL") printf '%s' "$ADMIN1_PASSWORD" ;;
     "$ADMIN2_EMAIL") printf '%s' "$ADMIN2_PASSWORD" ;;
-    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL"|"$DEMO_CA_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
+    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL"|"$DEMO_CA_EMAIL"|"$DEMO_AP1_EMAIL"|"$DEMO_AP2_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
     *) local v="${FUNDLY_DEV_PASSWORD:-}"; [[ -n "$v" ]] || die "no password known for $1 (set FUNDLY_DEV_PASSWORD)"; printf '%s' "$v" ;;
   esac
 }
@@ -687,27 +691,44 @@ RULE_SET_CONTENT='{"evaluator_version":"1.0.0",
  "pricing":{"hit_policy":"FIRST","rows":[{"when":"decision.risk_grade == '"'"'A'"'"'","outputs":{"rate_percent":"22.5"}},
    {"when":"true","outputs":{"rate_percent":"=facility.rate_percent"}}]}}'
 
-seed_rule_set() { # needs ADA_JAR + BO_JAR
-  local type=credit.rule_set key="$DEMO_RULE_SET_KEY"
+seed_rule_set() { seed_config credit.rule_set "$DEMO_RULE_SET_KEY" 'SME credit policy' 'Knock-outs, policy, grade, affordability (DSR <= 40%) and pricing (seed-demo)' "$RULE_SET_CONTENT"; }
+
+# Approval matrix 'sme-matrix' (the product binds approval_matrix: sme-matrix) and tenant authority limits.
+# <= NGN 10M with grade A-C: L1; <= 50M: L1 + L2; above: L1 + L2 + committee. A medium+ exception adds a level;
+# votes above NGN 5M need a fresh step-up.
+MATRIX_CONTENT='{"evaluator_version":"1.0.0","currency":"NGN",
+ "levels":[{"code":"L1","name":"Credit Approver","roles":["credit_approver"],"mode":"single"},
+           {"code":"L2","name":"Head of Credit","roles":["head_of_credit"],"mode":"single"},
+           {"code":"L3","name":"Chief Credit Officer","roles":["chief_credit_officer"],"mode":"single"}],
+ "routing":{"hit_policy":"FIRST","rows":[
+   {"when":"exposure.amount <= 10000000 and decision.risk_grade in ['"'"'A'"'"', '"'"'B'"'"', '"'"'C'"'"']","outputs":{"levels":["L1"]}},
+   {"when":"exposure.amount <= 50000000","outputs":{"levels":["L1","L2"]}},
+   {"when":"true","outputs":{"levels":["L1","L2","L3"]}}]},
+ "escalation":{"on_exception":true,"min_exception_severity":"medium","on_no_eligible_approver":true},
+ "step_up":{"above_amount":"5000000"}}'
+LIMITS_CONTENT='{"currency":"NGN","roles":{"credit_approver":"20000000.00","head_of_credit":"100000000.00","chief_credit_officer":"500000000.00"}}'
+
+seed_config() { # type key name description content_json   (needs ADA_JAR + BO_JAR)
+  local type="$1" key="$2" cname="$3" cdesc="$4" content="$5"
   local base="/api/v1/config-artifacts/$type" art active ver vstatus cr
-  heading "Rule set $type/$key (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
+  heading "Configuration $type/$key (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
   JAR="$ADA_JAR"
   api GET "$base?page%5Bsize%5D=100" ''; expect 200 "list rule sets"
   art="$(jq -r --arg k "$key" '.data[] | select(.key==$k) | .id' <<<"$BODY" | head -1)"
   active="$(jq -r --arg k "$key" '.data[] | select(.key==$k) | .active_version_id // empty' <<<"$BODY" | head -1)"
   if [[ -n "$active" ]]; then info "already active (version $active)"; return; fi
   if [[ -z "$art" ]]; then
-    apost "$base" "$(jq -nc --arg k "$key" '{key:$k,name:"SME credit policy",description:"Knock-outs, policy, grade, affordability (DSR <= 40%) and pricing (seed-demo)"}')"
-    expect 201 "create rule set artefact"; art="$(jq -r '.data.id' <<<"$BODY")"
+    apost "$base" "$(jq -nc --arg k "$key" --arg n "$cname" --arg d "$cdesc" '{key:$k,name:$n,description:$d}')"
+    expect 201 "create $type artefact"; art="$(jq -r '.data.id' <<<"$BODY")"
   fi
   api GET "$base/$art/versions?page%5Bsize%5D=100" ''; expect 200 "list rule set versions"
   ver="$(jq -r '[.data[] | select(.status=="draft" or .status=="in_review" or .status=="submitted" or .status=="approved")] | last | .id // empty' <<<"$BODY")"
   vstatus="$(jq -r --arg v "$ver" '.data[] | select(.id==$v) | .status' <<<"$BODY")"
   if [[ -z "$ver" ]]; then
-    apost "$base/$art/versions" "$(jq -c '{content: ., notes: "seed-demo"}' <<<"$RULE_SET_CONTENT")"
+    apost "$base/$art/versions" "$(jq -c '{content: ., notes: "seed-demo"}' <<<"$content")"
     if [[ "$HTTP_STATUS" == 422 ]]; then
       printf '%s\n' "$BODY" | jq . >&2 || printf '%s\n' "$BODY" >&2
-      die "the rule set content was rejected (validation errors above)"
+      die "the $type content was rejected (validation errors above)"
     fi
     expect 201 "create rule set version"; ver="$(jq -r '.data.id' <<<"$BODY")"; vstatus=draft; ok "version $ver drafted"
   fi
@@ -728,7 +749,7 @@ seed_rule_set() { # needs ADA_JAR + BO_JAR
     expect 202 "request rule set activation"; cr="$(jq -r '.data.id' <<<"$BODY")"
   fi
   JAR="$BO_JAR"; approve_cr "$cr"; expect 200 "approve rule set activation"; JAR="$ADA_JAR"
-  ok "rule set $key is live (change request $cr)"
+  ok "$type $key is live (change request $cr)"
 }
 
 seed_consent() { # party_id purpose   (current $JAR needs party:manage)
@@ -817,16 +838,21 @@ cmd_seed_demo() {
   login "$ADMIN1_EMAIL"; ADA_JAR="$JAR"
   seed_org
   heading "Demo users and roles (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
-  local lola chidi ngozi tunde r_lo r_doc r_cmp r_bm r_sca
+  local lola chidi ngozi tunde kemi segun r_lo r_doc r_cmp r_bm r_sca r_ap1 r_ap2
   lola="$(seed_user "$DEMO_LO_EMAIL" "$DEMO_LO_NAME")"
   chidi="$(seed_user "$DEMO_CMP1_EMAIL" "$DEMO_CMP1_NAME")"
   ngozi="$(seed_user "$DEMO_CMP2_EMAIL" "$DEMO_CMP2_NAME")"
   tunde="$(seed_user "$DEMO_CA_EMAIL" "$DEMO_CA_NAME")"
+  kemi="$(seed_user "$DEMO_AP1_EMAIL" "$DEMO_AP1_NAME")"
+  segun="$(seed_user "$DEMO_AP2_EMAIL" "$DEMO_AP2_NAME")"
   r_lo="$(seed_role demo_loan_officer 'Loan Officer (demo)' loan_officer legal_entity:read org_unit:read)"
   r_doc="$(seed_role demo_documentation_officer 'Documentation Officer (demo)' documentation_officer)"
   r_cmp="$(seed_role demo_compliance_officer 'Compliance Officer (demo)' compliance_officer)"
   r_bm="$(seed_role demo_branch_manager 'Branch Manager (demo)' branch_manager)"
   r_sca="$(seed_role demo_senior_credit_analyst 'Senior Credit Analyst (demo)' senior_credit_analyst)"
+  # approval matrix levels name these role codes
+  r_ap1="$(seed_role credit_approver 'Credit Approver' credit_approver)"
+  r_ap2="$(seed_role head_of_credit 'Head of Credit' credit_approver)"
   seed_assignment "$lola" "$r_lo" "lola: loan officer"
   seed_assignment "$lola" "$r_doc" "lola: documentation officer"
   seed_assignment "$chidi" "$r_cmp" "chidi: compliance officer"
@@ -835,6 +861,8 @@ cmd_seed_demo() {
   # ngozi also verifies documents lola uploaded (a different officer must verify an upload).
   seed_assignment "$ngozi" "$r_doc" "ngozi: documentation officer"
   seed_assignment "$tunde" "$r_sca" "tunde: senior credit analyst"
+  seed_assignment "$kemi" "$r_ap1" "kemi: credit approver (L1)"
+  seed_assignment "$segun" "$r_ap2" "segun: head of credit (L2)"
 
   JAR="$ADA_JAR"; seed_product_author
   JAR="$BO_JAR"; seed_product_review
@@ -844,6 +872,8 @@ cmd_seed_demo() {
     ok "product $DEMO_PRODUCT_KEY is live"
   fi
   seed_rule_set
+  seed_config approval.matrix sme-matrix 'SME approval matrix' 'L1 to 10M (grade A-C), L1+L2 to 50M, CCO above (seed-demo)' "$MATRIX_CONTENT"
+  seed_config approval.authority_limits default 'Authority limits' 'Role limits in NGN (seed-demo)' "$LIMITS_CONTENT"
   rm -f "$ADA_JAR" "$BO_JAR"
 
   heading "Parties and applications (as $DEMO_LO_EMAIL)"
@@ -891,9 +921,22 @@ cmd_seed_demo() {
   artisan queue:work --stop-when-empty --tries=3 >/dev/null 2>&1 || true
   rm -f "$LOLA_JAR" "$NGOZI_JAR" "$DEV_DIR/seed-headers"
 
+  heading "Approval demo: $DEMO_CA_EMAIL takes Chinedu Eze through bureau, decision, memo and recommend"
+  login "$DEMO_CA_EMAIL"
+  app_get "$app2"
+  if [[ "$(jq -r '.data.status' <<<"$BODY")" == assessment ]]; then
+    apost "/api/v1/applications/$app2/bureau-reports/actions/pull" '{}'; expect 201 "pull bureau"
+    apost "/api/v1/applications/$app2/decisions/actions/run" '{}'; expect 201 "run decision"; ok "decision $(jq -r '.data.outcome' <<<"$BODY"), grade $(jq -r '.data.risk_grade' <<<"$BODY")"
+    apost "/api/v1/applications/$app2/credit-memo" '{"narrative":"Six years trading, clean bureau and comfortable affordability. Recommend approval on the requested terms.","recommendation":"approve"}'; expect 201 "save memo"
+    app_get "$app2"
+    apost "/api/v1/applications/$app2/actions/recommend" '{}' -H "If-Match: $APP_ETAG"; expect 200 "recommend"
+    app_get "$app2"; ok "$(jq -r '.data.reference' <<<"$BODY"): $(jq -r '.data.status' <<<"$BODY") (L1 vote: $DEMO_AP1_EMAIL)"
+  else info "Chinedu Eze case is $(jq -r '.data.status' <<<"$BODY"); left as is"; fi
+  rm -f "$JAR"
+
   heading "MFA enrolment for the compliance demo users"
   local who
-  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL"; do
+  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL" "$DEMO_AP1_EMAIL" "$DEMO_AP2_EMAIL"; do
     if [[ -f "$(secret_file_for "$who")" && -n "$(sql_value "select coalesce(mfa_confirmed_at::text, '') from users where lower(email) = lower('$who')" "$tid")" ]]; then
       info "$who: enrolled, secret on file"
     else login "$who"; rm -f "$JAR"; fi
@@ -906,11 +949,13 @@ cmd_seed_demo() {
       $DEMO_CMP1_EMAIL    Compliance Officer + Branch Manager (propose alert dispositions, recommend, approve waivers)
       $DEMO_CMP2_EMAIL    Compliance Officer + Documentation Officer (confirm dispositions, verify lola's uploads)
       $DEMO_CA_EMAIL    Senior Credit Analyst (pull bureau, run decision, exceptions, credit memo, recommend)
+      $DEMO_AP1_EMAIL     Credit Approver, L1 (limit NGN 20M)
+      $DEMO_AP2_EMAIL    Head of Credit, L2 (limit NGN 100M; votes above NGN 5M need a fresh step-up)
     Draft application:      Adebayo Foods Limited, NGN 12.5M / 24 months  ($app1)
-    Submitted application:  Chinedu Eze, NGN 2M / 12 months               ($app2)
+    In approval (L1):       Chinedu Eze, NGN 2M / 12 months               ($app2)
     Screening alert:        Emeka Obi (synthetic PEP), NGN 5M             ($app3)
-    Credit (Assessment):    Chinedu Eze NGN 2M (clean bureau -> approve; lower data.monthly_income to
-                            e.g. 150000.00 for a counter-offer), Bola Adeyemi NGN 3M (BVN ..13: write-off -> refer)  ($app4)
+    Credit (Assessment):    Bola Adeyemi NGN 3M (BVN ..13: write-off -> refer)  ($app4)
+    Approval matrix:        approval.matrix/sme-matrix + approval.authority_limits/default
     Rule set:               credit.rule_set/$DEMO_RULE_SET_KEY (evaluator 1.0.0)
     Screening runs asynchronously (outbox -> database queue). seed-demo drains it once; for live
     updates keep both running in backend/:  php artisan schedule:work   and   php artisan queue:work

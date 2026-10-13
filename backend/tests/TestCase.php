@@ -117,20 +117,23 @@ abstract class TestCase extends BaseTestCase
      * @param  list<string|Permission>  $permissions
      * @param  array<string, mixed>  $scope
      */
-    public function userWith(array $permissions, array $scope = [], string $kind = 'human', ?string $homeOrgUnitId = null, ?string $homeLegalEntityId = null): UserCredentials
+    public function userWith(array $permissions, array $scope = [], string $kind = 'human', ?string $homeOrgUnitId = null, ?string $homeLegalEntityId = null, ?string $roleCode = null): UserCredentials
     {
         $tenant = $this->tenantContext()->requireId();
-        $role = new Role;
-        $role->forceFill(['code' => 'test_'.Str::lower(Str::random(10)), 'name' => 'Test role', 'is_template' => false])->save();
-        foreach ($permissions as $p) {
-            (new RolePermission)->forceFill(['role_id' => $role->id, 'permission_code' => $p instanceof Permission ? $p->value : $p])->save();
+        $role = $roleCode === null ? null : Role::query()->where('code', $roleCode)->where('is_template', false)->first();
+        if ($role === null) {
+            $role = new Role;
+            $role->forceFill(['code' => $roleCode ?? 'test_'.Str::lower(Str::random(10)), 'name' => $roleCode === null ? 'Test role' : Str::headline($roleCode), 'is_template' => false])->save();
+            foreach ($permissions as $p) {
+                (new RolePermission)->forceFill(['role_id' => $role->id, 'permission_code' => $p instanceof Permission ? $p->value : $p])->save();
+            }
         }
         $email = Str::lower(Str::random(10)).'@staff.test';
         $user = new User;
         $user->forceFill([
             'kind' => $kind,
             'email' => $email,
-            'name' => 'Test User',
+            'name' => $roleCode === null ? 'Test User' : 'Test '.Str::headline($roleCode),
             'password' => $kind === 'human' ? $this->app->make(Hasher::class)->make(self::PASSWORD) : null,
             'status' => 'active',
             'home_org_unit_id' => $homeOrgUnitId,

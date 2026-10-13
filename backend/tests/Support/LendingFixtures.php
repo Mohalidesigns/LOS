@@ -171,4 +171,34 @@ final class LendingFixtures
             ]],
         ], $overrides);
     }
+
+    /** @return array<string, mixed> the SME approval matrix used across tests and the demo seed */
+    public static function smeMatrix(array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'evaluator_version' => '1.0.0',
+            'currency' => 'NGN',
+            'levels' => [
+                ['code' => 'L1', 'name' => 'Credit Approver', 'roles' => ['credit_approver'], 'mode' => 'single'],
+                ['code' => 'L2', 'name' => 'Head of Credit', 'roles' => ['head_of_credit'], 'mode' => 'single'],
+                ['code' => 'L3', 'name' => 'Chief Credit Officer', 'roles' => ['chief_credit_officer'], 'mode' => 'single'],
+            ],
+            'routing' => ['hit_policy' => 'FIRST', 'rows' => [
+                ['when' => "exposure.amount <= 10000000 and decision.risk_grade in ['A', 'B', 'C']", 'outputs' => ['levels' => ['L1']]],
+                ['when' => 'exposure.amount <= 50000000', 'outputs' => ['levels' => ['L1', 'L2']]],
+                ['when' => 'true', 'outputs' => ['levels' => ['L1', 'L2', 'L3']]],
+            ]],
+            'escalation' => ['on_exception' => true, 'min_exception_severity' => 'medium', 'on_no_eligible_approver' => true],
+            'step_up' => ['above_amount' => '5000000'],
+        ], $overrides);
+    }
+
+    /** @return array<string, mixed> */
+    public static function authorityLimits(array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'currency' => 'NGN',
+            'roles' => ['credit_approver' => '20000000.00', 'head_of_credit' => '100000000.00', 'chief_credit_officer' => '500000000.00'],
+        ], $overrides);
+    }
 }
