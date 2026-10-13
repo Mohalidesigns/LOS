@@ -101,14 +101,13 @@ function RequestDetail({ summary, canApprove }: { summary: ApprovalRequest; canA
 
         {r.conditions.length > 0 && (
           <section aria-labelledby="apv-cond" className="rounded-card border bg-surface p-5 shadow-card">
-            <CardHeader title="Conditions" titleId="apv-cond" level={2} subtitle="Attached by approvers. Conditions precedent block disbursement until met or waived." />
+            <CardHeader title="Conditions" titleId="apv-cond" level={2} subtitle="Attached by approvers. After the offer is accepted they are tracked, signed off or waived on the Conditions tab." />
             <ul className="space-y-2">
               {r.conditions.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-control border p-3">
                   <span className="text-body-sm text-primary">{c.description}</span>
                   <span className="flex gap-2">
                     <Pill tone="info">{c.kind === 'precedent' ? 'CP' : 'CS'}</Pill>
-                    <Pill tone={c.status === 'open' ? 'warning' : 'success'}>{c.status === 'open' ? 'Open' : c.status === 'satisfied' ? 'Satisfied' : 'Waived'}</Pill>
                   </span>
                 </li>
               ))}

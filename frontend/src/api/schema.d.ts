@@ -1616,6 +1616,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/applications/{id}/conditions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conditions, recent pre-disbursement checks and release readiness for an application */
+        get: operations["getApplicationConditions"];
+        put?: never;
+        /** Add a condition precedent or subsequent */
+        post: operations["addCondition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conditions/{id}/actions/satisfy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign off a condition with evidence: an uploaded file and/or a reference */
+        post: operations["satisfyCondition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conditions/{id}/actions/request-waiver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a waiver; a checker holding condition:waive_approve decides (maker-checker) */
+        post: operations["requestConditionWaiver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/pre-disbursement-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run the final pre-disbursement check: KYC, re-screen, executed agreement, CPs, approval validity and destination name enquiry. Pass or fail, the result is recorded. */
+        post: operations["runPreDisbursementCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2929,6 +2998,99 @@ export interface components {
                 /** Format: date-time */
                 executed_at: string;
             } | null;
+        };
+        Condition: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            /** @enum {string} */
+            kind: "precedent" | "subsequent";
+            /** @enum {string} */
+            source: "approval" | "manual";
+            description: string;
+            mandatory: boolean;
+            owner: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date */
+            due_date: string | null;
+            is_overdue: boolean;
+            /** @enum {string} */
+            status: "open" | "waiver_pending" | "satisfied" | "waived";
+            evidence: {
+                /** Format: uuid */
+                document_id: string | null;
+                /** Format: uuid */
+                version_id: string | null;
+                reference: string | null;
+            } | null;
+            signoff: {
+                by: {
+                    id: string;
+                    name: string | null;
+                } | null;
+                /** Format: date-time */
+                at: string;
+                note: string | null;
+            } | null;
+            waiver: {
+                /** Format: uuid */
+                change_request_id: string;
+                reason: string | null;
+            } | null;
+            created_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        PreDisbursementCheck: {
+            /** Format: uuid */
+            id: string;
+            sequence: number;
+            passed: boolean;
+            items: {
+                /** @enum {string} */
+                code: "kyc_current" | "screening_clear" | "documentation_executed" | "conditions_precedent" | "approval_valid" | "account_verified" | "security_perfected" | "insurance_in_force";
+                label: string;
+                /** @enum {string} */
+                status: "pass" | "fail" | "not_applicable";
+                detail: string;
+            }[];
+            destination: {
+                bank_code: string;
+                account: string;
+                account_name: string | null;
+                name_match_score: number | null;
+            };
+            screening: {
+                runs: number;
+                new_hits: number;
+                open_alerts: number;
+            };
+            checked_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date-time */
+            checked_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            is_current: boolean;
+        };
+        ConditionRegister: {
+            /** Format: uuid */
+            application_id: string;
+            status: string;
+            conditions: components["schemas"]["Condition"][];
+            checks: components["schemas"]["PreDisbursementCheck"][];
+            readiness: {
+                ready_for_release: boolean;
+                blockers: string[];
+            };
         };
     };
     responses: {
@@ -6708,6 +6870,184 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["Offer"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getApplicationConditions: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ConditionRegister"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addCondition: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    kind: "precedent" | "subsequent";
+                    description: string;
+                    mandatory?: boolean;
+                    /** Format: uuid */
+                    owner_id?: string | null;
+                    /** Format: date */
+                    due_date?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Added */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Condition"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    satisfyCondition: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file?: string;
+                    note: string;
+                    evidence_reference?: string;
+                };
+                "application/json": {
+                    note: string;
+                    evidence_reference: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Satisfied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Condition"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestConditionWaiver: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Change request awaiting a checker */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ChangeRequest"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    runPreDisbursementCheck: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    bank_code: string;
+                    account_no: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded (see passed) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PreDisbursementCheck"];
                     };
                 };
             };
