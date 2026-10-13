@@ -344,3 +344,125 @@ NGN 20M) and segun (Head of Credit, L2, NGN 100M), and takes Chinedu Eze
 - A routing failure (no matrix bound or active) is only logged. The case
   stays Recommended and the tab explains this. There is no "re-route" action
   yet.
+
+## Milestone 6 — Offer, delivery, signing and acceptance (2026-10-13)
+
+**Gate results:** Pest **257 passed, 0 failed**; Larastan L8 0 errors; Pint
+pass. Frontend `npm run verify`: 148 tests, contrast pass, build OK. Smoke
+test on the seeded dev stack as femi (legal officer), on DEMO-2026-000006
+(Amaka Nwosu, NGN 3M / 12 months at 24.5%):
+- issue: instalment NGN 284,405.20, total cost of credit NGN 457,862.41,
+  APR 27.47%, effective annual rate 31.20%
+- email sent through the outbox; printed copy recorded
+- borrower, then bank, signed in order
+- accepted with the executed upload, and the case is now Accepted
+
+### Offer & execution (M12, P1-OFR-01/02)
+- New `Offer` module. It reaches other modules only through contracts:
+  `ApprovalRegister` (standing approval, counter terms, conditions),
+  `CreditFile` (rate), `ProductCatalogue`, `ActiveConfiguration`,
+  `PartyDirectory` (new `contactEmail()`), `OrganisationDirectory`,
+  `AuthorityDirectory` and `ApplicationLifecycle`. It also uses two new
+  contracts:
+  - `Document/DocumentArchive` files generated and uploaded documents in
+    the encrypted, immutable vault, so offer letters and executed
+    agreements appear under Documents and download through the existing
+    content endpoint.
+  - `Offer/OfferRegister` exposes the accepted terms, schedule and
+    agreement hash for booking (LOS-FR-313).
+- **Template** = `offer.template` configuration, bound by the product's new
+  `bindings.offer_template` and activated through maker-checker. It holds
+  HTML with whitelisted `{{ variables }}` and required `{{ key_facts }}`,
+  `{{ schedule }}` and `{{ signatures }}` blocks (`{{ conditions }}` is
+  optional). The template also sets the execution method, signing order,
+  validity, re-issue limit and disclosure method. Scripts, event handlers
+  and remote URLs are rejected. `e_sign` is refused until the P4 provider
+  (FR-OFR-006).
+- **Terms** come from the standing approval: the requested amount and tenor
+  when approved and in date, the counter terms when counter-offered. The
+  rate comes from the credit decision.
+- **Schedule** comes from the core banking system through
+  `SchedulePort::generateSchedule` (the CBA simulator in dev), so the
+  booked schedule is the one the customer signs (FR-OFR-003).
+- **Key facts** (FR-OFR-002, FR-CMP-025), method `ng_v0`, computed in exact
+  decimals:
+  - total interest
+  - non-contingent fees (contingent fees are listed but not costed)
+  - total cost of credit
+  - total repayable
+  - net disbursed
+  - APR, from the monthly IRR by bisection; checked to equal the nominal
+    rate when there are no fees
+  - effective annual rate
+  - cooling-off period
+
+  This is not verified against the CBN rules yet (G-24, D-049).
+- **PDF:** a new `PdfRenderPort` (I-34) with a `gotenberg` adapter for
+  production and `pdf-render-simulator` for dev. The simulator writes a real
+  text PDF; `RenderedPdf` keeps the bytes out of the integration call log.
+- **Delivery** (FR-OFR-004 ◐): email is queued through the outbox and sent
+  with the PDF attached through the installation's mailer. The recipient is
+  masked in the API and audit. A printed branch copy is recorded. SMS and
+  in-app delivery wait for P1-NTF-01 / P4.
+- **Signing** (FR-OFR-005/009): signatories are expanded from the template
+  order (primary, joint, guarantor, co_signer, bank), and out-of-order
+  signatures are refused. Signing time must fall between issue and now
+  (compared to the second).
+- **Acceptance** (FR-OFR-010): needs every signature and an in-date offer.
+  The executed upload is sniffed, malware-scanned and stored. An immutable
+  `agreements` row records:
+  - the executed document hash and the issued PDF hash
+  - the template version
+  - the signature log
+
+  The case moves Accepted and `OfferAccepted` is raised for P1-CPR-01.
+- **Re-issue** (FR-OFR-007): only an unsigned live offer, within
+  `max_reissues`. The old offer is superseded, and the new one gets a fresh
+  schedule, PDF and validity.
+- **Decline:** reject or negotiate both send the case back to Assessment
+  with a reason code (FR-OFR-008, G-14d).
+- **Expiry:** hourly `offers:expire` (FR-OFR-007). Signing and acceptance
+  are refused past `valid_until`. Reminders wait for P1-NTF-01.
+- API: `GET/POST /applications/{id}/offers`, `GET /offers/{id}`,
+  `POST /offers/{id}/actions/reissue|accept|decline`,
+  `POST /offers/{id}/deliveries`,
+  `POST /offers/{id}/signatories/{signatoryId}/actions/sign`
+  (fragment `p6-offers.php`).
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-OFR-001 / 003 / 005 / 009 / 010, LOS-FR-314 | Done | `OfferTest`, `OfferDomainTest` |
+| FR-OFR-002, FR-CMP-025 | Done for method `ng_v0`; rule verification pending (G-24) | `OfferTest`, `OfferDomainTest` |
+| FR-OFR-004 | Partial: email + print; SMS / in-app P4 | `OfferTest` |
+| FR-OFR-006 | Partial: wet sign only; e-sign provider P4 | template validation in `OfferTest` |
+| FR-OFR-007 | Partial: validity, expiry, re-issue limit; reminders with P1-NTF-01 | `OfferTest` |
+| FR-OFR-008 | Done | `OfferTest` |
+
+### Frontend (P1-FE-04 offer slice)
+- **Offer tab** on the case:
+  - an issue panel, with the reason when an offer can't be issued
+  - the offer: terms, validity, PDF download, a kebab menu with re-issue
+    and customer response
+  - key facts and fees, with the schedule in a collapsible table
+  - the ordered signing list: record the next signature, then accept with
+    an executed-agreement upload; the agreement hash is shown
+  - deliveries: email, or record a printed copy
+  - earlier offers
+- `features/offers/domain.ts` has 7 unit tests.
+
+### Demo seed
+- Adds femi (Legal Officer).
+- Activates `offer.template/sme-offer`.
+- Authors product v2 with the `offer_template` binding. In-flight cases stay
+  pinned to v1, which has no template (FR-PRD-006).
+- Takes a new case, Amaka Nwosu (NGN 3M), through KYC, documents, credit
+  and approval to Approved.
+- Fixes `seed_credit_demo` so it re-reads the status after the KYC gate.
+
+### Gaps carried forward
+- The Offer tab was not checked in the browser this milestone: the browser
+  pane was in use. The flow was exercised against the live API instead.
+- The bank signatory is recorded by the officer. There is no check yet that
+  the bank signs within delegated authority.
+- No pre-issue preview of key facts. The schedule start date is the issue
+  date.

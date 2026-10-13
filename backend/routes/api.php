@@ -18,6 +18,7 @@ use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
 use Fundly\Modules\Credit\Http\Controllers\CreditController;
 use Fundly\Modules\Document\Http\Controllers\DocumentController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
+use Fundly\Modules\Offer\Http\Controllers\OfferController;
 use Fundly\Modules\Party\Http\Controllers\PartyController;
 use Fundly\Modules\Platform\Http\Controllers\ConfigController;
 use Fundly\Modules\Platform\Http\Controllers\LegalEntityController;
@@ -132,6 +133,16 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('approval-requests', [ApprovalController::class, 'inbox'])->middleware('authz:application:approve')->name('approval-requests.inbox');
     Route::get('approval-requests/{id}', [ApprovalController::class, 'show'])->middleware('authz:application:view')->name('approval-requests.show');
     Route::post('approval-requests/{id}/actions/vote', [ApprovalController::class, 'vote'])->middleware(['authz:application:approve', 'idempotent'])->name('approval-requests.vote');
+
+    // Offers (FR-OFR-001..010): the offer PDF and executed agreement download through documents/{id}/versions/{versionId}/content
+    Route::get('applications/{id}/offers', [OfferController::class, 'forApplication'])->middleware('authz:application:view')->name('offers.index');
+    Route::post('applications/{id}/offers', [OfferController::class, 'issue'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.issue');
+    Route::get('offers/{id}', [OfferController::class, 'show'])->middleware('authz:application:view')->name('offers.show');
+    Route::post('offers/{id}/actions/reissue', [OfferController::class, 'reissue'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.reissue');
+    Route::post('offers/{id}/deliveries', [OfferController::class, 'deliver'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.deliver');
+    Route::post('offers/{id}/signatories/{signatoryId}/actions/sign', [OfferController::class, 'sign'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.sign');
+    Route::post('offers/{id}/actions/accept', [OfferController::class, 'accept'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.accept');
+    Route::post('offers/{id}/actions/decline', [OfferController::class, 'decline'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.decline');
 
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
     Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');

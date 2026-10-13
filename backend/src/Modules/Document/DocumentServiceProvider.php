@@ -9,10 +9,12 @@ use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Application\Contracts\Events\ApplicationCreated;
 use Fundly\Modules\Application\Contracts\Events\ApplicationStatusChanged;
 use Fundly\Modules\Document\Application\DocumentationProgression;
+use Fundly\Modules\Document\Application\VaultDocumentArchive;
 use Fundly\Modules\Document\Application\WaiveChecklistItemAction;
 use Fundly\Modules\Document\Application\WaiveChecklistItemCreditAuthority;
 use Fundly\Modules\Document\Application\WaiveChecklistItemStandard;
 use Fundly\Modules\Document\Console\ExpireDocumentsCommand;
+use Fundly\Modules\Document\Contracts\DocumentArchive;
 use Fundly\Modules\Document\Contracts\Events\ChecklistChanged;
 use Fundly\Modules\Document\Infrastructure\Models\ChecklistItem;
 use Fundly\Shared\Security\ResourceAttributes;
@@ -23,6 +25,11 @@ use Illuminate\Support\ServiceProvider;
 /** M07 Documents: upload with malware gate, encrypted immutable versions, checklist, waivers, expiry. */
 final class DocumentServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->scoped(DocumentArchive::class, VaultDocumentArchive::class);
+    }
+
     public function boot(ResourceResolver $resources, Dispatcher $events): void
     {
         $registry = $this->app->make(ChangeActionRegistry::class);

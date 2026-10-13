@@ -41,7 +41,7 @@ final class LendingFixtures
                 ['code' => 'AUDITED_FS', 'name' => 'Audited financial statements', 'mandatory' => true, 'applies_to' => ['amount_min' => '10000000.00']],
                 ['code' => 'GOVT_ID', 'name' => 'Government ID', 'mandatory' => true, 'applies_to' => ['applicant_types' => ['individual']]],
             ],
-            'bindings' => ['workflow' => 'sme-standard', 'rule_set' => 'sme-policy', 'approval_matrix' => 'sme-matrix'],
+            'bindings' => ['workflow' => 'sme-standard', 'rule_set' => 'sme-policy', 'approval_matrix' => 'sme-matrix', 'offer_template' => 'sme-offer'],
             'offer_validity_days' => 30,
             'approval_validity_days' => 60,
         ], $overrides);
@@ -121,7 +121,7 @@ final class LendingFixtures
     /** Bind the identity and screening simulators for the current tenant (UAT posture, D-037). */
     public static function bindSimulators(array $screeningConfig = []): void
     {
-        foreach ([['identity_verification', 'identity-simulator', []], ['screening', 'screening-simulator', $screeningConfig], ['malware_scan', 'malware-scan-simulator', []], ['credit_bureau', 'credit-bureau-simulator', []]] as [$port, $key, $config]) {
+        foreach ([['identity_verification', 'identity-simulator', []], ['screening', 'screening-simulator', $screeningConfig], ['malware_scan', 'malware-scan-simulator', []], ['credit_bureau', 'credit-bureau-simulator', []], ['pdf_render', 'pdf-render-simulator', []], ['core_banking', 'cba-simulator', []]] as [$port, $key, $config]) {
             AdapterBinding::query()->create(['port' => $port, 'adapter_key' => $key, 'adapter_version' => '1.0.0', 'config' => $config, 'processing_location' => 'on_prem:simulator', 'status' => 'active']);
         }
     }
@@ -199,6 +199,22 @@ final class LendingFixtures
         return array_replace_recursive([
             'currency' => 'NGN',
             'roles' => ['credit_approver' => '20000000.00', 'head_of_credit' => '100000000.00', 'chief_credit_officer' => '500000000.00'],
+        ], $overrides);
+    }
+
+    /** @return array<string, mixed> the SME offer letter template used across tests and the demo seed */
+    public static function offerTemplate(array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'title' => 'Offer of credit facility',
+            'body_html' => '<h1>Offer of credit facility</h1><p>{{ bank.name }} · {{ offer.date }} · Ref {{ application.reference }} (offer {{ offer.sequence }})</p>'
+                .'<p>Dear {{ applicant.name }},</p><p>We are pleased to offer you a {{ product.name }} of {{ terms.amount }} over {{ terms.tenor_months }} months at {{ terms.rate_percent }} per year, '
+                .'repayable in {{ terms.repayment_frequency }} instalments of {{ terms.instalment }}. This offer is valid until {{ offer.valid_until }}.</p>'
+                .'{{ key_facts }}{{ conditions }}{{ schedule }}{{ signatures }}',
+            'execution_method' => 'wet_sign',
+            'signing_order' => ['primary', 'guarantor', 'bank'],
+            'max_reissues' => 2,
+            'disclosure' => ['method' => 'ng_v0', 'cooling_off_days' => 3],
         ], $overrides);
     }
 }

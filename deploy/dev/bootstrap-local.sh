@@ -66,6 +66,8 @@ DEMO_AP1_NAME="${DEMO_AP1_NAME:-Kemi Approver}"
 DEMO_AP1_EMAIL="${DEMO_AP1_EMAIL:-kemi@fundly.test}"
 DEMO_AP2_NAME="${DEMO_AP2_NAME:-Segun Head of Credit}"
 DEMO_AP2_EMAIL="${DEMO_AP2_EMAIL:-segun@fundly.test}"
+DEMO_LG_NAME="${DEMO_LG_NAME:-Femi Legal}"
+DEMO_LG_EMAIL="${DEMO_LG_EMAIL:-femi@fundly.test}"
 DEMO_RULE_SET_KEY="${DEMO_RULE_SET_KEY:-sme-policy}"
 
 LICENCE_MODULES="${LICENCE_MODULES:-*}"
@@ -98,7 +100,7 @@ password_for() {
   case "$1" in
     "$ADMIN1_EMAIL") printf '%s' "$ADMIN1_PASSWORD" ;;
     "$ADMIN2_EMAIL") printf '%s' "$ADMIN2_PASSWORD" ;;
-    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL"|"$DEMO_CA_EMAIL"|"$DEMO_AP1_EMAIL"|"$DEMO_AP2_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
+    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL"|"$DEMO_CA_EMAIL"|"$DEMO_AP1_EMAIL"|"$DEMO_AP2_EMAIL"|"$DEMO_LG_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
     *) local v="${FUNDLY_DEV_PASSWORD:-}"; [[ -n "$v" ]] || die "no password known for $1 (set FUNDLY_DEV_PASSWORD)"; printf '%s' "$v" ;;
   esac
 }
@@ -575,6 +577,23 @@ seed_assignment() { # user_id role_id label   (needs ADA_JAR + BO_JAR)
   done
 }
 
+# The product definition (bindings name the rule set, approval matrix and offer template seeded below).
+PRODUCT_CONTENT='{"category":"sme_term_loan","segment":"sme","currency":"NGN","applicant_types":["limited_company","individual"],
+      "amount":{"min":"500000.00","max":"50000000.00"},"tenor_months":{"min":3,"max":36},
+      "interest":{"basis":"reducing_balance","rate_percent":"24.5000"},"repayment_frequency":"monthly","moratorium_months":{"max":3},
+      "fees":[{"code":"MGMT","name":"Management fee","type":"upfront","calc":"percent","value":"1.0000"},
+              {"code":"CRI","name":"Credit life insurance","type":"upfront","calc":"percent","value":"0.5000"}],
+      "penalty":{"rate_percent":"2.0000"},"prepayment":{"allowed":true,"fee_percent":"1.0000"},
+      "eligibility":[{"code":"MIN_TRADING","description":"At least 12 months trading history"}],
+      "checklist":[
+        {"code":"CAC_CERT","name":"CAC certificate of incorporation","mandatory":true,"applies_to":{"applicant_types":["limited_company"]}},
+        {"code":"STATEMENT_6M","name":"6 months bank statements","mandatory":true},
+        {"code":"AUDITED_FS","name":"Audited financial statements","mandatory":true,"applies_to":{"amount_min":"10000000.00"}},
+        {"code":"GOVT_ID","name":"Government ID","mandatory":true,"applies_to":{"applicant_types":["individual"]}},
+        {"code":"BOARD_RES","name":"Board resolution to borrow","mandatory":false,"applies_to":{"applicant_types":["limited_company"]}}],
+      "bindings":{"workflow":"sme-standard","rule_set":"sme-policy","approval_matrix":"sme-matrix","offer_template":"sme-offer"},
+      "offer_validity_days":30,"approval_validity_days":60}'
+
 seed_product_author() { # as ada: artefact, version, submit; leaves PRODUCT_* set
   heading "Product '$DEMO_PRODUCT_KEY' (author: $ADMIN1_EMAIL)"
   local base=/api/v1/config-artifacts/product content
@@ -591,21 +610,7 @@ seed_product_author() { # as ada: artefact, version, submit; leaves PRODUCT_* se
   PRODUCT_VERSION="$(jq -r '[.data[] | select(.status=="draft" or .status=="in_review" or .status=="submitted" or .status=="approved")] | last | .id // empty' <<<"$BODY")"
   PRODUCT_VSTATUS="$(jq -r --arg v "$PRODUCT_VERSION" '.data[] | select(.id==$v) | .status' <<<"$BODY")"
   if [[ -z "$PRODUCT_VERSION" ]]; then
-    content='{"category":"sme_term_loan","segment":"sme","currency":"NGN","applicant_types":["limited_company","individual"],
-      "amount":{"min":"500000.00","max":"50000000.00"},"tenor_months":{"min":3,"max":36},
-      "interest":{"basis":"reducing_balance","rate_percent":"24.5000"},"repayment_frequency":"monthly","moratorium_months":{"max":3},
-      "fees":[{"code":"MGMT","name":"Management fee","type":"upfront","calc":"percent","value":"1.0000"},
-              {"code":"CRI","name":"Credit life insurance","type":"upfront","calc":"percent","value":"0.5000"}],
-      "penalty":{"rate_percent":"2.0000"},"prepayment":{"allowed":true,"fee_percent":"1.0000"},
-      "eligibility":[{"code":"MIN_TRADING","description":"At least 12 months trading history"}],
-      "checklist":[
-        {"code":"CAC_CERT","name":"CAC certificate of incorporation","mandatory":true,"applies_to":{"applicant_types":["limited_company"]}},
-        {"code":"STATEMENT_6M","name":"6 months bank statements","mandatory":true},
-        {"code":"AUDITED_FS","name":"Audited financial statements","mandatory":true,"applies_to":{"amount_min":"10000000.00"}},
-        {"code":"GOVT_ID","name":"Government ID","mandatory":true,"applies_to":{"applicant_types":["individual"]}},
-        {"code":"BOARD_RES","name":"Board resolution to borrow","mandatory":false,"applies_to":{"applicant_types":["limited_company"]}}],
-      "bindings":{"workflow":"sme-standard","rule_set":"sme-policy","approval_matrix":"sme-matrix"},
-      "offer_validity_days":30,"approval_validity_days":60}'
+    content="$PRODUCT_CONTENT"
     apost "$base/$PRODUCT_ARTIFACT/versions" "$(jq -c '{content: ., notes: "seed-demo"}' <<<"$content")"
     expect 201 "create product version"; PRODUCT_VERSION="$(jq -r '.data.id' <<<"$BODY")"; PRODUCT_VSTATUS=draft
     ok "version $PRODUCT_VERSION drafted"
@@ -708,7 +713,12 @@ MATRIX_CONTENT='{"evaluator_version":"1.0.0","currency":"NGN",
  "step_up":{"above_amount":"5000000"}}'
 LIMITS_CONTENT='{"currency":"NGN","roles":{"credit_approver":"20000000.00","head_of_credit":"100000000.00","chief_credit_officer":"500000000.00"}}'
 
-seed_config() { # type key name description content_json   (needs ADA_JAR + BO_JAR)
+OFFER_TEMPLATE_CONTENT='{"title":"Offer of credit facility",
+ "body_html":"<h1>Offer of credit facility</h1><p>{{ bank.name }} · {{ offer.date }} · Ref {{ application.reference }} (offer {{ offer.sequence }})</p><p>Dear {{ applicant.name }},</p><p>We are pleased to offer you a {{ product.name }} of {{ terms.amount }} over {{ terms.tenor_months }} months at {{ terms.rate_percent }} per year, repayable in {{ terms.repayment_frequency }} instalments of {{ terms.instalment }}. This offer is valid until {{ offer.valid_until }}.</p>{{ key_facts }}{{ conditions }}{{ schedule }}{{ signatures }}",
+ "execution_method":"wet_sign","signing_order":["primary","joint","guarantor","bank"],"max_reissues":2,
+ "disclosure":{"method":"ng_v0","cooling_off_days":3}}'
+
+seed_config() { # type key name description content_json [jq predicate the active content must satisfy]   (needs ADA_JAR + BO_JAR)
   local type="$1" key="$2" cname="$3" cdesc="$4" content="$5"
   local base="/api/v1/config-artifacts/$type" art active ver vstatus cr
   heading "Configuration $type/$key (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
@@ -716,7 +726,12 @@ seed_config() { # type key name description content_json   (needs ADA_JAR + BO_J
   api GET "$base?page%5Bsize%5D=100" ''; expect 200 "list rule sets"
   art="$(jq -r --arg k "$key" '.data[] | select(.key==$k) | .id' <<<"$BODY" | head -1)"
   active="$(jq -r --arg k "$key" '.data[] | select(.key==$k) | .active_version_id // empty' <<<"$BODY" | head -1)"
-  if [[ -n "$active" ]]; then info "already active (version $active)"; return; fi
+  if [[ -n "$active" ]]; then
+    if [[ -z "${6:-}" ]]; then info "already active (version $active)"; return; fi
+    api GET "$base/$art/versions?page%5Bsize%5D=100" ''; expect 200 "list $type versions"
+    if jq -e --arg v "$active" "(.data[] | select(.id==\$v) | .content) | $6" <<<"$BODY" >/dev/null; then info "already active and current (version $active)"; return; fi
+    info "active version $active predates this seed; authoring a new version"
+  fi
   if [[ -z "$art" ]]; then
     apost "$base" "$(jq -nc --arg k "$key" --arg n "$cname" --arg d "$cdesc" '{key:$k,name:$n,description:$d}')"
     expect 201 "create $type artefact"; art="$(jq -r '.data.id' <<<"$BODY")"
@@ -815,6 +830,7 @@ seed_credit_demo() { # app ids...  (as lola + ngozi; needs LOLA_JAR + NGOZI_JAR)
         [[ "$(jq -r '.data.status' <<<"$BODY")" == kyc_screening ]] || break
         sleep 2
       done
+      status="$(jq -r '.data.status' <<<"$BODY")"
     fi
     if [[ "$status" == documentation ]]; then
       seed_complete_checklist "$app"
@@ -822,6 +838,29 @@ seed_credit_demo() { # app ids...  (as lola + ngozi; needs LOLA_JAR + NGOZI_JAR)
     fi
     ok "$(jq -r '.data.reference' <<<"$BODY") ($(jq -r '.data.primary_applicant.display_name' <<<"$BODY")): $status"
   done
+}
+
+# Bureau, decision, memo and recommend (as an analyst); the case then routes to approval by itself.
+seed_recommend() { # application id
+  app_get "$1"
+  if [[ "$(jq -r '.data.status' <<<"$BODY")" != assessment ]]; then info "$(jq -r '.data.reference' <<<"$BODY") is $(jq -r '.data.status' <<<"$BODY"); left as is"; return; fi
+  apost "/api/v1/applications/$1/bureau-reports/actions/pull" '{}'; expect 201 "pull bureau"
+  apost "/api/v1/applications/$1/decisions/actions/run" '{}'; expect 201 "run decision"; ok "decision $(jq -r '.data.outcome' <<<"$BODY"), grade $(jq -r '.data.risk_grade' <<<"$BODY")"
+  apost "/api/v1/applications/$1/credit-memo" '{"narrative":"Established trading history, clean bureau and comfortable affordability. Recommend approval on the requested terms.","recommendation":"approve"}'; expect 201 "save memo"
+  app_get "$1"
+  apost "/api/v1/applications/$1/actions/recommend" '{}' -H "If-Match: $APP_ETAG"; expect 200 "recommend"
+  app_get "$1"; ok "$(jq -r '.data.reference' <<<"$BODY"): $(jq -r '.data.status' <<<"$BODY")"
+}
+
+# Approve at the current level if the signed-in approver can vote there.
+seed_vote() { # application id
+  api GET "/api/v1/applications/$1/approval-requests" ''; expect 200 "list approval requests"
+  local rid; rid="$(jq -r '[.data[] | select(.status=="pending")][0].id // empty' <<<"$BODY")"
+  [[ -n "$rid" ]] || { info "no open approval request"; return; }
+  api GET "/api/v1/approval-requests/$rid" ''; expect 200 "get approval request"
+  if [[ "$(jq -r '.data.my_eligibility.can_vote' <<<"$BODY")" != true ]]; then info "not eligible at $(jq -r '.data.levels[.data.current_level].code' <<<"$BODY")"; return; fi
+  apost "/api/v1/approval-requests/$rid/actions/vote" '{"decision":"approve","rationale":"Within appetite; affordable on a clean bureau record (seed-demo)."}'; expect 200 "vote"
+  ok "approval request: $(jq -r '.data.status' <<<"$BODY")"
 }
 
 cmd_seed_demo() {
@@ -838,13 +877,14 @@ cmd_seed_demo() {
   login "$ADMIN1_EMAIL"; ADA_JAR="$JAR"
   seed_org
   heading "Demo users and roles (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
-  local lola chidi ngozi tunde kemi segun r_lo r_doc r_cmp r_bm r_sca r_ap1 r_ap2
+  local lola chidi ngozi tunde kemi segun femi r_lo r_doc r_cmp r_bm r_sca r_ap1 r_ap2 r_lg
   lola="$(seed_user "$DEMO_LO_EMAIL" "$DEMO_LO_NAME")"
   chidi="$(seed_user "$DEMO_CMP1_EMAIL" "$DEMO_CMP1_NAME")"
   ngozi="$(seed_user "$DEMO_CMP2_EMAIL" "$DEMO_CMP2_NAME")"
   tunde="$(seed_user "$DEMO_CA_EMAIL" "$DEMO_CA_NAME")"
   kemi="$(seed_user "$DEMO_AP1_EMAIL" "$DEMO_AP1_NAME")"
   segun="$(seed_user "$DEMO_AP2_EMAIL" "$DEMO_AP2_NAME")"
+  femi="$(seed_user "$DEMO_LG_EMAIL" "$DEMO_LG_NAME")"
   r_lo="$(seed_role demo_loan_officer 'Loan Officer (demo)' loan_officer legal_entity:read org_unit:read)"
   r_doc="$(seed_role demo_documentation_officer 'Documentation Officer (demo)' documentation_officer)"
   r_cmp="$(seed_role demo_compliance_officer 'Compliance Officer (demo)' compliance_officer)"
@@ -853,6 +893,7 @@ cmd_seed_demo() {
   # approval matrix levels name these role codes
   r_ap1="$(seed_role credit_approver 'Credit Approver' credit_approver)"
   r_ap2="$(seed_role head_of_credit 'Head of Credit' credit_approver)"
+  r_lg="$(seed_role demo_legal_officer 'Legal Officer (demo)' legal_officer)"
   seed_assignment "$lola" "$r_lo" "lola: loan officer"
   seed_assignment "$lola" "$r_doc" "lola: documentation officer"
   seed_assignment "$chidi" "$r_cmp" "chidi: compliance officer"
@@ -863,6 +904,7 @@ cmd_seed_demo() {
   seed_assignment "$tunde" "$r_sca" "tunde: senior credit analyst"
   seed_assignment "$kemi" "$r_ap1" "kemi: credit approver (L1)"
   seed_assignment "$segun" "$r_ap2" "segun: head of credit (L2)"
+  seed_assignment "$femi" "$r_lg" "femi: legal officer (offers)"
 
   JAR="$ADA_JAR"; seed_product_author
   JAR="$BO_JAR"; seed_product_review
@@ -874,6 +916,10 @@ cmd_seed_demo() {
   seed_rule_set
   seed_config approval.matrix sme-matrix 'SME approval matrix' 'L1 to 10M (grade A-C), L1+L2 to 50M, CCO above (seed-demo)' "$MATRIX_CONTENT"
   seed_config approval.authority_limits default 'Authority limits' 'Role limits in NGN (seed-demo)' "$LIMITS_CONTENT"
+  seed_config offer.template sme-offer 'SME offer letter' 'Offer letter with key facts, schedule and ordered wet signing (seed-demo)' "$OFFER_TEMPLATE_CONTENT"
+  # products activated before M6 lack the offer template binding: author the next version
+  seed_config product "$DEMO_PRODUCT_KEY" 'SME Term Loan' 'Amortising term loan for SMEs (seed-demo)' "$PRODUCT_CONTENT" '.bindings.offer_template == "sme-offer"'
+
   rm -f "$ADA_JAR" "$BO_JAR"
 
   heading "Parties and applications (as $DEMO_LO_EMAIL)"
@@ -922,21 +968,27 @@ cmd_seed_demo() {
   rm -f "$LOLA_JAR" "$NGOZI_JAR" "$DEV_DIR/seed-headers"
 
   heading "Approval demo: $DEMO_CA_EMAIL takes Chinedu Eze through bureau, decision, memo and recommend"
-  login "$DEMO_CA_EMAIL"
-  app_get "$app2"
-  if [[ "$(jq -r '.data.status' <<<"$BODY")" == assessment ]]; then
-    apost "/api/v1/applications/$app2/bureau-reports/actions/pull" '{}'; expect 201 "pull bureau"
-    apost "/api/v1/applications/$app2/decisions/actions/run" '{}'; expect 201 "run decision"; ok "decision $(jq -r '.data.outcome' <<<"$BODY"), grade $(jq -r '.data.risk_grade' <<<"$BODY")"
-    apost "/api/v1/applications/$app2/credit-memo" '{"narrative":"Six years trading, clean bureau and comfortable affordability. Recommend approval on the requested terms.","recommendation":"approve"}'; expect 201 "save memo"
-    app_get "$app2"
-    apost "/api/v1/applications/$app2/actions/recommend" '{}' -H "If-Match: $APP_ETAG"; expect 200 "recommend"
-    app_get "$app2"; ok "$(jq -r '.data.reference' <<<"$BODY"): $(jq -r '.data.status' <<<"$BODY") (L1 vote: $DEMO_AP1_EMAIL)"
-  else info "Chinedu Eze case is $(jq -r '.data.status' <<<"$BODY"); left as is"; fi
-  rm -f "$JAR"
+  login "$DEMO_CA_EMAIL"; seed_recommend "$app2"; rm -f "$JAR"
+
+  heading "Offer demo: Amaka Nwosu on the current product version, taken to Approved"
+  login "$DEMO_LO_EMAIL"; LOLA_JAR="$JAR"
+  local amaka app5
+  amaka="$(seed_party 'Amaka Nwosu' "$(jq -nc --arg ou "$LAGOS_ID" '{type:"individual",first_name:"Amaka",last_name:"Nwosu",date_of_birth:"1990-03-09",gender:"female",nationality:"NG",phone:"08034440177",email:"amaka.nwosu@example.ng",identities:[{type:"bvn",value:"22255566677"}],org_unit_id:$ou}')")"
+  app5="$(seed_application "$amaka" '3000000.00' 12 'Inventory for a boutique')"
+  seed_submit "$app5"
+  seed_app_data "$app5" '{"monthly_income":"2500000.00","years_trading":5}'
+  artisan schedule:run >/dev/null 2>&1 || true
+  artisan queue:work --stop-when-empty --tries=3 >/dev/null 2>&1 || true
+  login "$DEMO_CMP2_EMAIL"; NGOZI_JAR="$JAR"
+  seed_credit_demo "$app5"
+  rm -f "$LOLA_JAR" "$NGOZI_JAR"
+  login "$DEMO_CA_EMAIL"; seed_recommend "$app5"; rm -f "$JAR"
+  login "$DEMO_AP1_EMAIL"; seed_vote "$app5"; rm -f "$JAR"
+  login "$DEMO_AP2_EMAIL"; seed_vote "$app5"; rm -f "$JAR"
 
   heading "MFA enrolment for the compliance demo users"
   local who
-  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL" "$DEMO_AP1_EMAIL" "$DEMO_AP2_EMAIL"; do
+  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL" "$DEMO_AP1_EMAIL" "$DEMO_AP2_EMAIL" "$DEMO_LG_EMAIL"; do
     if [[ -f "$(secret_file_for "$who")" && -n "$(sql_value "select coalesce(mfa_confirmed_at::text, '') from users where lower(email) = lower('$who')" "$tid")" ]]; then
       info "$who: enrolled, secret on file"
     else login "$who"; rm -f "$JAR"; fi
@@ -951,11 +1003,14 @@ cmd_seed_demo() {
       $DEMO_CA_EMAIL    Senior Credit Analyst (pull bureau, run decision, exceptions, credit memo, recommend)
       $DEMO_AP1_EMAIL     Credit Approver, L1 (limit NGN 20M)
       $DEMO_AP2_EMAIL    Head of Credit, L2 (limit NGN 100M; votes above NGN 5M need a fresh step-up)
+      $DEMO_LG_EMAIL     Legal Officer (issue offers, deliver, record signatures, accept with the executed agreement)
     Draft application:      Adebayo Foods Limited, NGN 12.5M / 24 months  ($app1)
     In approval (L1):       Chinedu Eze, NGN 2M / 12 months               ($app2)
+    Approved (offer ready): Amaka Nwosu, NGN 3M / 12 months               ($app5)
     Screening alert:        Emeka Obi (synthetic PEP), NGN 5M             ($app3)
     Credit (Assessment):    Bola Adeyemi NGN 3M (BVN ..13: write-off -> refer)  ($app4)
     Approval matrix:        approval.matrix/sme-matrix + approval.authority_limits/default
+    Offer template:         offer.template/sme-offer (wet sign: borrower, joint, guarantor, bank)
     Rule set:               credit.rule_set/$DEMO_RULE_SET_KEY (evaluator 1.0.0)
     Screening runs asynchronously (outbox -> database queue). seed-demo drains it once; for live
     updates keep both running in backend/:  php artisan schedule:work   and   php artisan queue:work

@@ -26,7 +26,7 @@ it('defines a product through configuration, activated only via maker-checker, a
         ->and($list[0]['amount']['max'])->toBe(['amount' => '50000000.0000', 'currency' => 'NGN'])
         ->and($list[0]['tenor_months'])->toBe(['min' => 3, 'max' => 36]);
     $detail = $this->api('GET', '/api/v1/products/sme-term-loan')->assertOk()->json('data');
-    expect($detail['definition']['bindings'])->toEqualCanonicalizing(['workflow' => 'sme-standard', 'rule_set' => 'sme-policy', 'approval_matrix' => 'sme-matrix'])
+    expect($detail['definition']['bindings'])->toEqualCanonicalizing(['workflow' => 'sme-standard', 'rule_set' => 'sme-policy', 'approval_matrix' => 'sme-matrix', 'offer_template' => 'sme-offer'])
         ->and($detail['definition']['fees'][0]['code'])->toBe('MGMT');
     $this->api('GET', '/api/v1/products/unknown')->assertNotFound();
 })->group('FR-PRD-001', 'FR-PRD-003', 'FR-PRD-005');

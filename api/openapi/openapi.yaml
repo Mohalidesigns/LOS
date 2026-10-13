@@ -52,6 +52,7 @@ tags:
 - name: Documents
 - name: Credit
 - name: Approvals
+- name: Offers
 # <<< generated: tags
 paths:
   /health:
@@ -4539,6 +4540,323 @@ paths:
         - sessionCookie: []
         - bearerToken: []
       x-idempotency-key: required
+  '/api/v1/applications/{id}/offers':
+    get:
+      summary: 'Offers on an application, newest first'
+      operationId: listApplicationOffers
+      tags:
+        - Offers
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Offer'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Issue the offer: terms from the standing approval, schedule from the core banking system, key facts, PDF from the bound template'
+      operationId: issueOffer
+      tags:
+        - Offers
+      x-permission: 'offer:prepare'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        201:
+          description: 'Issued; the application moves to offer_issued'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Offer'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/offers/{id}':
+    get:
+      summary: 'An offer with key facts, schedule, signatories, deliveries and agreement'
+      operationId: getOffer
+      tags:
+        - Offers
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Offer'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/offers/{id}/actions/reissue':
+    post:
+      summary: 'Re-issue an unsigned offer (fresh terms, schedule and validity) within the template limit'
+      operationId: reissueOffer
+      tags:
+        - Offers
+      x-permission: 'offer:prepare'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+              required:
+                - reason
+      responses:
+        201:
+          description: 'The new offer; the old one is superseded'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Offer'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/offers/{id}/deliveries':
+    post:
+      summary: 'Email the offer to a party (queued) or record a printed branch copy'
+      operationId: deliverOffer
+      tags:
+        - Offers
+      x-permission: 'offer:prepare'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                  enum:
+                    - email
+                    - print
+                party_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+              required:
+                - channel
+      responses:
+        201:
+          description: 'Delivery recorded'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Offer'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/offers/{id}/signatories/{signatoryId}/actions/sign':
+    post:
+      summary: 'Record a wet signature; signatories sign in the template order'
+      operationId: signOffer
+      tags:
+        - Offers
+      x-permission: 'offer:prepare'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: signatoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signed_at:
+                  type: string
+                  format: date-time
+                witness_name:
+                  type:
+                    - string
+                    - 'null'
+                place:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - signed_at
+      responses:
+        200:
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Offer'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/offers/{id}/actions/accept':
+    post:
+      summary: 'Accept a fully signed offer by uploading the executed agreement (stored immutably with its hash)'
+      operationId: acceptOffer
+      tags:
+        - Offers
+      x-permission: 'offer:prepare'
+      x-idempotency-key: required
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        200:
+          description: 'Accepted; the application moves to accepted'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Offer'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/offers/{id}/actions/decline':
+    post:
+      summary: 'The customer rejects or wants to negotiate: the application returns to assessment for revised terms'
+      operationId: declineOffer
+      tags:
+        - Offers
+      x-permission: 'offer:prepare'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outcome:
+                  type: string
+                  enum:
+                    - reject
+                    - negotiate
+                reason_code:
+                  type: string
+                note:
+                  type: string
+              required:
+                - outcome
+                - reason_code
+                - note
+      responses:
+        200:
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Offer'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
 # <<< generated: paths
 components:
   securitySchemes:
@@ -7963,4 +8281,435 @@ components:
         - credit
         - bureau_valid
         - history
+    OfferKeyFacts:
+      type: object
+      properties:
+        method:
+          type: string
+        principal:
+          type: string
+        total_interest:
+          type: string
+        fees:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+              amount:
+                type: string
+              costed:
+                type: boolean
+            required:
+              - code
+              - name
+              - type
+              - amount
+              - costed
+        total_fees:
+          type: string
+        total_cost_of_credit:
+          type: string
+        total_repayable:
+          type: string
+        net_disbursed:
+          type: string
+        apr_percent:
+          type: string
+        effective_annual_rate_percent:
+          type: string
+        instalment_count:
+          type: integer
+        cooling_off_days:
+          type: integer
+      required:
+        - method
+        - principal
+        - total_interest
+        - fees
+        - total_fees
+        - total_cost_of_credit
+        - total_repayable
+        - net_disbursed
+        - apr_percent
+        - effective_annual_rate_percent
+        - instalment_count
+        - cooling_off_days
+    OfferInstalment:
+      type: object
+      properties:
+        number:
+          type: integer
+        due_date:
+          type: string
+        principal:
+          type: string
+        interest:
+          type: string
+        total:
+          type: string
+        closing_balance:
+          type: string
+      required:
+        - number
+        - due_date
+        - principal
+        - interest
+        - total
+        - closing_balance
+    OfferSignatory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: integer
+        role:
+          type: string
+          enum:
+            - primary
+            - joint
+            - guarantor
+            - co_signer
+            - bank
+        party_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        name:
+          type: string
+        signed:
+          type: boolean
+        method:
+          type:
+            - string
+            - 'null'
+        signed_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        witness_name:
+          type:
+            - string
+            - 'null'
+        place:
+          type:
+            - string
+            - 'null'
+        recorded_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        is_next:
+          type: boolean
+      required:
+        - id
+        - position
+        - role
+        - party_id
+        - name
+        - signed
+        - method
+        - signed_at
+        - witness_name
+        - place
+        - recorded_by
+        - is_next
+    OfferDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel:
+          type: string
+          enum:
+            - email
+            - print
+        party_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        recipient:
+          type:
+            - string
+            - 'null'
+        status:
+          type: string
+          enum:
+            - queued
+            - sent
+            - failed
+            - recorded
+        failure:
+          type:
+            - string
+            - 'null'
+        requested_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        requested_at:
+          type: string
+          format: date-time
+        completed_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+      required:
+        - id
+        - channel
+        - party_id
+        - recipient
+        - status
+        - failure
+        - requested_by
+        - requested_at
+        - completed_at
+    Offer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        status:
+          type: string
+          enum:
+            - issued
+            - accepted
+            - rejected
+            - negotiating
+            - expired
+            - superseded
+        is_expired:
+          type: boolean
+        template:
+          type: object
+          properties:
+            key:
+              type: string
+            version_id:
+              type: string
+              format: uuid
+            version_no:
+              type: integer
+          required:
+            - key
+            - version_id
+            - version_no
+        execution_method:
+          type: string
+          enum:
+            - wet_sign
+            - e_sign
+        approval_request_id:
+          type: string
+          format: uuid
+        terms:
+          type: object
+          properties:
+            amount:
+              $ref: '#/components/schemas/Money'
+            tenor_months:
+              type: integer
+            rate_percent:
+              type: string
+            repayment_frequency:
+              type: string
+            instalment:
+              $ref: '#/components/schemas/Money'
+            source:
+              type: string
+              enum:
+                - approval
+                - counter_offer
+          required:
+            - amount
+            - tenor_months
+            - rate_percent
+            - repayment_frequency
+            - instalment
+            - source
+        key_facts:
+          $ref: '#/components/schemas/OfferKeyFacts'
+        schedule:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferInstalment'
+        schedule_source:
+          type: string
+        document:
+          type: object
+          properties:
+            document_id:
+              type: string
+              format: uuid
+            version_id:
+              type: string
+              format: uuid
+            sha256:
+              type: string
+          required:
+            - document_id
+            - version_id
+            - sha256
+        issued_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        issued_at:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        reissue_of:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        reissue_count:
+          type: integer
+        decision:
+          type:
+            - object
+            - 'null'
+          properties:
+            reason_code:
+              type:
+                - string
+                - 'null'
+            note:
+              type:
+                - string
+                - 'null'
+            by:
+              type:
+                - object
+                - 'null'
+              properties:
+                id:
+                  type: string
+                name:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - id
+                - name
+            at:
+              type: string
+              format: date-time
+          required:
+            - reason_code
+            - note
+            - by
+            - at
+        signatories:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferSignatory'
+        deliveries:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferDelivery'
+        agreement:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+              format: uuid
+            document_id:
+              type: string
+              format: uuid
+            version_id:
+              type: string
+              format: uuid
+            sha256:
+              type: string
+            offer_document_sha256:
+              type: string
+            execution_method:
+              type: string
+            executed_at:
+              type: string
+              format: date-time
+          required:
+            - id
+            - document_id
+            - version_id
+            - sha256
+            - offer_document_sha256
+            - execution_method
+            - executed_at
+      required:
+        - id
+        - application_id
+        - sequence
+        - status
+        - is_expired
+        - template
+        - execution_method
+        - approval_request_id
+        - terms
+        - key_facts
+        - schedule
+        - schedule_source
+        - document
+        - issued_by
+        - issued_at
+        - valid_until
+        - reissue_of
+        - reissue_count
+        - decision
+        - signatories
+        - deliveries
+        - agreement
 # <<< generated: schemas

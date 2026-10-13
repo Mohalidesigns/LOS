@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Fundly\Integration;
 
 use Fundly\Integration\Adapters\Clamav\ClamdScanner;
+use Fundly\Integration\Adapters\Gotenberg\GotenbergRenderer;
 use Fundly\Integration\Ports\CoreBanking\CoreBankingPort;
 use Fundly\Integration\Ports\CreditBureau\CreditBureauPort;
 use Fundly\Integration\Ports\Identity\IdentityVerificationPort;
 use Fundly\Integration\Ports\MalwareScan\MalwareScanPort;
+use Fundly\Integration\Ports\PdfRender\PdfRenderPort;
 use Fundly\Integration\Ports\Screening\ScreeningPort;
 use Fundly\Integration\Runtime\AdapterDefinition;
 use Fundly\Integration\Runtime\AdapterRegistry;
@@ -33,6 +35,7 @@ use Fundly\Integration\Simulators\CoreBanking\SimulatorStore;
 use Fundly\Integration\Simulators\CreditBureau\CreditBureauSimulator;
 use Fundly\Integration\Simulators\Identity\IdentitySimulator;
 use Fundly\Integration\Simulators\MalwareScan\MalwareScanSimulator;
+use Fundly\Integration\Simulators\PdfRender\PdfRenderSimulator;
 use Fundly\Integration\Simulators\Screening\ScreeningSimulator;
 use Fundly\Shared\Audit\AuditTrail;
 use Fundly\Shared\Clock\Clock;
@@ -133,6 +136,22 @@ final class IntegrationServiceProvider extends ServiceProvider
             manifest: CreditBureauSimulator::capabilities(),
             factory: static fn (AdapterBinding $binding): CreditBureauSimulator => new CreditBureauSimulator,
             isSimulator: true,
+        ));
+
+        $adapters->register(new AdapterDefinition(
+            key: PdfRenderSimulator::KEY,
+            port: PdfRenderPort::PORT,
+            version: PdfRenderSimulator::VERSION,
+            manifest: PdfRenderSimulator::capabilities(),
+            factory: static fn (AdapterBinding $binding): PdfRenderSimulator => new PdfRenderSimulator,
+            isSimulator: true,
+        ));
+        $adapters->register(new AdapterDefinition(
+            key: GotenbergRenderer::KEY,
+            port: PdfRenderPort::PORT,
+            version: GotenbergRenderer::VERSION,
+            manifest: GotenbergRenderer::capabilities(),
+            factory: static fn (AdapterBinding $binding): GotenbergRenderer => new GotenbergRenderer($binding->config),
         ));
 
         if ($this->app->runningInConsole()) {

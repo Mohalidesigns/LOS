@@ -11,6 +11,7 @@ use Fundly\Modules\Compliance\ComplianceServiceProvider;
 use Fundly\Modules\Credit\CreditServiceProvider;
 use Fundly\Modules\Document\DocumentServiceProvider;
 use Fundly\Modules\Licensing\LicensingServiceProvider;
+use Fundly\Modules\Offer\OfferServiceProvider;
 use Fundly\Modules\Party\PartyServiceProvider;
 use Fundly\Modules\Platform\PlatformServiceProvider;
 use Fundly\Modules\Product\ProductServiceProvider;
@@ -32,5 +33,6 @@ return [
     DocumentServiceProvider::class,
     CreditServiceProvider::class,
     ApprovalServiceProvider::class,
+    OfferServiceProvider::class,
     WorkflowServiceProvider::class,
 ];

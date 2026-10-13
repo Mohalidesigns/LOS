@@ -18,7 +18,7 @@ use Fundly\Shared\Exceptions\ValidationFailed;
  *   amount{min,max}, tenor_months{min,max},
  *   interest{basis, rate_percent, index?, spread_percent?}, repayment_frequency,
  *   moratorium_months{max}, fees[], penalty?, prepayment?,
- *   eligibility[], checklist[], bindings{workflow, rule_set, approval_matrix},
+ *   eligibility[], checklist[], bindings{workflow, rule_set, approval_matrix, offer_template},
  *   offer_validity_days, approval_validity_days
  */
 final class ProductDefinition
@@ -178,7 +178,7 @@ final class ProductDefinition
         }
 
         $bindings = $this->map('bindings', optional: true);
-        foreach (['workflow', 'rule_set', 'approval_matrix'] as $k) {
+        foreach (['workflow', 'rule_set', 'approval_matrix', 'offer_template'] as $k) {
             if (isset($bindings[$k]) && (! is_string($bindings[$k]) || preg_match('/^[a-z0-9][a-z0-9_.-]{0,95}$/', $bindings[$k]) !== 1)) {
                 $this->fail("bindings.{$k}", "bindings.{$k} must be a configuration key.");
             }

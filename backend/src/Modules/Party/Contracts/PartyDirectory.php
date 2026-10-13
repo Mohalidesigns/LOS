@@ -15,6 +15,9 @@ interface PartyDirectory
      */
     public function findMany(array $partyIds): array;
 
+    /** Decrypted contact email for a delivery the caller is about to make (e.g. an offer letter); null when none is held. */
+    public function contactEmail(string $partyId): ?string;
+
     /** Identity verification state and related individuals (KYC / screening input). */
     public function kycProfile(string $partyId): ?PartyKycProfile;
 }
