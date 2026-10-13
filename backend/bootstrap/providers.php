@@ -8,6 +8,7 @@ use Fundly\Modules\Application\ApplicationServiceProvider;
 use Fundly\Modules\Approval\ApprovalServiceProvider;
 use Fundly\Modules\Audit\AuditServiceProvider;
 use Fundly\Modules\Compliance\ComplianceServiceProvider;
+use Fundly\Modules\Conditions\ConditionsServiceProvider;
 use Fundly\Modules\Credit\CreditServiceProvider;
 use Fundly\Modules\Document\DocumentServiceProvider;
 use Fundly\Modules\Licensing\LicensingServiceProvider;
@@ -34,5 +35,6 @@ return [
     CreditServiceProvider::class,
     ApprovalServiceProvider::class,
     OfferServiceProvider::class,
+    ConditionsServiceProvider::class,
     WorkflowServiceProvider::class,
 ];

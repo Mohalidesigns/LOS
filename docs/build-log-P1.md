@@ -466,3 +466,94 @@ test on the seeded dev stack as femi (legal officer), on DEMO-2026-000006
   the bank signs within delegated authority.
 - No pre-issue preview of key facts. The schedule start date is the issue
   date.
+
+## Milestone 7 — Conditions precedent and the pre-disbursement check (2026-10-13)
+
+**Gate results:** Pest **264 passed, 0 failed**; Larastan L8 0 errors; Pint
+pass. Frontend `npm run verify`: 152 tests, contrast pass, build OK. Smoke
+test on the seeded dev stack as femi, on DEMO-2026-000006: `conditions:open`
+moved it from Accepted to Conditions precedent, then to Ready for
+disbursement (it has no CPs).
+- Check against 058/0123456790: failed on the account name only.
+- Check against 058/0123456789: passed, with "NWOSU AMAKA" a 100% name match.
+- Readiness then reported no blockers.
+
+### Conditions (M13, P1-CPR-01)
+- New `Conditions` module. It reaches other modules only through contracts:
+  `ApprovalRegister`, `OfferRegister` and its `OfferAccepted` event,
+  `ApplicationLifecycle`, `PartyDirectory`, `DocumentArchive`,
+  `AuthorityDirectory`, `ChangeRequestGateway`, and a new Compliance
+  contract `ComplianceGate` (KYC status, synchronous re-screen). It
+  publishes `ConditionsGate` (`releaseBlockers`, `verifiedDestination`) for
+  disbursement (M8).
+- **Register** (FR-CPR-001): the offer's acceptance imports the approvers'
+  conditions (each once) and moves Accepted → ConditionsPrecedent. Officers
+  add further CPs or CSs with mandatory flag, owner and due date (overdue is
+  flagged). Sign-off needs a note plus evidence: a malware-scanned upload
+  filed under Documents and/or a reference. A database check also rejects a
+  satisfied row without evidence.
+- **Hard block and waivers** (FR-CPR-002): an outstanding mandatory CP means
+  the case stays in ConditionsPrecedent, the gate blocks release, and the
+  check fails. A waiver goes through maker-checker: maker
+  `condition:manage`, checker `condition:waive_approve` with step-up. A
+  rejected waiver leaves the item outstanding, and it can be re-requested.
+  When the last mandatory CP is met or waived, the case moves to
+  ReadyForDisbursement on its own.
+- **Final pre-disbursement check** (FR-CPR-003/004/005): one command runs:
+  - a fresh re-screen of every party (trigger `pre_disbursement`; any open,
+    pending or confirmed alert fails it)
+  - the CDD gate
+  - executed agreement on file
+  - mandatory CPs
+  - approval validity
+  - a destination name enquiry through the CBA port, with an LOS-side name
+    match (order-, case- and suffix-insensitive; minimum 80%, configurable)
+
+  Security and insurance report not-applicable until collateral
+  (P1-COL-01). Pass or fail, the result is an immutable
+  `pre_disbursement_checks` row, with the account number encrypted and
+  masked. It is valid for 24 hours (configurable).
+- **Gate:** release needs no outstanding mandatory CP and a latest check
+  that passed and is still in date. `verifiedDestination()` gives
+  disbursement the checked account.
+- New permissions `condition:manage` (legal officer and disbursement maker
+  templates) and `condition:waive_approve` (credit approver template).
+- `conditions:open` backfills applications accepted before M13.
+- API: `GET/POST /applications/{id}/conditions`,
+  `POST /conditions/{id}/actions/satisfy|request-waiver`,
+  `POST /applications/{id}/pre-disbursement-checks` (fragment
+  `p7-conditions.php`).
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-CPR-001 / 002 / 003 / 004 / 005 | Done (security and insurance items N/A until P1-COL-01) | `ConditionsTest`, `ConditionsDomainTest` |
+| FR-CPR-006 | Not started: CS handover and escalation after booking (P3 / FR-HND-003) | — |
+
+### Frontend (P1-FE-04 conditions slice)
+- **Conditions tab:**
+  - a readiness banner listing the blockers
+  - the CP and CS lists, with mandatory, overdue and status pills, owner,
+    due date and sign-off details
+  - add-condition, sign-off (file and/or reference) and waiver-request
+    dialogs
+  - **Decide waiver** for holders of `condition:waive_approve`, which
+    approves or rejects the change request (with step-up)
+  - the pre-disbursement check panel (bank code, NUBAN, per-item results)
+- The Approval tab's conditions no longer show a fulfilment status; they
+  point to the Conditions tab.
+- `features/conditions/domain.ts` has 4 unit tests.
+
+### Demo seed
+- femi gets `condition:manage`; segun gets `condition:waive_approve` and
+  `change_request:read`.
+- Simulator name enquiry is configured: 058/0123456789 → NWOSU AMAKA,
+  058/0123456790 → a mismatch.
+- `conditions:open` runs at the end.
+
+### Gaps carried forward
+- The Conditions tab was not checked in the browser (the pane was in use).
+  The flow was exercised through the API and feature tests.
+- Approval conditions keep their approval-time status column (`open`). The
+  Conditions module is the system of record for fulfilment.
+- No change-request inbox in the SPA yet, so document waivers still need
+  the API.

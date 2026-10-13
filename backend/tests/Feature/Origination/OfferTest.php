@@ -141,7 +141,8 @@ it('runs demo step 13: issues the offer with key facts, CBA schedule and PDF, de
     $accepted = $this->api('POST', "/api/v1/offers/{$offer['id']}/actions/accept", ['file' => executedPdf()])->assertOk()->json('data');
     expect($accepted['status'])->toBe('accepted')
         ->and($accepted['agreement'])->toMatchArray(['execution_method' => 'wet_sign', 'offer_document_sha256' => $offer['document']['sha256']])
-        ->and(offerAppStatus($id))->toBe('accepted');
+        // acceptance opens the condition register at once (M7): the approver's CP is now tracked
+        ->and(offerAppStatus($id))->toBe('conditions_precedent');
     $register = app(OfferRegister::class)->accepted($id);
     expect($register->agreementSha256)->toBe($accepted['agreement']['sha256'])
         ->and($register->schedule)->toHaveCount(12)

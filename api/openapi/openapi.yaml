@@ -53,6 +53,7 @@ tags:
 - name: Credit
 - name: Approvals
 - name: Offers
+- name: Conditions
 # <<< generated: tags
 paths:
   /health:
@@ -4857,6 +4858,229 @@ paths:
         - sessionCookie: []
         - bearerToken: []
       x-idempotency-key: required
+  '/api/v1/applications/{id}/conditions':
+    get:
+      summary: 'Conditions, recent pre-disbursement checks and release readiness for an application'
+      operationId: getApplicationConditions
+      tags:
+        - Conditions
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConditionRegister'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Add a condition precedent or subsequent'
+      operationId: addCondition
+      tags:
+        - Conditions
+      x-permission: 'condition:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - precedent
+                    - subsequent
+                description:
+                  type: string
+                mandatory:
+                  type: boolean
+                owner_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+                due_date:
+                  type:
+                    - string
+                    - 'null'
+                  format: date
+              required:
+                - kind
+                - description
+      responses:
+        201:
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Condition'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/conditions/{id}/actions/satisfy':
+    post:
+      summary: 'Sign off a condition with evidence: an uploaded file and/or a reference'
+      operationId: satisfyCondition
+      tags:
+        - Conditions
+      x-permission: 'condition:manage'
+      x-idempotency-key: required
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                note:
+                  type: string
+                evidence_reference:
+                  type: string
+              required:
+                - note
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                evidence_reference:
+                  type: string
+              required:
+                - note
+                - evidence_reference
+      responses:
+        200:
+          description: Satisfied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Condition'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/conditions/{id}/actions/request-waiver':
+    post:
+      summary: 'Request a waiver; a checker holding condition:waive_approve decides (maker-checker)'
+      operationId: requestConditionWaiver
+      tags:
+        - Conditions
+      x-permission: 'condition:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+              required:
+                - reason
+      responses:
+        202:
+          description: 'Change request awaiting a checker'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/applications/{id}/pre-disbursement-checks':
+    post:
+      summary: 'Run the final pre-disbursement check: KYC, re-screen, executed agreement, CPs, approval validity and destination name enquiry. Pass or fail, the result is recorded.'
+      operationId: runPreDisbursementCheck
+      tags:
+        - Conditions
+      x-permission: 'condition:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bank_code:
+                  type: string
+                account_no:
+                  type: string
+              required:
+                - bank_code
+                - account_no
+      responses:
+        201:
+          description: 'Recorded (see passed)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PreDisbursementCheck'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
 # <<< generated: paths
 components:
   securitySchemes:
@@ -8712,4 +8936,297 @@ components:
         - signatories
         - deliveries
         - agreement
+    Condition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - precedent
+            - subsequent
+        source:
+          type: string
+          enum:
+            - approval
+            - manual
+        description:
+          type: string
+        mandatory:
+          type: boolean
+        owner:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        due_date:
+          type:
+            - string
+            - 'null'
+          format: date
+        is_overdue:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - open
+            - waiver_pending
+            - satisfied
+            - waived
+        evidence:
+          type:
+            - object
+            - 'null'
+          properties:
+            document_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            version_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            reference:
+              type:
+                - string
+                - 'null'
+          required:
+            - document_id
+            - version_id
+            - reference
+        signoff:
+          type:
+            - object
+            - 'null'
+          properties:
+            by:
+              type:
+                - object
+                - 'null'
+              properties:
+                id:
+                  type: string
+                name:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - id
+                - name
+            at:
+              type: string
+              format: date-time
+            note:
+              type:
+                - string
+                - 'null'
+          required:
+            - by
+            - at
+            - note
+        waiver:
+          type:
+            - object
+            - 'null'
+          properties:
+            change_request_id:
+              type: string
+              format: uuid
+            reason:
+              type:
+                - string
+                - 'null'
+          required:
+            - change_request_id
+            - reason
+        created_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - application_id
+        - kind
+        - source
+        - description
+        - mandatory
+        - owner
+        - due_date
+        - is_overdue
+        - status
+        - evidence
+        - signoff
+        - waiver
+        - created_by
+        - created_at
+    PreDisbursementCheck:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        passed:
+          type: boolean
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                enum:
+                  - kyc_current
+                  - screening_clear
+                  - documentation_executed
+                  - conditions_precedent
+                  - approval_valid
+                  - account_verified
+                  - security_perfected
+                  - insurance_in_force
+              label:
+                type: string
+              status:
+                type: string
+                enum:
+                  - pass
+                  - fail
+                  - not_applicable
+              detail:
+                type: string
+            required:
+              - code
+              - label
+              - status
+              - detail
+        destination:
+          type: object
+          properties:
+            bank_code:
+              type: string
+            account:
+              type: string
+            account_name:
+              type:
+                - string
+                - 'null'
+            name_match_score:
+              type:
+                - integer
+                - 'null'
+          required:
+            - bank_code
+            - account
+            - account_name
+            - name_match_score
+        screening:
+          type: object
+          properties:
+            runs:
+              type: integer
+            new_hits:
+              type: integer
+            open_alerts:
+              type: integer
+          required:
+            - runs
+            - new_hits
+            - open_alerts
+        checked_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        checked_at:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        is_current:
+          type: boolean
+      required:
+        - id
+        - sequence
+        - passed
+        - items
+        - destination
+        - screening
+        - checked_by
+        - checked_at
+        - valid_until
+        - is_current
+    ConditionRegister:
+      type: object
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condition'
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreDisbursementCheck'
+        readiness:
+          type: object
+          properties:
+            ready_for_release:
+              type: boolean
+            blockers:
+              type: array
+              items:
+                type: string
+          required:
+            - ready_for_release
+            - blockers
+      required:
+        - application_id
+        - status
+        - conditions
+        - checks
+        - readiness
 # <<< generated: schemas

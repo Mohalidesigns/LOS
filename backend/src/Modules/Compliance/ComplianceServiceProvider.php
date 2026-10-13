@@ -7,6 +7,8 @@ namespace Fundly\Modules\Compliance;
 use Fundly\Integration\Runtime\Outbox\OutboxHandlerRegistry;
 use Fundly\Modules\Application\Contracts\Events\ApplicationStatusChanged;
 use Fundly\Modules\Compliance\Application\KycProgression;
+use Fundly\Modules\Compliance\Application\StandardComplianceGate;
+use Fundly\Modules\Compliance\Contracts\ComplianceGate;
 use Fundly\Modules\Compliance\Contracts\Events\ApplicationScreened;
 use Fundly\Modules\Compliance\Contracts\Events\ScreeningAlertResolved;
 use Fundly\Modules\Compliance\Infrastructure\Models\ScreeningAlert;
@@ -20,6 +22,11 @@ use Illuminate\Support\ServiceProvider;
 /** M18 Compliance (MVP slice): intake screening, four-eyes alert disposition, CDD progression gate. */
 final class ComplianceServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->scoped(ComplianceGate::class, StandardComplianceGate::class);
+    }
+
     public function boot(ResourceResolver $resources, Dispatcher $events, OutboxHandlerRegistry $outbox): void
     {
         $resources->register('screening_alert', static function (string $id): ?ResourceAttributes {

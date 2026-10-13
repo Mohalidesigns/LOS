@@ -71,6 +71,8 @@ enum Permission: string
     case CollateralManage = 'collateral:manage';
     case LegalReview = 'legal:review';
     case OfferPrepare = 'offer:prepare';
+    case ConditionManage = 'condition:manage';
+    case ConditionWaiveApprove = 'condition:waive_approve';
     case DisbursementMake = 'disbursement:make';
     case DisbursementCheck = 'disbursement:check';
     case ProductManage = 'product:manage';

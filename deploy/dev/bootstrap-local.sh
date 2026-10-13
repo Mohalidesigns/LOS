@@ -872,6 +872,9 @@ cmd_seed_demo() {
 
   heading "Simulator adapters (identity verification, screening, ...)"
   artisan integration:bind-simulators || die "integration:bind-simulators failed"
+  # name enquiry: the simulator answers with these holder names (FR-CPR-005 demo; 0123456790 is a deliberate mismatch)
+  sql_value "update adapter_bindings set config = (case when jsonb_typeof(config) = 'object' then config else '{}'::jsonb end) || '{\"account_names\":{\"0123456789\":\"NWOSU AMAKA\",\"0123456790\":\"JOHN DOE TRADING\"}}'::jsonb where port = 'core_banking' and adapter_key = 'cba-simulator' returning id" "$tid" >/dev/null
+  ok "simulator name enquiry: 058/0123456789 -> NWOSU AMAKA, 058/0123456790 -> JOHN DOE TRADING"
 
   login "$ADMIN2_EMAIL"; BO_JAR="$JAR"
   login "$ADMIN1_EMAIL"; ADA_JAR="$JAR"
@@ -892,8 +895,8 @@ cmd_seed_demo() {
   r_sca="$(seed_role demo_senior_credit_analyst 'Senior Credit Analyst (demo)' senior_credit_analyst)"
   # approval matrix levels name these role codes
   r_ap1="$(seed_role credit_approver 'Credit Approver' credit_approver)"
-  r_ap2="$(seed_role head_of_credit 'Head of Credit' credit_approver)"
-  r_lg="$(seed_role demo_legal_officer 'Legal Officer (demo)' legal_officer)"
+  r_ap2="$(seed_role head_of_credit 'Head of Credit' credit_approver condition:waive_approve change_request:read)"
+  r_lg="$(seed_role demo_legal_officer 'Legal Officer (demo)' legal_officer condition:manage)"
   seed_assignment "$lola" "$r_lo" "lola: loan officer"
   seed_assignment "$lola" "$r_doc" "lola: documentation officer"
   seed_assignment "$chidi" "$r_cmp" "chidi: compliance officer"
@@ -986,6 +989,9 @@ cmd_seed_demo() {
   login "$DEMO_AP1_EMAIL"; seed_vote "$app5"; rm -f "$JAR"
   login "$DEMO_AP2_EMAIL"; seed_vote "$app5"; rm -f "$JAR"
 
+  heading "Conditions: open the register for accepted cases"
+  artisan conditions:open || info "conditions:open reported an error"
+
   heading "MFA enrolment for the compliance demo users"
   local who
   for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL" "$DEMO_AP1_EMAIL" "$DEMO_AP2_EMAIL" "$DEMO_LG_EMAIL"; do
@@ -1003,7 +1009,8 @@ cmd_seed_demo() {
       $DEMO_CA_EMAIL    Senior Credit Analyst (pull bureau, run decision, exceptions, credit memo, recommend)
       $DEMO_AP1_EMAIL     Credit Approver, L1 (limit NGN 20M)
       $DEMO_AP2_EMAIL    Head of Credit, L2 (limit NGN 100M; votes above NGN 5M need a fresh step-up)
-      $DEMO_LG_EMAIL     Legal Officer (issue offers, deliver, record signatures, accept with the executed agreement)
+      $DEMO_LG_EMAIL     Legal Officer (offers; conditions: add, sign off, request waivers, run the pre-disbursement check)
+                          segun also decides condition waivers (condition:waive_approve)
     Draft application:      Adebayo Foods Limited, NGN 12.5M / 24 months  ($app1)
     In approval (L1):       Chinedu Eze, NGN 2M / 12 months               ($app2)
     Approved (offer ready): Amaka Nwosu, NGN 3M / 12 months               ($app5)
@@ -1011,6 +1018,7 @@ cmd_seed_demo() {
     Credit (Assessment):    Bola Adeyemi NGN 3M (BVN ..13: write-off -> refer)  ($app4)
     Approval matrix:        approval.matrix/sme-matrix + approval.authority_limits/default
     Offer template:         offer.template/sme-offer (wet sign: borrower, joint, guarantor, bank)
+    Destination accounts:   bank 058, 0123456789 (NWOSU AMAKA, matches Amaka Nwosu) / 0123456790 (mismatch)
     Rule set:               credit.rule_set/$DEMO_RULE_SET_KEY (evaluator 1.0.0)
     Screening runs asynchronously (outbox -> database queue). seed-demo drains it once; for live
     updates keep both running in backend/:  php artisan schedule:work   and   php artisan queue:work

@@ -15,6 +15,7 @@ use Fundly\Modules\Application\Http\Controllers\ApplicationController;
 use Fundly\Modules\Approval\Http\Controllers\ApprovalController;
 use Fundly\Modules\Audit\Http\Controllers\AuditController;
 use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
+use Fundly\Modules\Conditions\Http\Controllers\ConditionController;
 use Fundly\Modules\Credit\Http\Controllers\CreditController;
 use Fundly\Modules\Document\Http\Controllers\DocumentController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
@@ -143,6 +144,13 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::post('offers/{id}/signatories/{signatoryId}/actions/sign', [OfferController::class, 'sign'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.sign');
     Route::post('offers/{id}/actions/accept', [OfferController::class, 'accept'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.accept');
     Route::post('offers/{id}/actions/decline', [OfferController::class, 'decline'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.decline');
+
+    // Conditions (FR-CPR-001..005): CP/CS register, waivers via change requests, final pre-disbursement check
+    Route::get('applications/{id}/conditions', [ConditionController::class, 'forApplication'])->middleware('authz:application:view')->name('conditions.index');
+    Route::post('applications/{id}/conditions', [ConditionController::class, 'add'])->middleware(['authz:condition:manage', 'idempotent'])->name('conditions.store');
+    Route::post('conditions/{id}/actions/satisfy', [ConditionController::class, 'satisfy'])->middleware(['authz:condition:manage', 'idempotent'])->name('conditions.satisfy');
+    Route::post('conditions/{id}/actions/request-waiver', [ConditionController::class, 'requestWaiver'])->middleware(['authz:condition:manage', 'idempotent'])->name('conditions.request-waiver');
+    Route::post('applications/{id}/pre-disbursement-checks', [ConditionController::class, 'check'])->middleware(['authz:condition:manage', 'idempotent'])->name('pre-disbursement-checks.store');
 
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
     Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');

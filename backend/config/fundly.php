@@ -97,6 +97,12 @@ return [
         'bureau_validity_days' => (int) env('FUNDLY_BUREAU_VALIDITY_DAYS', 30),
     ],
 
+    // Conditions (FR-CPR-003/005): a pre-disbursement check stays valid for this long; account names must match at least this score (0-100).
+    'conditions' => [
+        'check_valid_hours' => (int) env('FUNDLY_PRE_DISBURSEMENT_CHECK_HOURS', 24),
+        'name_match_min' => (int) env('FUNDLY_NAME_MATCH_MIN', 80),
+    ],
+
     // Documents (FR-DOC-002/005): content store disk, size limit and accepted types (sniffed, not trusted from the client).
     'documents' => [
         'disk' => env('FUNDLY_DOCUMENTS_DISK', 'documents'),

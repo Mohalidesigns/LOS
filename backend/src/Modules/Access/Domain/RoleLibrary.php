@@ -39,7 +39,7 @@ final class RoleLibrary
                 Permission::ApplicationView, Permission::CreditAnalyse, Permission::BureauPull, Permission::ApplicationRecommend, Permission::ExceptionRaise, Permission::DocumentWaiveApprove,
             ]],
             'credit_approver' => ['name' => 'Credit Approver', 'description' => 'Approves within delegated authority (tiered via scope max amount).', 'permissions' => [
-                Permission::ApplicationView, Permission::ApplicationApprove, Permission::DelegationCreate,
+                Permission::ApplicationView, Permission::ApplicationApprove, Permission::DelegationCreate, Permission::ConditionWaiveApprove,
             ]],
             'credit_committee_member' => ['name' => 'Credit Committee Member', 'description' => 'Votes on committee-level approvals.', 'permissions' => [
                 Permission::ApplicationView, Permission::ApplicationApprove,
@@ -51,13 +51,13 @@ final class RoleLibrary
                 Permission::ApplicationView, Permission::ScreeningReview,
             ]],
             'legal_officer' => ['name' => 'Legal Officer', 'description' => 'Reviews security documents and prepares offers.', 'permissions' => [
-                Permission::ApplicationView, Permission::LegalReview, Permission::OfferPrepare,
+                Permission::ApplicationView, Permission::LegalReview, Permission::OfferPrepare, Permission::ConditionManage,
             ]],
             'collateral_officer' => ['name' => 'Collateral Officer', 'description' => 'Manages collateral, valuations and perfection.', 'permissions' => [
                 Permission::ApplicationView, Permission::CollateralManage,
             ]],
             'disbursement_maker' => ['name' => 'Disbursement Maker', 'description' => 'Prepares disbursement instructions.', 'permissions' => [
-                Permission::ApplicationView, Permission::DisbursementMake,
+                Permission::ApplicationView, Permission::DisbursementMake, Permission::ConditionManage,
             ]],
             'disbursement_checker' => ['name' => 'Disbursement Checker', 'description' => 'Releases disbursements (four-eyes).', 'permissions' => [
                 Permission::ApplicationView, Permission::DisbursementCheck,
