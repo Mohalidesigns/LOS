@@ -56,6 +56,7 @@ export const router = createBrowserRouter([
           { path: 'documents', handle: { title: 'Application · Documents' }, lazy: async () => ({ Component: (await import('@/features/applications/case/DocumentsTab')).DocumentsTab }) },
           { path: 'credit', handle: { title: 'Application · Credit' }, lazy: async () => ({ Component: (await import('@/features/applications/case/CreditTab')).CreditTab }) },
           { path: 'approval', handle: { title: 'Application · Approval' }, lazy: async () => ({ Component: (await import('@/features/approvals/ApprovalTab')).ApprovalTab }) },
+          { path: 'offer', handle: { title: 'Application · Offer' }, lazy: async () => ({ Component: (await import('@/features/offers/OfferTab')).OfferTab }) },
           { path: 'timeline', handle: { title: 'Application · Timeline' }, lazy: async () => ({ Component: (await import('@/features/applications/case/TimelineTab')).TimelineTab }) },
         ],
       },

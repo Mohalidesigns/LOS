@@ -1496,6 +1496,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/applications/{id}/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Offers on an application, newest first */
+        get: operations["listApplicationOffers"];
+        put?: never;
+        /** Issue the offer: terms from the standing approval, schedule from the core banking system, key facts, PDF from the bound template */
+        post: operations["issueOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An offer with key facts, schedule, signatories, deliveries and agreement */
+        get: operations["getOffer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{id}/actions/reissue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-issue an unsigned offer (fresh terms, schedule and validity) within the template limit */
+        post: operations["reissueOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{id}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email the offer to a party (queued) or record a printed branch copy */
+        post: operations["deliverOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{id}/signatories/{signatoryId}/actions/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a wet signature; signatories sign in the template order */
+        post: operations["signOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{id}/actions/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept a fully signed offer by uploading the executed agreement (stored immutably with its hash) */
+        post: operations["acceptOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{id}/actions/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The customer rejects or wants to negotiate: the application returns to assessment for revised terms */
+        post: operations["declineOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2665,6 +2785,150 @@ export interface components {
                     voted_at: string;
                 }[];
             }[];
+        };
+        OfferKeyFacts: {
+            method: string;
+            principal: string;
+            total_interest: string;
+            fees: {
+                code: string;
+                name: string;
+                type: string;
+                amount: string;
+                costed: boolean;
+            }[];
+            total_fees: string;
+            total_cost_of_credit: string;
+            total_repayable: string;
+            net_disbursed: string;
+            apr_percent: string;
+            effective_annual_rate_percent: string;
+            instalment_count: number;
+            cooling_off_days: number;
+        };
+        OfferInstalment: {
+            number: number;
+            due_date: string;
+            principal: string;
+            interest: string;
+            total: string;
+            closing_balance: string;
+        };
+        OfferSignatory: {
+            /** Format: uuid */
+            id: string;
+            position: number;
+            /** @enum {string} */
+            role: "primary" | "joint" | "guarantor" | "co_signer" | "bank";
+            /** Format: uuid */
+            party_id: string | null;
+            name: string;
+            signed: boolean;
+            method: string | null;
+            /** Format: date-time */
+            signed_at: string | null;
+            witness_name: string | null;
+            place: string | null;
+            recorded_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            is_next: boolean;
+        };
+        OfferDelivery: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            channel: "email" | "print";
+            /** Format: uuid */
+            party_id: string | null;
+            recipient: string | null;
+            /** @enum {string} */
+            status: "queued" | "sent" | "failed" | "recorded";
+            failure: string | null;
+            requested_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+        };
+        Offer: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            sequence: number;
+            /** @enum {string} */
+            status: "issued" | "accepted" | "rejected" | "negotiating" | "expired" | "superseded";
+            is_expired: boolean;
+            template: {
+                key: string;
+                /** Format: uuid */
+                version_id: string;
+                version_no: number;
+            };
+            /** @enum {string} */
+            execution_method: "wet_sign" | "e_sign";
+            /** Format: uuid */
+            approval_request_id: string;
+            terms: {
+                amount: components["schemas"]["Money"];
+                tenor_months: number;
+                rate_percent: string;
+                repayment_frequency: string;
+                instalment: components["schemas"]["Money"];
+                /** @enum {string} */
+                source: "approval" | "counter_offer";
+            };
+            key_facts: components["schemas"]["OfferKeyFacts"];
+            schedule: components["schemas"]["OfferInstalment"][];
+            schedule_source: string;
+            document: {
+                /** Format: uuid */
+                document_id: string;
+                /** Format: uuid */
+                version_id: string;
+                sha256: string;
+            };
+            issued_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date-time */
+            issued_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            /** Format: uuid */
+            reissue_of: string | null;
+            reissue_count: number;
+            decision: {
+                reason_code: string | null;
+                note: string | null;
+                by: {
+                    id: string;
+                    name: string | null;
+                } | null;
+                /** Format: date-time */
+                at: string;
+            } | null;
+            signatories: components["schemas"]["OfferSignatory"][];
+            deliveries: components["schemas"]["OfferDelivery"][];
+            agreement: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                document_id: string;
+                /** Format: uuid */
+                version_id: string;
+                sha256: string;
+                offer_document_sha256: string;
+                execution_method: string;
+                /** Format: date-time */
+                executed_at: string;
+            } | null;
         };
     };
     responses: {
@@ -6181,6 +6445,269 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ApprovalRequest"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listApplicationOffers: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Offer"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    issueOffer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Issued; the application moves to offer_issued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Offer"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getOffer: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Offer"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    reissueOffer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The new offer; the old one is superseded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Offer"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deliverOffer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    channel: "email" | "print";
+                    /** Format: uuid */
+                    party_id?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Delivery recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Offer"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    signOffer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                signatoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    signed_at: string;
+                    witness_name?: string | null;
+                    place?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Offer"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    acceptOffer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Accepted; the application moves to accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Offer"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    declineOffer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    outcome: "reject" | "negotiate";
+                    reason_code: string;
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Offer"];
                     };
                 };
             };

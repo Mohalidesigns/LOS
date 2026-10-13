@@ -19,6 +19,7 @@ export const CASE_TABS = [
   { path: 'documents', label: 'Documents' },
   { path: 'credit', label: 'Credit' },
   { path: 'approval', label: 'Approval' },
+  { path: 'offer', label: 'Offer' },
   { path: 'timeline', label: 'Timeline' },
 ] as const;
 
