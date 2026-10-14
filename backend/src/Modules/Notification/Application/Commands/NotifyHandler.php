@@ -30,7 +30,9 @@ use Fundly\Shared\Security\ResourceAttributes;
  *   customer WA     the same events to customers who opted in (whatsapp_messaging), when
  *                   fundly.whatsapp.enabled; instead of SMS when whatsapp.replaces_sms
  *   staff in-app    holders of the permission that acts next, in the application's scope
- *                   (approval.awaiting, screening.alert, disbursement.*, collateral.*), or the originator
+ *                   (approval.awaiting, screening.alert, disbursement.*, collateral.*), or the originator,
+ *                   or the users an event names (task.*, note.mention; a breach also reaches the
+ *                   holders of the escalation permission)
  *                   (facility.booked.staff)
  * Every message is logged (FR-NTF-005); a repeat of the same message to the
  * same recipient is suppressed by its dedupe key (FR-NTF-006).
@@ -43,7 +45,7 @@ final class NotifyHandler implements CommandHandler
 
     public const WHATSAPP_TOPIC = 'notification.whatsapp';
 
-    /** @var array<string, array{to: 'customer'|'originator'|'permission', permission?: string, exclude_originator?: bool}> */
+    /** @var array<string, array{to: 'customer'|'originator'|'permission'|'users', permission?: string, exclude_originator?: bool}> */
     private const RULES = [
         'application.received' => ['to' => 'customer'],
         'offer.issued' => ['to' => 'customer'],
@@ -55,6 +57,10 @@ final class NotifyHandler implements CommandHandler
         'disbursement.ready' => ['to' => 'permission', 'permission' => 'disbursement:make'],
         'disbursement.awaiting_release' => ['to' => 'permission', 'permission' => 'disbursement:check'],
         'disbursement.failed' => ['to' => 'permission', 'permission' => 'disbursement:check'],
+        'task.assigned' => ['to' => 'users'],
+        'task.sla_at_risk' => ['to' => 'users'],
+        'task.sla_breached' => ['to' => 'users'],
+        'note.mention' => ['to' => 'users'],
         'collateral.revaluation_due' => ['to' => 'permission', 'permission' => 'collateral:manage'],
         'collateral.insurance_expiring' => ['to' => 'permission', 'permission' => 'collateral:manage'],
     ];
@@ -140,7 +146,15 @@ final class NotifyHandler implements CommandHandler
                 if ($rule['exclude_originator'] ?? false) {
                     $exclude[] = $app->originatorId;
                 }
-                $users = $rule['to'] === 'originator' ? [$app->originatorId] : $this->holders((string) $rule['permission'], $app);
+                // 'users': the people named by the event, plus holders of a permission it names (SLA escalation)
+                $users = match ($rule['to']) {
+                    'originator' => [$app->originatorId],
+                    'users' => array_values(array_unique(array_merge(
+                        array_map('strval', (array) ($command->context['user_ids'] ?? [])),
+                        is_string($command->context['permission'] ?? null) ? $this->holders($command->context['permission'], $app) : [],
+                    ))),
+                    default => $this->holders((string) $rule['permission'], $app),
+                };
                 $names = $this->authority->names(array_values(array_diff($users, $exclude)));
                 foreach (array_diff($users, $exclude) as $userId) {
                     $c = $this->log($app, $command->event, 'in_app', 'staff', $userId, null, $names[$userId] ?? null, $source, $versionId, $rendered, "/applications/{$app->id}", [], 'delivered', null, "{$base}:in_app:{$userId}");

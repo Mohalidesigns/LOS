@@ -25,7 +25,7 @@ final class NotificationTemplate
     public const VARIABLES = [
         'reference', 'applicant_name', 'product_name', 'amount', 'tenor_months', 'status', 'link',
         'valid_until', 'offer_sequence', 'loan_account_no', 'net_amount', 'value_date', 'error_code', 'bank_name',
-        'collateral', 'due_date',
+        'collateral', 'due_date', 'stage', 'due_at', 'author',
     ];
 
     public const CHANNELS = ['email' => ['subject', 'body'], 'sms' => ['body'], 'whatsapp' => ['template', 'body'], 'in_app' => ['title', 'body']];

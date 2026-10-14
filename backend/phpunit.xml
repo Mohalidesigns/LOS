@@ -27,6 +27,8 @@
         </include>
     </source>
     <php>
+        <!-- the feature suite outgrew the 128M CLI default (~330 tests through the full journey) -->
+        <ini name="memory_limit" value="1G"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="ARGON_MEMORY" value="1024"/>

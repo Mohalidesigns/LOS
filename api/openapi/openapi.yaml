@@ -51,6 +51,7 @@ tags:
 - name: Notifications
 - name: Collateral
 - name: Compliance
+- name: Workflow
 - name: Compliance
 - name: Documents
 - name: Credit
@@ -4122,6 +4123,548 @@ paths:
       security:
         - sessionCookie: []
         - bearerToken: []
+  /api/v1/me/tasks:
+    get:
+      summary: "My consolidated task inbox: my tasks, the queues I can work, or (with task:reassign) my team's tasks; soonest SLA breach first"
+      operationId: listMyTasks
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - name: 'filter[view]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'mine (default) | queue | team'
+        - name: 'filter[stage]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'stage code'
+        - name: 'filter[sla]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'on_track | at_risk | breached | paused'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - due
+              - '-opened_at'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowTask'
+                  meta:
+                    type: object
+                    properties:
+                      view:
+                        type: string
+                      counts:
+                        type: object
+                        properties:
+                          mine:
+                            type: integer
+                          mine_breached:
+                            type: integer
+                        required:
+                          - mine
+                          - mine_breached
+                      can_reassign:
+                        type: boolean
+                    required:
+                      - view
+                      - counts
+                      - can_reassign
+                required:
+                  - data
+                  - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  /api/v1/tasks/actions/bulk-assign:
+    post:
+      summary: 'Bulk claim (no assignee) or, with task:reassign, assign several tasks to one person; all or nothing'
+      operationId: bulkAssignTasks
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                task_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                assignee_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+                reason:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - task_ids
+      responses:
+        200:
+          description: Assigned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      assigned:
+                        type: integer
+                      task_ids:
+                        type: array
+                        items:
+                          type: string
+                          format: uuid
+                    required:
+                      - assigned
+                      - task_ids
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/tasks/{id}/candidates':
+    get:
+      summary: 'People who could take this task (hold its permission in its scope), with their open task count'
+      operationId: listTaskCandidates
+      tags:
+        - Workflow
+      x-permission: 'task:reassign'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowPerson'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/mentionable':
+    get:
+      summary: 'People who can see the application and so can be @mentioned'
+      operationId: listMentionable
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowPerson'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/tasks/{id}/actions/claim':
+    post:
+      summary: 'Claim an unassigned task you can work'
+      operationId: claimTask
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WorkflowTask'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/tasks/{id}/actions/release':
+    post:
+      summary: 'Put your task back in its queue'
+      operationId: releaseTask
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type:
+                    - string
+                    - 'null'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WorkflowTask'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/tasks/{id}/actions/reassign':
+    post:
+      summary: 'Reassign a task to someone who can work it, or to the queue (null)'
+      operationId: reassignTask
+      tags:
+        - Workflow
+      x-permission: 'task:reassign'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assignee_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+                reason:
+                  type: string
+              required:
+                - reason
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WorkflowTask'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  /api/v1/me/task-views:
+    get:
+      summary: 'My saved inbox views'
+      operationId: listTaskViews
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TaskView'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Save (or replace by name) an inbox view'
+      operationId: saveTaskView
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                filters:
+                  $ref: '#/components/schemas/TaskViewFilters'
+              required:
+                - name
+      responses:
+        201:
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TaskView'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/me/task-views/{id}':
+    delete:
+      summary: 'Delete a saved view'
+      operationId: deleteTaskView
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        204:
+          description: Deleted
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/workflow':
+    get:
+      summary: 'The workflow an application runs on (pinned version), its current task and task history with assignments'
+      operationId: getApplicationWorkflow
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ApplicationWorkflow'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/workflow/actions/migrate':
+    post:
+      summary: 'Move an in-flight application to the active workflow version (effective from its next stage)'
+      operationId: migrateApplicationWorkflow
+      tags:
+        - Workflow
+      x-permission: 'config:activate_request'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+              required:
+                - reason
+      responses:
+        200:
+          description: Migrated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ApplicationWorkflow'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/applications/{id}/notes':
+    get:
+      summary: 'Case notes, newest first'
+      operationId: listCaseNotes
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseNote'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Add a case note; @mentioned users are notified'
+      operationId: addCaseNote
+      tags:
+        - Workflow
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                visibility:
+                  type: string
+                  enum:
+                    - internal
+                    - customer
+                mention_user_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              required:
+                - body
+                - visibility
+      responses:
+        201:
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CaseNote'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
   '/api/v1/parties/{id}/consents':
     get:
       summary: 'Current consents and full history'
@@ -9682,6 +10225,368 @@ components:
         - facilities
         - checked_by
         - checked_at
+    WorkflowTask:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            reference:
+              type: string
+            applicant_name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - reference
+            - applicant_name
+        stage:
+          type: object
+          properties:
+            code:
+              type: string
+            name:
+              type: string
+            status:
+              type: string
+          required:
+            - code
+            - name
+            - status
+        permission:
+          type: string
+        strategy:
+          type: string
+          enum:
+            - queue
+            - round_robin
+            - least_loaded
+            - originator
+        status:
+          type: string
+          enum:
+            - open
+            - completed
+            - cancelled
+        assignee:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        sla:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - none
+                - on_track
+                - at_risk
+                - breached
+                - paused
+            warn_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+            breach_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+            paused_minutes:
+              type: integer
+          required:
+            - state
+            - warn_at
+            - breach_at
+            - paused_minutes
+        opened_at:
+          type: string
+          format: date-time
+        closed_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        close_reason:
+          type:
+            - string
+            - 'null'
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              kind:
+                type: string
+                enum:
+                  - routed
+                  - claimed
+                  - released
+                  - reassigned
+              from:
+                type:
+                  - object
+                  - 'null'
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type:
+                      - string
+                      - 'null'
+                required:
+                  - id
+                  - name
+              to:
+                type:
+                  - object
+                  - 'null'
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type:
+                      - string
+                      - 'null'
+                required:
+                  - id
+                  - name
+              by:
+                type:
+                  - object
+                  - 'null'
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type:
+                      - string
+                      - 'null'
+                required:
+                  - id
+                  - name
+              on_behalf_of:
+                type:
+                  - object
+                  - 'null'
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type:
+                      - string
+                      - 'null'
+                required:
+                  - id
+                  - name
+              reason:
+                type:
+                  - string
+                  - 'null'
+              at:
+                type: string
+                format: date-time
+            required:
+              - kind
+              - from
+              - to
+              - by
+              - on_behalf_of
+              - reason
+              - at
+      required:
+        - id
+        - application
+        - stage
+        - permission
+        - strategy
+        - status
+        - assignee
+        - sla
+        - opened_at
+        - closed_at
+        - close_reason
+    ApplicationWorkflow:
+      type: object
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        workflow:
+          type:
+            - object
+            - 'null'
+          properties:
+            key:
+              type: string
+            name:
+              type: string
+            source:
+              type: string
+              enum:
+                - default
+                - tenant
+            version_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            version_no:
+              type:
+                - integer
+                - 'null'
+            pinned_at:
+              type: string
+              format: date-time
+            migrated_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+          required:
+            - key
+            - name
+            - source
+            - version_id
+            - version_no
+            - pinned_at
+            - migrated_at
+        current:
+          oneOf:
+            - $ref: '#/components/schemas/WorkflowTask'
+            - type: 'null'
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowTask'
+      required:
+        - application_id
+        - workflow
+        - current
+        - tasks
+    WorkflowPerson:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type:
+            - string
+            - 'null'
+        open_tasks:
+          type: integer
+      required:
+        - id
+        - name
+        - open_tasks
+    TaskViewFilters:
+      type: object
+      properties:
+        view:
+          type: string
+          enum:
+            - mine
+            - queue
+            - team
+        stage:
+          type: string
+        sla:
+          type: string
+          enum:
+            - on_track
+            - at_risk
+            - breached
+            - paused
+    TaskView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        filters:
+          $ref: '#/components/schemas/TaskViewFilters'
+      required:
+        - id
+        - name
+        - filters
+    CaseNote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        visibility:
+          type: string
+          enum:
+            - internal
+            - customer
+        author:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        mentions:
+          type: array
+          items:
+            type:
+              - object
+              - 'null'
+            properties:
+              id:
+                type: string
+              name:
+                type:
+                  - string
+                  - 'null'
+            required:
+              - id
+              - name
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - application_id
+        - body
+        - visibility
+        - author
+        - mentions
+        - created_at
     ScreeningAlert:
       type: object
       properties:

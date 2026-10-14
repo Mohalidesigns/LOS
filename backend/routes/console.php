@@ -16,3 +16,4 @@ Schedule::command('offers:expire')->hourly()->name('offers.expire')->withoutOver
 Schedule::command('reconciliation:run')->dailyAt('02:00')->name('reconciliation.run')->withoutOverlapping();     // FR-DSB-008
 Schedule::command('notifications:reminders')->dailyAt('08:00')->name('notifications.reminders')->withoutOverlapping(); // FR-OFR-007
 Schedule::command('licence:check')->dailyAt('06:00')->name('licence.check');                                 // T-60/30/7 warnings
+Schedule::command('workflow:sla')->everyMinute()->name('workflow.sla')->withoutOverlapping();                          // FR-WFL-006

@@ -1177,3 +1177,114 @@ agreement, advice) and the CRI insurance item, with retention until
 - The approval packet does not show the limit check yet.
 - Pack signing is a content hash plus maker-checker; vendor-signed packs
   come later.
+
+## Milestone 13: Workflow engine and task inbox (P1-WFL-01..03)
+
+### Backend
+- **Workflow definitions** (FR-WFL-001):
+  - A `workflow.definition` config (maker-checker) keyed by the product's
+    `bindings.workflow`. A built-in standard workflow applies when no
+    tenant version is active.
+  - Each stage maps to one canonical status (TRD §6.1). P1 has no parallel
+    tracks, so there is one stage per status.
+  - Each stage has an assignment (permission plus strategy:
+    `queue | round_robin | least_loaded | originator`), an SLA in business
+    hours (warn and breach thresholds, escalation permission, default
+    `task:reassign`), and optionally `automation: advance` (intake stages
+    only; automation never declines).
+  - Validation rejects:
+    - duplicate statuses
+    - automation on worked stages
+    - warn ≥ breach
+    - an SLA without an owner
+- **Pinning and migration** (FR-WFL-012): `workflow_instances` pins each
+  application at its first status change. An administrator
+  (`config:activate_request`) can migrate it to the active version, with a
+  reason and audit.
+- **Stage tasks** (FR-WFL-003/004):
+  - On every status change, `SyncWorkflowTask` closes the open task and
+    opens the next stage's, with only one open task per application.
+  - Routing is among holders of the stage permission in the application's
+    scope (role, branch, product, segment, amount band through scope
+    limits).
+  - Only the originator strategy gives work to the originator.
+  - Tasks carry the reference and applicant, so the inbox does not need
+    joins.
+- **Claim, release, reassign** (FR-WFL-004/005):
+  - Claiming needs the stage permission, possibly via a delegation, which
+    is recorded as `on_behalf_of`.
+  - Reassignment needs `task:reassign`, a reason, and an assignee who can
+    work the stage.
+  - Bulk claim and assign are all-or-nothing.
+  - `workflow_task_assignments` is append-only history.
+- **SLA clocks** (FR-WFL-006/008):
+  - Business-hour arithmetic over the workflow's calendar (Mon–Fri
+    08:00–17:00, Africa/Lagos; public holidays with the tenant calendar,
+    P3).
+  - `workflow:sla` runs every minute and moves tasks to at_risk (notifying
+    the owner, or the queue's holders) and then breached (notifying the
+    owner and the escalation holders), once each, with audit.
+  - A hold pauses the clock, and resume pushes the deadlines out by the
+    business time spent on hold.
+- **Inbox** (FR-WFL-009): `GET /me/tasks` with views mine, queue and team
+  (team needs `task:reassign`), stage and SLA filters, soonest breach first,
+  counts, and saved views (`/me/task-views`, up to 20).
+- **Helper lists:** `GET /tasks/{id}/candidates` lists who could take a
+  task, with their load. `GET /applications/{id}/mentionable` lists who can
+  be @mentioned.
+- **Case notes** (FR-WFL-010):
+  - Append-only.
+  - Internal or customer-visible; customer-visible needs
+    `application:originate`, and the portal showing them comes in P4.
+  - @mentions are limited to people who can see the case, and notify them
+    in-app.
+- **Notifications:**
+  - `task.assigned`, `task.sla_at_risk`, `task.sla_breached`,
+    `note.mention`
+  - a `users` rule (people named by the event plus holders of an
+    escalation permission)
+- **Auto-decisions** (FR-WFL-011): intake automation now follows the pinned
+  workflow's `automation: advance`.
+- **Tests:** `phpunit.xml` raises the memory limit to 1G. The suite (~330
+  tests) outgrew PHP's 128M default and died silently.
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-WFL-001 / 003 / 004 / 006 / 008 / 009 / 010 / 012 | Done (P1 scope) | `WorkflowTest`, `BusinessCalendarTest` |
+| FR-WFL-005 | Partial: reassignment and delegation attribution; out-of-office auto-cover P3 | `WorkflowTest` |
+| FR-WFL-007 | Partial: send-back exists (return/resubmit); targeted rework items P3 | — |
+| FR-WFL-011 | Partial: intake auto-advance; auto-approve/decline rules P3 | `WorkflowTest` |
+| FR-WFL-002 | P3 (parallel tracks) | — |
+
+### Frontend
+- **My work (`/work`):**
+  - mine, queue and team tabs
+  - stage and SLA filters, and saved views (apply, save, delete)
+  - SLA chips with time left or over
+  - claim, release, reassign (with candidates and their load) and bulk
+    claim or assign
+  - sidebar badge with my open tasks
+- **Case header:** the current stage, who has it, and the SLA chip.
+- **Notes tab:** the thread, @Name mentions with a preview of who will be
+  notified, and a customer-visible toggle for originators.
+- `features/workflow/domain.ts` has 3 tests.
+
+### Verification
+- Local Pest: 328 passed, with Pint and PHPStan clean.
+- Frontend `npm run verify`: 171 tests.
+- Dev: as lola, submitted DEMO-2026-000009. It auto-cleared screening and
+  landed in the Documentation queue, which lola claimed.
+- Checked in the browser:
+  - My work lists the task with badge and SLA chip
+  - the case header shows the stage, owner and SLA
+  - a note mentioning Tunde notified 1 person
+
+### Gaps carried forward
+- Applications already in flight before M13 have no tasks until their next
+  status change. There is no backfill command yet.
+- Holidays are not in the calendar.
+- No parallel tracks, targeted rework items, out-of-office auto-cover or
+  configurable auto-approve/decline (P3).
+- SLA times left are wall-clock in the UI; the deadlines themselves are
+  business-hour.
+- Customer-visible notes reach no customer until the portal (P4).

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Fundly\Modules\Notification\Application;
 
+use DateTimeImmutable;
+use DateTimeZone;
+use Fundly\Modules\Access\Contracts\AuthorityDirectory;
 use Fundly\Modules\Application\Contracts\CanonicalStatus;
 use Fundly\Modules\Application\Contracts\Events\ApplicationStatusChanged;
 use Fundly\Modules\Compliance\Contracts\Events\ApplicationScreened;
@@ -13,6 +16,9 @@ use Fundly\Modules\Disbursement\Contracts\Events\FacilityBooked;
 use Fundly\Modules\Document\Contracts\DocumentArchive;
 use Fundly\Modules\Notification\Application\Commands\Notify;
 use Fundly\Modules\Notification\Domain\Format;
+use Fundly\Modules\Workflow\Contracts\Events\NoteMentioned;
+use Fundly\Modules\Workflow\Contracts\Events\TaskAssigned;
+use Fundly\Modules\Workflow\Contracts\Events\TaskSlaChanged;
 use Fundly\Shared\Bus\CommandBus;
 use Fundly\Shared\Security\Principal;
 use Fundly\Shared\Security\SystemIdentity;
@@ -34,6 +40,7 @@ final class NotificationTriggers
         private readonly DisbursementRegister $disbursements,
         private readonly DocumentArchive $documents,
         private readonly LoggerInterface $log,
+        private readonly AuthorityDirectory $authority,
     ) {}
 
     public function onStatusChanged(ApplicationStatusChanged $e): void
@@ -61,6 +68,34 @@ final class NotificationTriggers
     public function onAwaitingRelease(DisbursementAwaitingRelease $e): void
     {
         $this->notify($e->tenantId, 'disbursement.awaiting_release', $e->applicationId, $e->disbursementId, ['exclude_user_ids' => [$e->makerId]]);
+    }
+
+    public function onTaskAssigned(TaskAssigned $e): void
+    {
+        $this->notify($e->tenantId, 'task.assigned', $e->applicationId, $e->assignmentId, ['user_ids' => [$e->assigneeId], 'stage' => $e->stageName]);
+    }
+
+    /** At risk: the owner (or, unassigned, whoever can work the stage). Breached: the owner and the escalation holders (FR-WFL-006). */
+    public function onTaskSla(TaskSlaChanged $e): void
+    {
+        $context = ['stage' => $e->stageName, 'due_at' => $this->localTime($e->dueAt)];
+        $context += $e->state === 'breached'
+            ? ['user_ids' => $e->assigneeId === null ? [] : [$e->assigneeId], 'permission' => $e->escalateTo]
+            : ($e->assigneeId === null ? ['permission' => $e->permission] : ['user_ids' => [$e->assigneeId]]);
+        $this->notify($e->tenantId, 'task.sla_'.$e->state, $e->applicationId, $e->taskId, $context);
+    }
+
+    public function onNoteMentioned(NoteMentioned $e): void
+    {
+        $this->tenant->run($e->tenantId, function () use ($e): void {
+            $author = $this->authority->names([$e->authorId])[$e->authorId] ?? 'A colleague';
+            $this->dispatch($e->tenantId, 'note.mention', $e->applicationId, $e->noteId, ['user_ids' => $e->userIds, 'author' => $author]);
+        });
+    }
+
+    private function localTime(string $iso): string
+    {
+        return $iso === '' ? '' : (new DateTimeImmutable($iso))->setTimezone(new DateTimeZone('Africa/Lagos'))->format('j M H:i');
     }
 
     public function onBooked(FacilityBooked $e): void

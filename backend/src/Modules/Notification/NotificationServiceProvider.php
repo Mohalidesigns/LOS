@@ -19,6 +19,9 @@ use Fundly\Modules\Notification\Infrastructure\DeliverEmailOutboxHandler;
 use Fundly\Modules\Notification\Infrastructure\DeliverSmsOutboxHandler;
 use Fundly\Modules\Notification\Infrastructure\DeliverWhatsAppOutboxHandler;
 use Fundly\Modules\Platform\Contracts\ConfigTypeCatalogue;
+use Fundly\Modules\Workflow\Contracts\Events\NoteMentioned;
+use Fundly\Modules\Workflow\Contracts\Events\TaskAssigned;
+use Fundly\Modules\Workflow\Contracts\Events\TaskSlaChanged;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 
@@ -41,6 +44,9 @@ final class NotificationServiceProvider extends ServiceProvider
         $events->listen(ApplicationScreened::class, [NotificationTriggers::class, 'onScreened']);
         $events->listen(DisbursementAwaitingRelease::class, [NotificationTriggers::class, 'onAwaitingRelease']);
         $events->listen(FacilityBooked::class, [NotificationTriggers::class, 'onBooked']);
+        $events->listen(TaskAssigned::class, [NotificationTriggers::class, 'onTaskAssigned']);
+        $events->listen(TaskSlaChanged::class, [NotificationTriggers::class, 'onTaskSla']);
+        $events->listen(NoteMentioned::class, [NotificationTriggers::class, 'onNoteMentioned']);
         if ($this->app->runningInConsole()) {
             $this->commands([SendRemindersCommand::class, CheckDeliveryCommand::class]);
         }

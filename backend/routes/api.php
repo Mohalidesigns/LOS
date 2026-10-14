@@ -31,6 +31,7 @@ use Fundly\Modules\Platform\Http\Controllers\ConfigController;
 use Fundly\Modules\Platform\Http\Controllers\LegalEntityController;
 use Fundly\Modules\Platform\Http\Controllers\OrgUnitController;
 use Fundly\Modules\Product\Http\Controllers\ProductController;
+use Fundly\Modules\Workflow\Http\Controllers\WorkflowController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 
@@ -152,6 +153,20 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::post('offers/{id}/actions/decline', [OfferController::class, 'decline'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.decline');
 
     // Conditions (FR-CPR-001..005): CP/CS register, waivers via change requests, final pre-disbursement check
+    Route::get('me/tasks', [WorkflowController::class, 'inbox'])->middleware('authz:application:view')->name('tasks.inbox');
+    Route::post('tasks/actions/bulk-assign', [WorkflowController::class, 'bulkAssign'])->middleware(['authz:application:view', 'idempotent'])->name('tasks.bulk-assign');
+    Route::get('tasks/{id}/candidates', [WorkflowController::class, 'candidates'])->middleware('authz:task:reassign')->name('tasks.candidates');
+    Route::get('applications/{id}/mentionable', [WorkflowController::class, 'mentionable'])->middleware('authz:application:view')->name('notes.mentionable');
+    Route::post('tasks/{id}/actions/claim', [WorkflowController::class, 'claim'])->middleware(['authz:application:view', 'idempotent'])->name('tasks.claim');
+    Route::post('tasks/{id}/actions/release', [WorkflowController::class, 'release'])->middleware(['authz:application:view', 'idempotent'])->name('tasks.release');
+    Route::post('tasks/{id}/actions/reassign', [WorkflowController::class, 'reassign'])->middleware(['authz:task:reassign', 'idempotent'])->name('tasks.reassign');
+    Route::get('me/task-views', [WorkflowController::class, 'views'])->middleware('authz:application:view')->name('task-views.index');
+    Route::post('me/task-views', [WorkflowController::class, 'saveView'])->middleware(['authz:application:view', 'idempotent'])->name('task-views.store');
+    Route::delete('me/task-views/{id}', [WorkflowController::class, 'deleteView'])->middleware('authz:application:view')->name('task-views.destroy');
+    Route::get('applications/{id}/workflow', [WorkflowController::class, 'forApplication'])->middleware('authz:application:view')->name('workflow.for-application');
+    Route::post('applications/{id}/workflow/actions/migrate', [WorkflowController::class, 'migrate'])->middleware(['authz:config:activate_request', 'idempotent'])->name('workflow.migrate');
+    Route::get('applications/{id}/notes', [WorkflowController::class, 'notes'])->middleware('authz:application:view')->name('notes.index');
+    Route::post('applications/{id}/notes', [WorkflowController::class, 'addNote'])->middleware(['authz:application:view', 'idempotent'])->name('notes.store');
     Route::get('legal-entities/{id}/regulatory-rules', [RegulatoryController::class, 'register'])->middleware('authz:config:read')->name('regulatory-rules.index');
     Route::get('jurisdiction-packs/defaults', [RegulatoryController::class, 'defaults'])->middleware('authz:config:read')->name('jurisdiction-packs.defaults');
     Route::get('applications/{id}/regulatory-limit-checks', [RegulatoryController::class, 'limitChecks'])->middleware('authz:application:view')->name('regulatory-limit-checks.index');
