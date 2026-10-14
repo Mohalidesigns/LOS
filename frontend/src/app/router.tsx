@@ -70,6 +70,7 @@ export const router = createBrowserRouter([
       { path: 'parties/:id', handle: { title: 'Customer' }, lazy: async () => ({ Component: (await parties()).PartyDetailPage }) },
       { path: 'compliance/alerts', handle: { title: 'Compliance alerts' }, lazy: async () => ({ Component: (await import('@/features/compliance/AlertsPage')).default }) },
       { path: 'config/products', handle: { title: 'Products' }, lazy: async () => ({ Component: (await placeholders()).ProductsPage }) },
+      { path: 'config/regulatory-rules', handle: { title: 'Regulatory rules' }, lazy: async () => ({ Component: (await import('@/features/compliance/RegulatoryRulesPage')).RegulatoryRulesPage }) },
       { path: 'admin/webhooks', handle: { title: 'Webhooks' }, lazy: async () => ({ Component: (await import('@/features/handover/WebhooksPage')).default }) },
       { path: 'admin/users', handle: { title: 'Users & roles' }, lazy: async () => ({ Component: (await placeholders()).UsersPage }) },
       { path: 'audit/events', handle: { title: 'Audit trail' }, lazy: async () => ({ Component: (await placeholders()).AuditPage }) },

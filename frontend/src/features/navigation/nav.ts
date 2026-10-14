@@ -1,18 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import {
-  Banknote,
-  Building2,
-  FileStack,
-  Gavel,
-  Inbox,
-  LayoutGrid,
-  Package,
-  ScrollText,
-  ShieldAlert,
-  UsersRound,
-  Webhook,
-  Workflow,
-} from 'lucide-react';
+import { Banknote, Building2, FileStack, Gavel, Inbox, LayoutGrid, Package, Scale, ScrollText, ShieldAlert, UsersRound, Webhook, Workflow } from 'lucide-react';
 
 export type NavItem = {
   id: string;
@@ -50,7 +37,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     id: 'configuration',
     label: 'Configuration',
-    items: [{ id: 'products', label: 'Products', to: '/config/products', icon: Package, anyOf: ['product:manage', 'config:read'] }],
+    items: [
+      { id: 'products', label: 'Products', to: '/config/products', icon: Package, anyOf: ['product:manage', 'config:read'] },
+      { id: 'regulatory', label: 'Regulatory rules', to: '/config/regulatory-rules', icon: Scale, anyOf: ['config:read'] },
+    ],
   },
   {
     id: 'administration',

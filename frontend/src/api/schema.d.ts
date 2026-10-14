@@ -1321,6 +1321,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/legal-entities/{id}/regulatory-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The regulatory rule register in force for a booking legal entity: active pack, rules with citations and verification, prudential base */
+        get: operations["getRegulatoryRules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jurisdiction-packs/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Draft jurisdiction packs shipped with the product (all rules unverified) to author a pack version from */
+        get: operations["listDefaultJurisdictionPacks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/regulatory-limit-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recorded regulatory limit checks for an application, newest first */
+        get: operations["listRegulatoryLimitChecks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/parties/{id}/consents": {
         parameters: {
             query?: never;
@@ -3159,6 +3210,89 @@ export interface components {
                 open_steps: number;
             }[];
         };
+        RegulatoryRegister: {
+            legal_entity: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                name: string;
+                jurisdiction: string;
+                licence_category: string;
+            };
+            pack: {
+                key: string;
+                name: string;
+                /** Format: uuid */
+                version_id: string;
+                version_no: number;
+                /** Format: date-time */
+                activated_at: string | null;
+                unverified_rules: number;
+            } | null;
+            prudential: {
+                /** Format: date */
+                effective_from: string;
+                shareholders_funds_unimpaired: components["schemas"]["Money"];
+                source: string;
+                /** Format: uuid */
+                version_id: string | null;
+            } | null;
+            rules: {
+                code: string;
+                title: string;
+                /** @enum {string} */
+                kind: "parameter" | "obligation";
+                parameters: {
+                    [key: string]: unknown;
+                } | null;
+                citation: {
+                    [key: string]: unknown;
+                };
+                /** Format: date */
+                effective_from: string;
+                /** Format: date */
+                effective_to: string | null;
+                /** @enum {string} */
+                verification_status: "unverified" | "verified";
+                verified_by: string | null;
+                verified_on: string | null;
+                note: string | null;
+                in_force: boolean;
+            }[];
+        };
+        RegulatoryLimitCheck: {
+            /** Format: uuid */
+            id: string;
+            limit_type: string;
+            /** @enum {string} */
+            stage: "approval" | "pre_disbursement";
+            /** @enum {string} */
+            outcome: "pass" | "breach" | "unavailable" | "not_applicable";
+            detail: string;
+            rule: {
+                [key: string]: unknown;
+            } | null;
+            base: {
+                [key: string]: unknown;
+            } | null;
+            figures: {
+                base: components["schemas"]["Money"] | null;
+                limit_percent: string | null;
+                limit: components["schemas"]["Money"] | null;
+                existing: components["schemas"]["Money"] | null;
+                proposed: components["schemas"]["Money"] | null;
+                total: components["schemas"]["Money"] | null;
+            } | null;
+            facilities: {
+                [key: string]: unknown;
+            }[];
+            checked_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date-time */
+            checked_at: string;
+        };
         ScreeningAlert: {
             /** Format: uuid */
             id: string;
@@ -3833,7 +3967,7 @@ export interface components {
             passed: boolean;
             items: {
                 /** @enum {string} */
-                code: "kyc_current" | "screening_clear" | "documentation_executed" | "conditions_precedent" | "approval_valid" | "account_verified" | "security_perfected" | "insurance_in_force";
+                code: "kyc_current" | "screening_clear" | "documentation_executed" | "conditions_precedent" | "approval_valid" | "account_verified" | "security_perfected" | "insurance_in_force" | "regulatory_limits";
                 label: string;
                 /** @enum {string} */
                 status: "pass" | "fail" | "not_applicable";
@@ -7207,6 +7341,90 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ChangeRequest"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getRegulatoryRules: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RegulatoryRegister"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listDefaultJurisdictionPacks: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            key: string;
+                            content: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listRegulatoryLimitChecks: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RegulatoryLimitCheck"][];
                     };
                 };
             };
