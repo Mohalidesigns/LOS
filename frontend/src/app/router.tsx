@@ -58,6 +58,7 @@ export const router = createBrowserRouter([
           { path: 'credit', handle: { title: 'Application · Credit' }, lazy: async () => ({ Component: (await import('@/features/applications/case/CreditTab')).CreditTab }) },
           { path: 'approval', handle: { title: 'Application · Approval' }, lazy: async () => ({ Component: (await import('@/features/approvals/ApprovalTab')).ApprovalTab }) },
           { path: 'offer', handle: { title: 'Application · Offer' }, lazy: async () => ({ Component: (await import('@/features/offers/OfferTab')).OfferTab }) },
+          { path: 'collateral', handle: { title: 'Application · Collateral' }, lazy: async () => ({ Component: (await import('@/features/collateral/CollateralTab')).CollateralTab }) },
           { path: 'conditions', handle: { title: 'Application · Conditions' }, lazy: async () => ({ Component: (await import('@/features/conditions/ConditionsTab')).ConditionsTab }) },
           { path: 'disbursement', handle: { title: 'Application · Disbursement' }, lazy: async () => ({ Component: (await import('@/features/disbursement/DisbursementTab')).DisbursementTab }) },
           { path: 'handover', handle: { title: 'Application · Handover' }, lazy: async () => ({ Component: (await import('@/features/handover/HandoverTab')).HandoverTab }) },

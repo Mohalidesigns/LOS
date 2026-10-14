@@ -1133,6 +1133,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/collateral-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Collateral types the tenant can capture (built-in defaults and tenant versions) */
+        get: operations["listCollateralTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/collateral": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Security file of an application: items allocated, cover and LTV against the product, perfection and insurance blockers */
+        get: operations["getApplicationCollateral"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collaterals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Collateral items visible to me, e.g. a party's existing security to link to another facility */
+        get: operations["listCollaterals"];
+        put?: never;
+        /** Capture a collateral item; its perfection checklist is created and its lending value allocated to the application */
+        post: operations["createCollateral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collaterals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A collateral item with valuations, perfection steps, insurance and allocations */
+        get: operations["getCollateral"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collaterals/{id}/valuations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a valuation (with the report); it becomes the value basis */
+        post: operations["recordCollateralValuation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collaterals/{id}/insurance-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record an insurance policy on the item */
+        post: operations["recordCollateralInsurance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collaterals/{id}/allocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set the lending value of the item that secures a facility; 0 releases it; over-allocation is refused */
+        post: operations["allocateCollateral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collaterals/{id}/actions/request-insurance-waiver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a waiver of the item's insurance requirement (maker-checker) */
+        post: operations["requestCollateralInsuranceWaiver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/perfection-steps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Assign the responsible party and due date of a perfection step, or start it */
+        patch: operations["updatePerfectionStep"];
+        trace?: never;
+    };
+    "/api/v1/perfection-steps/{id}/actions/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete a perfection step with evidence: an uploaded file and/or a reference */
+        post: operations["completePerfectionStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/perfection-steps/{id}/actions/request-waiver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a waiver of a perfection step (maker-checker) */
+        post: operations["requestPerfectionStepWaiver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/parties/{id}/consents": {
         parameters: {
             query?: never;
@@ -2740,6 +2928,237 @@ export interface components {
             /** Format: date-time */
             read_at: string | null;
         };
+        CollateralType: {
+            code: string;
+            name: string;
+            category: string;
+            haircut_percent: string;
+            requires_valuation: boolean;
+            valuation_validity_months: number | null;
+            requires_insurance: boolean;
+            perfection_steps: {
+                code: string;
+                name: string;
+                timing: string;
+                due_days: number | null;
+            }[];
+            /** @enum {string} */
+            source: "default" | "tenant";
+            /** Format: uuid */
+            version_id: string | null;
+        };
+        Collateral: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            origin_application_id: string;
+            type: {
+                code: string;
+                name: string;
+                category: string;
+                source: string;
+                /** Format: uuid */
+                version_id: string | null;
+            };
+            description: string;
+            owner: {
+                /** Format: uuid */
+                party_id: string | null;
+                name: string;
+            };
+            state_code: string | null;
+            market_value: components["schemas"]["Money"];
+            haircut_percent: string;
+            forced_sale_value: components["schemas"]["Money"];
+            /** @enum {string} */
+            value_basis: "declared" | "valuation";
+            /** @enum {string} */
+            status: "active" | "released";
+            allocation: {
+                total: components["schemas"]["Money"];
+                available: components["schemas"]["Money"];
+                over_allocated: boolean;
+                items: {
+                    /** Format: uuid */
+                    id: string;
+                    /** Format: uuid */
+                    application_id: string;
+                    application_reference: string | null;
+                    amount: components["schemas"]["Money"];
+                    /** @enum {string} */
+                    status: "active" | "released";
+                }[];
+            };
+            valuation: {
+                required: boolean;
+                /** @enum {string} */
+                status: "not_required" | "none" | "current" | "due_soon" | "expired";
+                /** Format: date */
+                valid_until: string | null;
+                history: {
+                    /** Format: uuid */
+                    id: string;
+                    sequence: number;
+                    valuer: string;
+                    /** Format: date */
+                    valuation_date: string;
+                    method: string;
+                    market_value: components["schemas"]["Money"];
+                    forced_sale_value: components["schemas"]["Money"];
+                    /** Format: date */
+                    valid_until: string | null;
+                    report: {
+                        /** Format: uuid */
+                        document_id: string;
+                        /** Format: uuid */
+                        version_id: string;
+                    } | null;
+                    note: string | null;
+                    recorded_by: {
+                        id: string;
+                        name: string | null;
+                    } | null;
+                    /** Format: date-time */
+                    recorded_at: string;
+                }[];
+            };
+            perfection: {
+                precedent_complete: boolean;
+                steps: {
+                    /** Format: uuid */
+                    id: string;
+                    sequence: number;
+                    code: string;
+                    name: string;
+                    /** @enum {string} */
+                    timing: "precedent" | "subsequent";
+                    responsible: {
+                        id: string;
+                        name: string | null;
+                    } | null;
+                    /** Format: date */
+                    due_date: string | null;
+                    is_overdue: boolean;
+                    /** @enum {string} */
+                    status: "pending" | "in_progress" | "completed" | "waiver_pending" | "waived";
+                    evidence: {
+                        /** Format: uuid */
+                        document_id: string | null;
+                        /** Format: uuid */
+                        version_id: string | null;
+                        reference: string | null;
+                    } | null;
+                    completion: {
+                        by: {
+                            id: string;
+                            name: string | null;
+                        } | null;
+                        /** Format: date-time */
+                        at: string;
+                        note: string | null;
+                    } | null;
+                    waiver: {
+                        /** Format: uuid */
+                        change_request_id: string;
+                        reason: string | null;
+                    } | null;
+                }[];
+            };
+            insurance: {
+                /** @enum {string} */
+                requirement: "not_required" | "required" | "waiver_pending" | "waived";
+                /** @enum {string} */
+                status: "not_required" | "waived" | "in_force" | "expiring" | "missing" | "expired" | "not_started" | "interest_not_noted";
+                /** Format: uuid */
+                current_policy_id: string | null;
+                waiver: {
+                    /** Format: uuid */
+                    change_request_id: string;
+                    reason: string | null;
+                } | null;
+                policies: {
+                    /** Format: uuid */
+                    id: string;
+                    policy_no: string;
+                    insurer: string;
+                    sum_insured: components["schemas"]["Money"];
+                    /** Format: date */
+                    start_date: string;
+                    /** Format: date */
+                    expiry_date: string;
+                    bank_interest_noted: boolean;
+                    under_insured: boolean;
+                    document: {
+                        /** Format: uuid */
+                        document_id: string;
+                        /** Format: uuid */
+                        version_id: string;
+                    } | null;
+                    recorded_by: {
+                        id: string;
+                        name: string | null;
+                    } | null;
+                    /** Format: date-time */
+                    recorded_at: string;
+                }[];
+            };
+            created_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SecurityFile: {
+            /** Format: uuid */
+            application_id: string;
+            status: string;
+            exposure: components["schemas"]["Money"];
+            policy: {
+                required: boolean;
+                min_cover_percent: string | null;
+                max_ltv_percent: string | null;
+            };
+            cover: {
+                lending_value: components["schemas"]["Money"];
+                market_value: components["schemas"]["Money"];
+                cover_percent: string | null;
+                ltv_percent: string | null;
+                meets_cover: boolean | null;
+                meets_ltv: boolean | null;
+            } | null;
+            security: {
+                applicable: boolean;
+                perfected: boolean;
+                insurance_in_force: boolean;
+                blockers: string[];
+                open_subsequent_steps: number;
+            };
+            items: (components["schemas"]["Collateral"] & {
+                allocated_here: components["schemas"]["Money"];
+            })[];
+        };
+        ApprovalPacketCollateral: {
+            cover_percent: string | null;
+            ltv_percent: string | null;
+            min_cover_percent: string | null;
+            max_ltv_percent: string | null;
+            meets_cover: boolean | null;
+            meets_ltv: boolean | null;
+            lending_value: components["schemas"]["Money"] | null;
+            outstanding_perfection: number;
+            items: {
+                /** Format: uuid */
+                collateral_id: string;
+                type_code: string;
+                description: string;
+                owner_name: string;
+                market_value: components["schemas"]["Money"];
+                forced_sale_value: components["schemas"]["Money"];
+                allocated: components["schemas"]["Money"];
+                open_steps: number;
+            }[];
+        };
         ScreeningAlert: {
             /** Format: uuid */
             id: string;
@@ -3196,6 +3615,7 @@ export interface components {
                 is_routed_decision: boolean;
             };
             bureau_valid: boolean;
+            collateral: components["schemas"]["ApprovalPacketCollateral"];
             history: {
                 /** Format: uuid */
                 id: string;
@@ -6346,6 +6766,447 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["Communication"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listCollateralTypes: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CollateralType"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getApplicationCollateral: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SecurityFile"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listCollaterals: {
+        parameters: {
+            query?: {
+                /** @description owner party */
+                "filter[owner_party_id]"?: string;
+                /** @description items allocated to an application */
+                "filter[application_id]"?: string;
+            };
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Collateral"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createCollateral: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    application_id: string;
+                    type_code: string;
+                    description: string;
+                    market_value: string;
+                    /** Format: uuid */
+                    owner_party_id?: string | null;
+                    owner_name?: string | null;
+                    state_code?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Captured */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Collateral"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getCollateral: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Collateral"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    recordCollateralValuation: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    valuer: string;
+                    /** Format: date */
+                    valuation_date: string;
+                    /** @enum {string} */
+                    method: "market_comparison" | "income" | "cost" | "residual" | "desktop" | "mark_to_market";
+                    market_value: string;
+                    forced_sale_value?: string | null;
+                    /** Format: date */
+                    valid_until?: string | null;
+                    note?: string | null;
+                    /** Format: binary */
+                    file?: string;
+                };
+                "application/json": {
+                    valuer: string;
+                    /** Format: date */
+                    valuation_date: string;
+                    /** @enum {string} */
+                    method: "market_comparison" | "income" | "cost" | "residual" | "desktop" | "mark_to_market";
+                    market_value: string;
+                    forced_sale_value?: string | null;
+                    /** Format: date */
+                    valid_until?: string | null;
+                    note?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Collateral"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    recordCollateralInsurance: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    policy_no: string;
+                    insurer: string;
+                    sum_insured: string;
+                    /** Format: date */
+                    start_date: string;
+                    /** Format: date */
+                    expiry_date: string;
+                    bank_interest_noted: boolean;
+                    /** Format: binary */
+                    file?: string;
+                };
+                "application/json": {
+                    policy_no: string;
+                    insurer: string;
+                    sum_insured: string;
+                    /** Format: date */
+                    start_date: string;
+                    /** Format: date */
+                    expiry_date: string;
+                    bank_interest_noted: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Collateral"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    allocateCollateral: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    application_id: string;
+                    amount: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Allocated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Collateral"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestCollateralInsuranceWaiver: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Change request awaiting a checker holding condition:waive_approve */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ChangeRequest"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updatePerfectionStep: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    responsible_user_id?: string | null;
+                    /** Format: date */
+                    due_date?: string | null;
+                    start?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Collateral"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    completePerfectionStep: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    note: string;
+                    evidence_reference?: string;
+                    /** Format: binary */
+                    file?: string;
+                };
+                "application/json": {
+                    note: string;
+                    evidence_reference?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Collateral"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestPerfectionStepWaiver: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Change request awaiting a checker holding condition:waive_approve */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ChangeRequest"];
                     };
                 };
             };
