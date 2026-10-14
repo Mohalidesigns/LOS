@@ -12,6 +12,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 import { notificationsApi } from '@/api/notifications';
+import { workflowApi } from '@/api/workflow';
 
 export type Money = { amount: string; currency: string };
 
@@ -30,7 +31,7 @@ export type DashboardData = {
   sla: { onTrack: number; atRisk: number; breached: number; withinSlaRate: number; target: number };
 };
 
-export type NavCounts = { inbox: number; alerts: number };
+export type NavCounts = { inbox: number; alerts: number; tasks: number };
 
 const NGN = (amount: string): Money => ({ amount, currency: 'NGN' });
 
@@ -81,7 +82,13 @@ export async function fetchNavCounts(): Promise<NavCounts> {
   } catch {
     inbox = 0; // no application:view, or offline: show no badge rather than an error
   }
-  return { inbox, alerts: 3 };
+  let tasks = 0;
+  try {
+    tasks = (await workflowApi.inbox({ view: 'mine' })).meta.counts.mine;
+  } catch {
+    tasks = 0;
+  }
+  return { inbox, alerts: 3, tasks };
 }
 
 export const dashboardQuery = queryOptions({ queryKey: ['dashboard', 'operational'], queryFn: fetchDashboard, staleTime: 60_000 });

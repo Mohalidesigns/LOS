@@ -5,6 +5,7 @@ import { ArrowLeft, RotateCw } from 'lucide-react';
 import type { ApplicationAction } from '@/api/lending';
 import { Banner, Button, Card, KebabMenu, MoneyText, SectionError, Skeleton, StageTracker, StatusBadge } from '@/components';
 import { cn } from '@/lib/cn';
+import { CaseTaskChip } from '@/features/workflow/CaseTaskChip';
 import { RequirePermission } from '@/features/auth/RequirePermission';
 import { usePermissions } from '@/features/auth/session';
 import { menuActions, PERM, primaryAction } from '../domain/actions';
@@ -25,6 +26,7 @@ export const CASE_TABS = [
   { path: 'disbursement', label: 'Disbursement' },
   { path: 'handover', label: 'Handover' },
   { path: 'communications', label: 'Communications' },
+  { path: 'notes', label: 'Notes' },
   { path: 'timeline', label: 'Timeline' },
 ] as const;
 
@@ -179,6 +181,7 @@ function CaseWorkspace() {
               </h2>
               <StatusBadge status={app.status} />
             </div>
+            <CaseTaskChip applicationId={app.id} />
             <p className="mt-1 text-body-sm text-secondary">
               <span className="ref font-medium text-primary">{app.reference}</span> · {app.product.name} · {app.segment.toUpperCase()}
               {app.close_reason_code && (

@@ -1372,6 +1372,212 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My consolidated task inbox: my tasks, the queues I can work, or (with task:reassign) my team's tasks; soonest SLA breach first */
+        get: operations["listMyTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/actions/bulk-assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk claim (no assignee) or, with task:reassign, assign several tasks to one person; all or nothing */
+        post: operations["bulkAssignTasks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** People who could take this task (hold its permission in its scope), with their open task count */
+        get: operations["listTaskCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/mentionable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** People who can see the application and so can be @mentioned */
+        get: operations["listMentionable"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/actions/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim an unassigned task you can work */
+        post: operations["claimTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/actions/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Put your task back in its queue */
+        post: operations["releaseTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/actions/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reassign a task to someone who can work it, or to the queue (null) */
+        post: operations["reassignTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/task-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My saved inbox views */
+        get: operations["listTaskViews"];
+        put?: never;
+        /** Save (or replace by name) an inbox view */
+        post: operations["saveTaskView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/task-views/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a saved view */
+        delete: operations["deleteTaskView"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/workflow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The workflow an application runs on (pinned version), its current task and task history with assignments */
+        get: operations["getApplicationWorkflow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/workflow/actions/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move an in-flight application to the active workflow version (effective from its next stage) */
+        post: operations["migrateApplicationWorkflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Case notes, newest first */
+        get: operations["listCaseNotes"];
+        put?: never;
+        /** Add a case note; @mentioned users are notified */
+        post: operations["addCaseNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/parties/{id}/consents": {
         parameters: {
             query?: never;
@@ -3292,6 +3498,124 @@ export interface components {
             } | null;
             /** Format: date-time */
             checked_at: string;
+        };
+        WorkflowTask: {
+            /** Format: uuid */
+            id: string;
+            application: {
+                /** Format: uuid */
+                id: string;
+                reference: string;
+                applicant_name: string | null;
+            };
+            stage: {
+                code: string;
+                name: string;
+                status: string;
+            };
+            permission: string;
+            /** @enum {string} */
+            strategy: "queue" | "round_robin" | "least_loaded" | "originator";
+            /** @enum {string} */
+            status: "open" | "completed" | "cancelled";
+            assignee: {
+                id: string;
+                name: string | null;
+            } | null;
+            sla: {
+                /** @enum {string} */
+                state: "none" | "on_track" | "at_risk" | "breached" | "paused";
+                /** Format: date-time */
+                warn_at: string | null;
+                /** Format: date-time */
+                breach_at: string | null;
+                paused_minutes: number;
+            };
+            /** Format: date-time */
+            opened_at: string;
+            /** Format: date-time */
+            closed_at: string | null;
+            close_reason: string | null;
+            history?: {
+                /** @enum {string} */
+                kind: "routed" | "claimed" | "released" | "reassigned";
+                from: {
+                    id: string;
+                    name: string | null;
+                } | null;
+                to: {
+                    id: string;
+                    name: string | null;
+                } | null;
+                by: {
+                    id: string;
+                    name: string | null;
+                } | null;
+                on_behalf_of: {
+                    id: string;
+                    name: string | null;
+                } | null;
+                reason: string | null;
+                /** Format: date-time */
+                at: string;
+            }[];
+        };
+        ApplicationWorkflow: {
+            /** Format: uuid */
+            application_id: string;
+            workflow: {
+                key: string;
+                name: string;
+                /** @enum {string} */
+                source: "default" | "tenant";
+                /** Format: uuid */
+                version_id: string | null;
+                version_no: number | null;
+                /** Format: date-time */
+                pinned_at: string;
+                /** Format: date-time */
+                migrated_at: string | null;
+            } | null;
+            current: components["schemas"]["WorkflowTask"] | null;
+            tasks: components["schemas"]["WorkflowTask"][];
+        };
+        WorkflowPerson: {
+            /** Format: uuid */
+            id: string;
+            name: string | null;
+            open_tasks: number;
+        };
+        TaskViewFilters: {
+            /** @enum {string} */
+            view?: "mine" | "queue" | "team";
+            stage?: string;
+            /** @enum {string} */
+            sla?: "on_track" | "at_risk" | "breached" | "paused";
+        };
+        TaskView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            filters: components["schemas"]["TaskViewFilters"];
+        };
+        CaseNote: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            body: string;
+            /** @enum {string} */
+            visibility: "internal" | "customer";
+            author: {
+                id: string;
+                name: string | null;
+            } | null;
+            mentions: ({
+                id: string;
+                name: string | null;
+            } | null)[];
+            /** Format: date-time */
+            created_at: string;
         };
         ScreeningAlert: {
             /** Format: uuid */
@@ -7425,6 +7749,443 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["RegulatoryLimitCheck"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listMyTasks: {
+        parameters: {
+            query?: {
+                /** @description mine (default) | queue | team */
+                "filter[view]"?: string;
+                /** @description stage code */
+                "filter[stage]"?: string;
+                /** @description on_track | at_risk | breached | paused */
+                "filter[sla]"?: string;
+                sort?: "due" | "-opened_at";
+            };
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkflowTask"][];
+                        meta: {
+                            view: string;
+                            counts: {
+                                mine: number;
+                                mine_breached: number;
+                            };
+                            can_reassign: boolean;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    bulkAssignTasks: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    task_ids: string[];
+                    /** Format: uuid */
+                    assignee_id?: string | null;
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Assigned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            assigned: number;
+                            task_ids: string[];
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listTaskCandidates: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkflowPerson"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listMentionable: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkflowPerson"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    claimTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkflowTask"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    releaseTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkflowTask"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    reassignTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    assignee_id?: string | null;
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkflowTask"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listTaskViews: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TaskView"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveTaskView: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    filters?: components["schemas"]["TaskViewFilters"];
+                };
+            };
+        };
+        responses: {
+            /** @description Saved */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TaskView"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteTaskView: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getApplicationWorkflow: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ApplicationWorkflow"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    migrateApplicationWorkflow: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Migrated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ApplicationWorkflow"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listCaseNotes: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CaseNote"][];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addCaseNote: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    body: string;
+                    /** @enum {string} */
+                    visibility: "internal" | "customer";
+                    mention_user_ids?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Added */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CaseNote"];
                     };
                 };
             };

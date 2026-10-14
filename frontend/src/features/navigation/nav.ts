@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, Building2, FileStack, Gavel, Inbox, LayoutGrid, Package, Scale, ScrollText, ShieldAlert, UsersRound, Webhook, Workflow } from 'lucide-react';
+import { Banknote, Building2, FileStack, Gavel, Inbox, LayoutGrid, ListChecks, Package, Scale, ScrollText, ShieldAlert, UsersRound, Webhook, Workflow } from 'lucide-react';
 
 export type NavItem = {
   id: string;
@@ -21,6 +21,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     label: 'Work',
     items: [
       { id: 'dashboard', label: 'Dashboard', to: '/', icon: LayoutGrid, anyOf: [] },
+      { id: 'work', label: 'My work', to: '/work', icon: ListChecks, anyOf: ['application:view'], countKey: 'tasks' },
       { id: 'inbox', label: 'Inbox', to: '/inbox', icon: Inbox, anyOf: ['application:view'], countKey: 'inbox' },
       { id: 'approvals', label: 'Approvals', to: '/approvals', icon: Gavel, anyOf: ['application:approve'] },
       { id: 'disbursement-ops', label: 'Disbursement ops', to: '/operations/disbursements', icon: Banknote, anyOf: ['disbursement:check', 'reconciliation:run'] },
