@@ -124,6 +124,23 @@ return [
         ],
     ],
 
+    // WhatsApp (FR-NTF-001, LOS-FR-304): approved templates to customers who opted in
+    // (consent purpose whatsapp_messaging). HollaTags reuses the SMS account unless
+    // WHATSAPP_HOLLATAGS_* are set. By default WhatsApp goes alongside SMS; set
+    // WHATSAPP_REPLACES_SMS=true to send WhatsApp instead of SMS to opted-in customers.
+    'whatsapp' => [
+        'enabled' => (bool) env('WHATSAPP_ENABLED', false),
+        'driver' => env('WHATSAPP_DRIVER', 'mock'),
+        'replaces_sms' => (bool) env('WHATSAPP_REPLACES_SMS', false),
+        'always_to' => env('WHATSAPP_ALWAYS_TO', env('SMS_ALWAYS_TO')),
+        'hollatags' => [
+            'url' => env('WHATSAPP_HOLLATAGS_URL', 'https://sms.hollatags.com/api/whatsapp/push/'),
+            'username' => env('WHATSAPP_HOLLATAGS_USERNAME', env('SMS_HOLLATAGS_USERNAME')),
+            'password' => env('WHATSAPP_HOLLATAGS_PASSWORD', env('SMS_HOLLATAGS_PASSWORD')),
+            'from' => env('WHATSAPP_FROM'),
+        ],
+    ],
+
     // Collateral (FR-COL-003/006): revaluation and insurance-expiry notice window
     'collateral' => [
         'notice_days' => (int) env('FUNDLY_COLLATERAL_NOTICE_DAYS', 30),

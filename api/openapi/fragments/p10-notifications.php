@@ -31,7 +31,7 @@ $paths = [
 $schemas = [
     'InAppNotification' => $item,
     'Communication' => ['type' => 'object', 'properties' => [
-        'id' => OA_UUID, 'event' => OA_STR, 'channel' => ['type' => 'string', 'enum' => ['email', 'sms', 'in_app']], 'audience' => ['type' => 'string', 'enum' => ['customer', 'staff']],
+        'id' => OA_UUID, 'event' => OA_STR, 'channel' => ['type' => 'string', 'enum' => ['email', 'sms', 'whatsapp', 'in_app']], 'audience' => ['type' => 'string', 'enum' => ['customer', 'staff']],
         'recipient' => ['type' => 'object', 'properties' => ['user_id' => OA_NUUID, 'party_id' => OA_NUUID, 'hint' => OA_NSTR], 'required' => ['user_id', 'party_id', 'hint']],
         'template' => ['type' => 'object', 'properties' => ['source' => ['type' => 'string', 'enum' => ['tenant', 'default']], 'version_id' => OA_NUUID, 'language' => OA_STR], 'required' => ['source', 'version_id', 'language']],
         'subject' => OA_STR, 'body' => OA_STR, 'attachments' => ['type' => 'array', 'items' => OA_STR],

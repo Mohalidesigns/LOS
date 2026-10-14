@@ -121,7 +121,7 @@ final class LendingFixtures
     /** Bind the identity and screening simulators for the current tenant (UAT posture, D-037). */
     public static function bindSimulators(array $screeningConfig = []): void
     {
-        foreach ([['identity_verification', 'identity-simulator', []], ['screening', 'screening-simulator', $screeningConfig], ['malware_scan', 'malware-scan-simulator', []], ['credit_bureau', 'credit-bureau-simulator', []], ['pdf_render', 'pdf-render-simulator', []], ['core_banking', 'cba-simulator', []], ['sms', 'sms-simulator', []]] as [$port, $key, $config]) {
+        foreach ([['identity_verification', 'identity-simulator', []], ['screening', 'screening-simulator', $screeningConfig], ['malware_scan', 'malware-scan-simulator', []], ['credit_bureau', 'credit-bureau-simulator', []], ['pdf_render', 'pdf-render-simulator', []], ['core_banking', 'cba-simulator', []], ['sms', 'sms-simulator', []], ['whatsapp', 'whatsapp-simulator', []]] as [$port, $key, $config]) {
             AdapterBinding::query()->create(['port' => $port, 'adapter_key' => $key, 'adapter_version' => '1.0.0', 'config' => $config, 'processing_location' => 'on_prem:simulator', 'status' => 'active']);
         }
     }

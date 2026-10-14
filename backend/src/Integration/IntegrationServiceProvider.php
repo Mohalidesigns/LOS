@@ -7,6 +7,7 @@ namespace Fundly\Integration;
 use Fundly\Integration\Adapters\Clamav\ClamdScanner;
 use Fundly\Integration\Adapters\Gotenberg\GotenbergRenderer;
 use Fundly\Integration\Adapters\HollaTags\HollaTagsSms;
+use Fundly\Integration\Adapters\HollaTags\HollaTagsWhatsApp;
 use Fundly\Integration\Ports\CoreBanking\CoreBankingPort;
 use Fundly\Integration\Ports\CreditBureau\CreditBureauPort;
 use Fundly\Integration\Ports\Identity\IdentityVerificationPort;
@@ -15,12 +16,15 @@ use Fundly\Integration\Ports\PdfRender\PdfRenderPort;
 use Fundly\Integration\Ports\Screening\ScreeningPort;
 use Fundly\Integration\Ports\Sms\NonProductionSmsGuard;
 use Fundly\Integration\Ports\Sms\SmsPort;
+use Fundly\Integration\Ports\WhatsApp\NonProductionWhatsAppGuard;
+use Fundly\Integration\Ports\WhatsApp\WhatsAppPort;
 use Fundly\Integration\Runtime\AdapterDefinition;
 use Fundly\Integration\Runtime\AdapterRegistry;
 use Fundly\Integration\Runtime\BindingResolver;
 use Fundly\Integration\Runtime\Console\BindAdapterCommand;
 use Fundly\Integration\Runtime\Console\BindSimulatorsCommand;
 use Fundly\Integration\Runtime\Console\BindSmsDriverCommand;
+use Fundly\Integration\Runtime\Console\BindWhatsAppDriverCommand;
 use Fundly\Integration\Runtime\Handlers\CreateLoanAccountHandler;
 use Fundly\Integration\Runtime\Handlers\DisburseHandler;
 use Fundly\Integration\Runtime\Models\AdapterBinding;
@@ -43,6 +47,7 @@ use Fundly\Integration\Simulators\MalwareScan\MalwareScanSimulator;
 use Fundly\Integration\Simulators\PdfRender\PdfRenderSimulator;
 use Fundly\Integration\Simulators\Screening\ScreeningSimulator;
 use Fundly\Integration\Simulators\Sms\SmsSimulator;
+use Fundly\Integration\Simulators\WhatsApp\WhatsAppSimulator;
 use Fundly\Integration\Webhooks\WebhookDeliveryHandler;
 use Fundly\Integration\Webhooks\WebhookPublisher;
 use Fundly\Shared\Audit\AuditTrail;
@@ -187,8 +192,33 @@ final class IntegrationServiceProvider extends ServiceProvider
             },
         ));
 
+        $adapters->register(new AdapterDefinition(
+            key: WhatsAppSimulator::KEY,
+            port: WhatsAppPort::PORT,
+            version: WhatsAppSimulator::VERSION,
+            manifest: WhatsAppSimulator::capabilities(),
+            factory: static fn (AdapterBinding $binding): WhatsAppSimulator => new WhatsAppSimulator($binding->config, $app->make(LoggerInterface::class)),
+            isSimulator: true,
+        ));
+        $adapters->register(new AdapterDefinition(
+            key: HollaTagsWhatsApp::KEY,
+            port: WhatsAppPort::PORT,
+            version: HollaTagsWhatsApp::VERSION,
+            manifest: HollaTagsWhatsApp::capabilities(),
+            factory: static function (AdapterBinding $binding): WhatsAppPort {
+                /** @var array{url?: mixed, username?: mixed, password?: mixed, from?: mixed} $credentials */
+                $credentials = (array) config('fundly.whatsapp.hollatags', []);
+                $gateway = new HollaTagsWhatsApp($credentials);
+                $alwaysTo = config('fundly.whatsapp.always_to');
+
+                return config('fundly.installation.environment') === 'production'
+                    ? $gateway
+                    : new NonProductionWhatsAppGuard($gateway, is_string($alwaysTo) ? $alwaysTo : null, (string) config('fundly.sms.default_country_code', '234'));
+            },
+        ));
+
         if ($this->app->runningInConsole()) {
-            $this->commands([BindSimulatorsCommand::class, BindAdapterCommand::class, BindSmsDriverCommand::class]);
+            $this->commands([BindSimulatorsCommand::class, BindAdapterCommand::class, BindSmsDriverCommand::class, BindWhatsAppDriverCommand::class]);
         }
 
         $handlers->register(CreateLoanAccountHandler::TOPIC, CreateLoanAccountHandler::class);

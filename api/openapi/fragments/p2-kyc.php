@@ -24,7 +24,7 @@ $paths = [
         'post' => oa_op('Grant or withdraw consent for a purpose', 'recordPartyConsent', 'Parties', 'party:manage', [oa_param('Id'), oa_param('IdempotencyKey'), oa_param('CorrelationId')], [
             '201' => ['description' => 'Recorded', 'content' => oa_data($consentState)],
         ], ['type' => 'object', 'properties' => [
-            'purpose' => ['type' => 'string', 'enum' => ['data_processing', 'credit_bureau', 'credit_reporting', 'marketing', 'third_party_sharing']],
+            'purpose' => ['type' => 'string', 'enum' => ['data_processing', 'credit_bureau', 'credit_reporting', 'marketing', 'third_party_sharing', 'whatsapp_messaging']],
             'action' => ['type' => 'string', 'enum' => ['grant', 'withdraw']],
             'channel' => ['type' => 'string', 'enum' => ['branch', 'digital', 'call_centre', 'agent', 'api']],
             'terms_version' => OA_STR, 'evidence_ref' => OA_NSTR, 'application_id' => OA_NUUID,

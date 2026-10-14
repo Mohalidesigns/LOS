@@ -11,4 +11,6 @@ enum ConsentPurpose: string
     case CreditReporting = 'credit_reporting';
     case Marketing = 'marketing';
     case ThirdPartySharing = 'third_party_sharing';
+    // opt-in to business-initiated WhatsApp messages (WhatsApp Business policy)
+    case WhatsAppMessaging = 'whatsapp_messaging';
 }

@@ -4141,6 +4141,7 @@ paths:
                     - credit_reporting
                     - marketing
                     - third_party_sharing
+                    - whatsapp_messaging
                 action:
                   type: string
                   enum:
@@ -8523,6 +8524,7 @@ components:
           enum:
             - email
             - sms
+            - whatsapp
             - in_app
         audience:
           type: string

@@ -11,5 +11,8 @@ interface ConsentRegistry
 
     public const CREDIT_BUREAU = 'credit_bureau';
 
+    /** Opt-in to business-initiated WhatsApp messages. */
+    public const WHATSAPP_MESSAGING = 'whatsapp_messaging';
+
     public function active(string $partyId, string $purpose): bool;
 }

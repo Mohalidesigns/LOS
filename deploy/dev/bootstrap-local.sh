@@ -880,6 +880,7 @@ cmd_seed_demo() {
   artisan integration:bind-simulators || die "integration:bind-simulators failed"
   # SMS follows SMS_DRIVER in .env.sms.email (mock → simulator, hollatags → HollaTags)
   artisan integration:bind-sms || die "integration:bind-sms failed"
+  artisan integration:bind-whatsapp || die "integration:bind-whatsapp failed"
   # name enquiry: the simulator answers with these holder names (FR-CPR-005 demo; 0123456790 is a deliberate mismatch)
   sql_value "update adapter_bindings set config = (case when jsonb_typeof(config) = 'object' then config else '{}'::jsonb end) || '{\"account_names\":{\"0123456789\":\"NWOSU AMAKA\",\"0123456790\":\"JOHN DOE TRADING\"}}'::jsonb where port = 'core_banking' and adapter_key = 'cba-simulator' returning id" "$tid" >/dev/null
   ok "simulator name enquiry: 058/0123456789 -> NWOSU AMAKA, 058/0123456790 -> JOHN DOE TRADING"

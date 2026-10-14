@@ -46,7 +46,7 @@ final readonly class RecordConsent implements Command, ValidatesInput
     public function rules(): array
     {
         return [
-            'purpose' => ['required', 'in:data_processing,credit_bureau,credit_reporting,marketing,third_party_sharing'],
+            'purpose' => ['required', 'in:data_processing,credit_bureau,credit_reporting,marketing,third_party_sharing,whatsapp_messaging'],
             'action' => ['required', 'in:grant,withdraw'],
             'channel' => ['required', 'in:branch,digital,call_centre,agent,api'],
             'terms_version' => ['required', 'string', 'max:32'],

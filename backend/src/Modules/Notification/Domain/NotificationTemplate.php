@@ -14,7 +14,9 @@ use Fundly\Shared\Exceptions\ValidationFailed;
  * activated through maker-checker.
  *
  *   { event, audience: customer|staff,
- *     languages: { en: { email?: {subject, body}, sms?: {body}, in_app?: {title, body} }, … } }
+ *     languages: { en: { email?: {subject, body}, sms?: {body}, whatsapp?: {template, body}, in_app?: {title, body} }, … } }
+ *
+ * A WhatsApp body must match the wording approved for its template.
  *
  * Bodies are plain text with {{ variable }} placeholders.
  */
@@ -26,10 +28,13 @@ final class NotificationTemplate
         'collateral', 'due_date',
     ];
 
-    public const CHANNELS = ['email' => ['subject', 'body'], 'sms' => ['body'], 'in_app' => ['title', 'body']];
+    public const CHANNELS = ['email' => ['subject', 'body'], 'sms' => ['body'], 'whatsapp' => ['template', 'body'], 'in_app' => ['title', 'body']];
 
     /** Three concatenated GSM segments; longer texts cost more and arrive split. */
     public const SMS_MAX = 459;
+
+    /** WhatsApp template body limit. */
+    public const WHATSAPP_MAX = 1024;
 
     /** @param array<string, mixed> $content */
     private function __construct(private readonly array $content) {}
@@ -68,7 +73,7 @@ final class NotificationTemplate
             foreach ($channels as $channel => $parts) {
                 $fields = self::CHANNELS[$channel] ?? null;
                 if ($fields === null) {
-                    $e["content.languages.{$lang}.{$channel}"][] = 'Channels are email, sms and in_app (WhatsApp and push arrive later).';
+                    $e["content.languages.{$lang}.{$channel}"][] = 'Channels are email, sms, whatsapp and in_app (push arrives later).';
 
                     continue;
                 }
@@ -78,6 +83,12 @@ final class NotificationTemplate
                         $e["content.languages.{$lang}.{$channel}.{$f}"][] = "{$f} is required.";
 
                         continue;
+                    }
+                    if ($channel === 'whatsapp' && $f === 'template' && preg_match('/^[a-z0-9_]{1,512}$/', $text) !== 1) {
+                        $e["content.languages.{$lang}.{$channel}.{$f}"][] = 'The template is the approved WhatsApp template name (lower-case letters, digits, underscores).';
+                    }
+                    if ($channel === 'whatsapp' && $f === 'body' && mb_strlen($text) > self::WHATSAPP_MAX) {
+                        $e["content.languages.{$lang}.{$channel}.{$f}"][] = 'A WhatsApp template body may be at most '.self::WHATSAPP_MAX.' characters.';
                     }
                     if ($channel === 'sms' && mb_strlen($text) > self::SMS_MAX) {
                         $e["content.languages.{$lang}.{$channel}.{$f}"][] = 'An SMS body may be at most '.self::SMS_MAX.' characters (three segments).';
@@ -123,7 +134,7 @@ final class NotificationTemplate
         }
         $fill = static fn (string $t): string => (string) preg_replace_callback('/\{\{\s*([a-z_]+)\s*\}\}/', static fn (array $m): string => $vars[$m[1]] ?? '', $t);
 
-        return ['subject' => $fill((string) ($parts['subject'] ?? $parts['title'] ?? '')), 'body' => $fill((string) ($parts['body'] ?? ''))];
+        return ['subject' => $fill((string) ($parts['subject'] ?? $parts['title'] ?? $parts['template'] ?? '')), 'body' => $fill((string) ($parts['body'] ?? ''))];
     }
 
     /** @return array<string, mixed> */

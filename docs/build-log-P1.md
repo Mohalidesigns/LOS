@@ -1028,3 +1028,53 @@ agreement, advice) and the CRI insurance item, with retention until
 - No delivery-report callback (HollaTags `callback_url`) yet.
 - WhatsApp is due before go-live (P4-NTF-01 → pulled forward).
 - No customer channel preferences or opt-out (P4).
+
+## Milestone 11c: WhatsApp channel (P4-NTF-01 pulled forward, before go-live)
+
+### Backend
+- **WhatsApp integration port** (`Integration/Ports/WhatsApp`, `sendTemplate`):
+  - **HollaTags WhatsApp Push adapter**, following
+    docs.hollatags.com/whatsapp/whatsapp-push: a form POST of `user`, `pass`,
+    `whatsapp_from`, `whatsapp_to` and `whatsapp_message`, answered `sent`.
+  - A simulator with scripted outage, rejection and timeout.
+  - A non-production guard: outside production, messages go only to
+    `WHATSAPP_ALWAYS_TO` (falling back to `SMS_ALWAYS_TO`).
+  - Credentials default to the HollaTags SMS account.
+- **No idempotency at HollaTags:** a timeout, a 5xx or an unrecognised reply
+  is an unknown outcome. The message is marked failed and **not resent**.
+  Only a definite "not sent" (`error_gw`, `error_billing`) is retried.
+- **Opt-in:** new consent purpose `whatsapp_messaging`. WhatsApp goes only to
+  customers who opted in. Consent is checked again at send time, so a
+  withdrawal before sending wins.
+- **Templates:** the channel `whatsapp` takes `template` (the approved name)
+  and `body` (at most 1024 characters). Defaults cover the four customer
+  events; `docs/whatsapp-templates.md` is the approval sheet.
+- **SMS:** sent alongside WhatsApp by default. `WHATSAPP_REPLACES_SMS=true`
+  sends WhatsApp instead of SMS to opted-in customers.
+- **Commands:**
+  - `integration:bind-whatsapp` (follows `WHATSAPP_DRIVER`)
+  - `notifications:check-delivery` now also reports WhatsApp
+- **Dev:** your working copy of `.env.sms.email` gained `WHATSAPP_ENABLED=true`
+  and `WHATSAPP_DRIVER=mock`.
+
+### Frontend
+- The communications log shows WhatsApp.
+- The consent panel offers "WhatsApp messages".
+
+### Verification
+- Local Pest: 313 passed, with Pint and PHPStan clean.
+- Frontend `npm run verify`: 166 tests.
+- Dev, using the simulators: after a WhatsApp opt-in, one submit sent email,
+  SMS and WhatsApp (`+234*******177`).
+
+### Gaps carried forward
+- **Not live yet.** To go live:
+  1. Get the templates approved and set `WHATSAPP_FROM`.
+  2. Set `WHATSAPP_DRIVER=hollatags` and a test handset in
+     `WHATSAPP_ALWAYS_TO`.
+  3. Run `integration:bind-whatsapp`.
+- HollaTags documents no error replies for WhatsApp push. The adapter
+  assumes the SMS API's codes; confirm with HollaTags.
+- No inbound WhatsApp handling (HollaTags chat webhook) or delivery reports.
+- No SMS fallback when WhatsApp definitely fails while it replaces SMS.
+  That is why SMS stays on alongside WhatsApp by default.

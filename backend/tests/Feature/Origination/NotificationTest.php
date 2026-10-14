@@ -87,9 +87,9 @@ it('uses a tenant template once activated through maker-checker, and validates t
     $author = $this->userWith([Permission::ConfigRead, Permission::ConfigAuthor]);
     $this->login($author);
     $artifact = $this->api('POST', '/api/v1/config-artifacts/notification.template', ['key' => 'application.received', 'name' => 'Received'])->assertCreated()->json('data');
-    $bad = ['event' => 'application.received', 'audience' => 'customer', 'languages' => ['en' => ['email' => ['subject' => 'Hi {{ salary }}', 'body' => 'x'], 'whatsapp' => ['body' => 'y']]]];
+    $bad = ['event' => 'application.received', 'audience' => 'customer', 'languages' => ['en' => ['email' => ['subject' => 'Hi {{ salary }}', 'body' => 'x'], 'telegram' => ['body' => 'y']]]];
     $errors = $this->api('POST', "/api/v1/config-artifacts/notification.template/{$artifact['id']}/versions", ['content' => $bad])->assertStatus(422)->json('errors');
-    expect(array_keys($errors))->toContain('content.languages.en.email.subject', 'content.languages.en.whatsapp');
+    expect(array_keys($errors))->toContain('content.languages.en.email.subject', 'content.languages.en.telegram');
 
     $version = LendingFixtures::activateConfig($this, 'notification.template', 'application.received', 'Received', [
         'event' => 'application.received', 'audience' => 'customer',
@@ -182,4 +182,63 @@ it('fails a text the gateway definitely refuses, and sends none when SMS is off'
         'event' => 'offer.issued', 'audience' => 'customer', 'languages' => ['en' => ['sms' => ['body' => str_repeat('a', 460)]]],
     ]])->assertStatus(422)->json('errors');
     expect(array_keys($errors))->toContain('content.languages.en.sms.body');
+})->group('FR-NTF-001');
+
+function optInWhatsApp(object $t, array $app): void
+{
+    $t->login($t->j->rm);
+    LendingFixtures::consent($t, ['id' => $app['primary_applicant']['party_id']], ['whatsapp_messaging']);
+}
+
+it('sends WhatsApp templates only to customers who opted in, alongside or instead of SMS (FR-NTF-001, LOS-FR-304)', function () {
+    config(['fundly.sms.enabled' => true, 'fundly.whatsapp.enabled' => true]);
+    $app = $this->j->approved();
+    // no opt-in yet: SMS and email only
+    expect(comms($app['id'])->where('event', 'application.received')->pluck('channel')->sort()->values()->all())->toBe(['email', 'sms']);
+
+    optInWhatsApp($this, $app);
+    $this->j->issueOffer($app);
+    LendingFixtures::drainOutbox($this);
+    $offer = comms($app['id'])->where('event', 'offer.issued');
+    expect($offer->pluck('channel')->sort()->values()->all())->toBe(['email', 'sms', 'whatsapp']);
+    $wa = $offer->firstWhere('channel', 'whatsapp');
+    expect($wa->status)->toBe('sent')
+        ->and($wa->subject)->toBe('fundly_offer_issued')
+        ->and($wa->body)->toStartWith('Hello Amaka Nwosu, your loan offer')
+        ->and($wa->provider_ref)->toStartWith('wa-sim-')
+        ->and($wa->recipient_hint)->toBe('+234*******677');
+    $call = DB::table('integration_calls')->where('port', 'whatsapp')->first();
+    expect((string) $call->request)->toContain('fundly_offer_issued')->toContain('234802****677')->not->toContain('Hello Amaka');
+
+    // configured to replace SMS: opted-in customers get WhatsApp only
+    config(['fundly.whatsapp.replaces_sms' => true]);
+    app(CommandBus::class)->dispatch(new Notify('offer.expiring', $app['id'], 'manual-1', ['valid_until' => '2026-11-13', 'offer_sequence' => 1]), Principal::system($this->currentTenantFixture()->id, SystemIdentity::Workflow));
+    expect(comms($app['id'])->where('event', 'offer.expiring')->pluck('channel')->sort()->values()->all())->toBe(['email', 'whatsapp']);
+})->group('FR-NTF-001', 'LOS-FR-304');
+
+it('never resends a WhatsApp message whose outcome is unknown, and honours a withdrawal before sending', function () {
+    config(['fundly.whatsapp.enabled' => true]);
+    $app = $this->j->approved();
+    optInWhatsApp($this, $app);
+    $bus = app(CommandBus::class);
+    $system = Principal::system($this->currentTenantFixture()->id, SystemIdentity::Workflow);
+
+    DB::table('adapter_bindings')->where('port', 'whatsapp')->update(['config' => json_encode(['timeout' => true])]);
+    $bus->dispatch(new Notify('offer.expiring', $app['id'], 'r-1', ['valid_until' => '2026-11-13', 'offer_sequence' => 1]), $system);
+    LendingFixtures::drainOutbox($this);
+    $this->travel(30)->minutes();
+    LendingFixtures::drainOutbox($this);
+    $wa = comms($app['id'])->where('event', 'offer.expiring')->firstWhere('channel', 'whatsapp');
+    expect($wa->status)->toBe('failed')->and($wa->error)->toContain('not resent')
+        ->and(DB::table('integration_calls')->where('port', 'whatsapp')->count())->toBe(1);
+
+    // consent withdrawn between queueing and sending
+    DB::table('adapter_bindings')->where('port', 'whatsapp')->update(['config' => json_encode([])]);
+    $bus->dispatch(new Notify('offer.expiring', $app['id'], 'r-2', ['valid_until' => '2026-11-13', 'offer_sequence' => 1]), $system);
+    $this->login($this->j->rm);
+    $this->api('POST', "/api/v1/parties/{$app['primary_applicant']['party_id']}/consents", ['purpose' => 'whatsapp_messaging', 'action' => 'withdraw', 'channel' => 'branch', 'terms_version' => 'T&C-2026.1'])->assertCreated();
+    LendingFixtures::drainOutbox($this);
+    $second = DB::table('communications')->where('dedupe_key', "offer.expiring:{$app['id']}:r-2:whatsapp:{$app['primary_applicant']['party_id']}")->first();
+    expect($second->status)->toBe('failed')->and($second->error)->toContain('consent was withdrawn')
+        ->and(DB::table('integration_calls')->where('port', 'whatsapp')->count())->toBe(1);
 })->group('FR-NTF-001');

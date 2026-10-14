@@ -14,7 +14,17 @@ final class DefaultTemplates
     /** @return array<string, array<string, mixed>> */
     public static function all(): array
     {
-        $customer = static fn (string $event, string $subject, string $body, string $sms): array => ['event' => $event, 'audience' => 'customer', 'languages' => ['en' => ['email' => ['subject' => $subject, 'body' => $body], 'sms' => ['body' => $sms]]]];
+        // WhatsApp: the template name and wording to submit for approval (docs/whatsapp-templates.md)
+        $wa = [
+            'application.received' => 'Hello {{ applicant_name }}, {{ bank_name }} has received your loan application {{ reference }} for {{ amount }}. We will contact you if we need anything else.',
+            'offer.issued' => 'Hello {{ applicant_name }}, your loan offer {{ reference }} for {{ amount }} over {{ tenor_months }} months is ready and valid until {{ valid_until }}. Your relationship manager will share the offer letter.',
+            'offer.expiring' => 'Hello {{ applicant_name }}, your loan offer {{ reference }} expires on {{ valid_until }}. Contact your relationship manager if you would like to accept it.',
+            'facility.booked' => 'Hello {{ applicant_name }}, {{ net_amount }} has been disbursed for your loan {{ reference }} on {{ value_date }}. Your advice and repayment schedule have been sent to your email.',
+        ];
+        $customer = static fn (string $event, string $subject, string $body, string $sms): array => ['event' => $event, 'audience' => 'customer', 'languages' => ['en' => [
+            'email' => ['subject' => $subject, 'body' => $body], 'sms' => ['body' => $sms],
+            'whatsapp' => ['template' => 'fundly_'.str_replace('.', '_', $event), 'body' => $wa[$event]],
+        ]]];
         $staff = static fn (string $event, string $title, string $body): array => ['event' => $event, 'audience' => 'staff', 'languages' => ['en' => ['in_app' => ['title' => $title, 'body' => $body]]]];
 
         return [

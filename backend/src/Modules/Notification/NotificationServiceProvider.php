@@ -17,11 +17,12 @@ use Fundly\Modules\Notification\Console\SendRemindersCommand;
 use Fundly\Modules\Notification\Domain\NotificationTemplate;
 use Fundly\Modules\Notification\Infrastructure\DeliverEmailOutboxHandler;
 use Fundly\Modules\Notification\Infrastructure\DeliverSmsOutboxHandler;
+use Fundly\Modules\Notification\Infrastructure\DeliverWhatsAppOutboxHandler;
 use Fundly\Modules\Platform\Contracts\ConfigTypeCatalogue;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 
-/** M16 Notifications: email, SMS (integration port) and in-app (webhooks via the integration layer), templates with maker-checker, communication log (FR-NTF-001/002/005/006). */
+/** M16 Notifications: email, SMS and WhatsApp (integration ports) and in-app (webhooks via the integration layer), templates with maker-checker, communication log (FR-NTF-001/002/005/006). */
 final class NotificationServiceProvider extends ServiceProvider
 {
     public function boot(ConfigTypeCatalogue $types, Dispatcher $events, OutboxHandlerRegistry $outbox): void
@@ -35,6 +36,7 @@ final class NotificationServiceProvider extends ServiceProvider
         );
         $outbox->register(NotifyHandler::EMAIL_TOPIC, DeliverEmailOutboxHandler::class);
         $outbox->register(NotifyHandler::SMS_TOPIC, DeliverSmsOutboxHandler::class);
+        $outbox->register(NotifyHandler::WHATSAPP_TOPIC, DeliverWhatsAppOutboxHandler::class);
         $events->listen(ApplicationStatusChanged::class, [NotificationTriggers::class, 'onStatusChanged']);
         $events->listen(ApplicationScreened::class, [NotificationTriggers::class, 'onScreened']);
         $events->listen(DisbursementAwaitingRelease::class, [NotificationTriggers::class, 'onAwaitingRelease']);
