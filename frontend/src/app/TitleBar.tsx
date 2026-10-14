@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import { Bell, Menu, Search } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
-import { useToast } from '@/components/Toast';
 
 export type TitleBarProps = {
   title: string;
@@ -16,7 +15,6 @@ export type TitleBarProps = {
 /** Page title left; search, notifications and the signed-in user right (loan-ui header). */
 export function TitleBar({ title, userName, userMeta, onOpenNav, hasNotifications = false }: TitleBarProps) {
   const searchRef = useRef<HTMLInputElement>(null);
-  const toast = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,7 +70,7 @@ export function TitleBar({ title, userName, userMeta, onOpenNav, hasNotification
         size="lg"
         dot={hasNotifications}
         className="bg-neutral"
-        onClick={() => toast.show('Notifications arrive with the workflow module (P1).', 'info')}
+        onClick={() => void navigate('/inbox')}
       />
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">

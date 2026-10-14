@@ -11,6 +11,7 @@
  * the types below are the shape the UI needs and should map 1:1.
  */
 import { queryOptions } from '@tanstack/react-query';
+import { notificationsApi } from '@/api/notifications';
 
 export type Money = { amount: string; currency: string };
 
@@ -72,9 +73,15 @@ export async function fetchDashboard(): Promise<DashboardData> {
   });
 }
 
-// TODO(P1-RPT-01): replace with /api/v1/reports/operational (queue counts)
+// inbox = my unread notifications; alerts stays a placeholder until P1-RPT-01 (/api/v1/reports/operational)
 export async function fetchNavCounts(): Promise<NavCounts> {
-  return Promise.resolve({ inbox: 14, alerts: 3 });
+  let inbox = 0;
+  try {
+    inbox = (await notificationsApi.inbox(true)).meta.unread;
+  } catch {
+    inbox = 0; // no application:view, or offline: show no badge rather than an error
+  }
+  return { inbox, alerts: 3 };
 }
 
 export const dashboardQuery = queryOptions({ queryKey: ['dashboard', 'operational'], queryFn: fetchDashboard, staleTime: 60_000 });

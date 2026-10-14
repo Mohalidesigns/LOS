@@ -1065,6 +1065,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My in-app notifications, newest first, with the unread count */
+        get: operations["listMyNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/notifications/actions/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark all my notifications read */
+        post: operations["readAllNotifications"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/notifications/{id}/actions/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark one of my notifications read */
+        post: operations["readNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/communications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Communication log: everything sent about the application, to whom, when, how and its status */
+        get: operations["listApplicationCommunications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/parties/{id}/consents": {
         parameters: {
             query?: never;
@@ -2621,6 +2689,56 @@ export interface components {
             };
             correlation_id?: string | null;
             payload: Record<string, never>;
+        };
+        InAppNotification: {
+            /** Format: uuid */
+            id: string;
+            event: string;
+            title: string;
+            body: string;
+            link: string | null;
+            /** Format: uuid */
+            application_id: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            read_at: string | null;
+        };
+        Communication: {
+            /** Format: uuid */
+            id: string;
+            event: string;
+            /** @enum {string} */
+            channel: "email" | "in_app";
+            /** @enum {string} */
+            audience: "customer" | "staff";
+            recipient: {
+                /** Format: uuid */
+                user_id: string | null;
+                /** Format: uuid */
+                party_id: string | null;
+                hint: string | null;
+            };
+            template: {
+                /** @enum {string} */
+                source: "tenant" | "default";
+                /** Format: uuid */
+                version_id: string | null;
+                language: string;
+            };
+            subject: string;
+            body: string;
+            attachments: string[];
+            /** @enum {string} */
+            status: "queued" | "sent" | "failed" | "delivered" | "read";
+            attempts: number;
+            error: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            read_at: string | null;
         };
         ScreeningAlert: {
             /** Format: uuid */
@@ -6114,6 +6232,120 @@ export interface operations {
                             as_at: string;
                             state: Record<string, never> | null;
                         };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listMyNotifications: {
+        parameters: {
+            query?: {
+                /** @description true for unread only */
+                "filter[unread]"?: string;
+            };
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["InAppNotification"][];
+                        meta: {
+                            unread: number;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    readAllNotifications: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            marked: number;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    readNotification: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["InAppNotification"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listApplicationCommunications: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Communication"][];
                     };
                 };
             };

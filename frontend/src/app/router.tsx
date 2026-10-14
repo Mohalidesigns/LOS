@@ -41,7 +41,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, handle: { title: 'Dashboard' }, lazy: async () => ({ Component: (await import('@/features/dashboard/DashboardPage')).default }) },
-      { path: 'inbox', handle: { title: 'Inbox' }, lazy: async () => ({ Component: (await placeholders()).InboxPage }) },
+      { path: 'inbox', handle: { title: 'Inbox' }, lazy: async () => ({ Component: (await import('@/features/notifications/InboxPage')).default }) },
       { path: 'approvals', handle: { title: 'Approvals' }, lazy: async () => ({ Component: (await import('@/features/approvals/ApprovalInboxPage')).default }) },
       { path: 'operations/disbursements', handle: { title: 'Disbursement operations' }, lazy: async () => ({ Component: (await import('@/features/disbursement/OperationsPage')).default }) },
       { path: 'pipeline', handle: { title: 'Pipeline' }, lazy: async () => ({ Component: (await applicationsList()).PipelinePage }) },
@@ -61,6 +61,7 @@ export const router = createBrowserRouter([
           { path: 'conditions', handle: { title: 'Application · Conditions' }, lazy: async () => ({ Component: (await import('@/features/conditions/ConditionsTab')).ConditionsTab }) },
           { path: 'disbursement', handle: { title: 'Application · Disbursement' }, lazy: async () => ({ Component: (await import('@/features/disbursement/DisbursementTab')).DisbursementTab }) },
           { path: 'handover', handle: { title: 'Application · Handover' }, lazy: async () => ({ Component: (await import('@/features/handover/HandoverTab')).HandoverTab }) },
+          { path: 'communications', handle: { title: 'Application · Communications' }, lazy: async () => ({ Component: (await import('@/features/notifications/CommunicationsTab')).CommunicationsTab }) },
           { path: 'timeline', handle: { title: 'Application · Timeline' }, lazy: async () => ({ Component: (await import('@/features/applications/case/TimelineTab')).TimelineTab }) },
         ],
       },

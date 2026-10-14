@@ -1,8 +1,5 @@
 import { PlaceholderPage } from './PlaceholderPage';
 
-export function InboxPage() {
-  return <PlaceholderPage title="Inbox" phase="P1 (workflow & tasks)" anyOf={['application:view']} description="Your tasks, approvals and returned-for-rework items will appear here, ordered by SLA." />;
-}
 export function ProductsPage() {
   return <PlaceholderPage title="Products" phase="P1 (product configuration)" anyOf={['product:manage', 'config:read']} description="Versioned loan products with maker-checker activation." />;
 }
