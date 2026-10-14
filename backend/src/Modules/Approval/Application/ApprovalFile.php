@@ -13,6 +13,7 @@ use Fundly\Modules\Approval\Domain\AuthorityLimits;
 use Fundly\Modules\Approval\Domain\MatrixDefinition;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalRequest;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalVote;
+use Fundly\Modules\Collateral\Contracts\CollateralRegister;
 use Fundly\Modules\Credit\Contracts\CreditDecisionView;
 use Fundly\Modules\Platform\Contracts\ActiveConfiguration;
 use Fundly\Modules\Platform\Contracts\ConfigVersionView;
@@ -47,6 +48,7 @@ final class ApprovalFile
         private readonly AuthorityDirectory $authority,
         private readonly OrganisationDirectory $organisation,
         private readonly Clock $clock,
+        private readonly CollateralRegister $collateral,
     ) {}
 
     public function application(string $id): ApplicationSummary
@@ -104,8 +106,8 @@ final class ApprovalFile
             'decision' => $credit === null ? ['outcome' => null, 'risk_grade' => null] : ['outcome' => $credit->outcome, 'risk_grade' => $credit->riskGrade],
             'exceptions' => ['count' => $credit->exceptionCount ?? 0, 'max_severity' => $credit?->maxExceptionSeverity],
             'exposure' => ['amount' => (string) $exposure->amount, 'currency' => $exposure->currency->code],
-            // collateral (P1-COL-01) and insider status (FR-CMP-024, P3) are not captured yet
-            'collateral' => ['coverage_percent' => null],
+            // security cover from allocated collateral (FR-COL-002); insider status (FR-CMP-024) is P3
+            'collateral' => ['coverage_percent' => $this->collateral->coverage($app->id)?->coverPercent],
             'customer' => ['insider' => false],
         ];
     }

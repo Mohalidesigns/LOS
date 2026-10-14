@@ -9,6 +9,8 @@ use DateTimeImmutable;
 use Fundly\Integration\Webhooks\WebhookPublisher;
 use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Application\Contracts\CanonicalStatus;
+use Fundly\Modules\Collateral\Contracts\CollateralRegister;
+use Fundly\Modules\Collateral\Contracts\SecuredItem;
 use Fundly\Modules\Conditions\Contracts\ConditionsGate;
 use Fundly\Modules\Conditions\Contracts\OpenCondition;
 use Fundly\Modules\Disbursement\Contracts\DisbursementRegister;
@@ -38,7 +40,7 @@ use Fundly\Shared\Id\UuidV7;
  */
 final class CreateHandoverPackageHandler implements CommandHandler
 {
-    public const PACKAGE_VERSION = 1;
+    public const PACKAGE_VERSION = 2;
 
     public function __construct(
         private readonly ApplicationReader $applications,
@@ -50,6 +52,7 @@ final class CreateHandoverPackageHandler implements CommandHandler
         private readonly ProductCatalogue $products,
         private readonly WebhookPublisher $webhooks,
         private readonly Clock $clock,
+        private readonly CollateralRegister $collateral,
     ) {}
 
     /** @return array{package_id: string, sha256: string} */
@@ -97,12 +100,16 @@ final class CreateHandoverPackageHandler implements CommandHandler
                 'href' => "/api/v1/documents/{$d->documentId}/versions/{$d->versionId}/content",
             ], $this->documents->references($app->id)),
             'conditions_subsequent' => array_map(static fn (OpenCondition $c): array => ['condition_id' => $c->id, 'description' => $c->description, 'mandatory' => $c->mandatory, 'owner_id' => $c->ownerId, 'due_date' => $c->dueDate], $this->conditions->openSubsequent($app->id)),
-            'collateral' => [],
+            'collateral' => array_map(static fn (SecuredItem $i): array => [
+                'collateral_id' => $i->collateralId, 'type_code' => $i->typeCode, 'category' => $i->category, 'description' => $i->description,
+                'owner' => ['party_id' => $i->ownerPartyId, 'name' => $i->ownerName], 'allocated' => $i->allocated->toArray(),
+                'market_value' => $i->marketValue->toArray(), 'forced_sale_value' => $i->forcedSaleValue->toArray(), 'valuation_valid_until' => $i->valuationValidUntil,
+                'open_perfection_steps' => $i->openSteps, 'insurance' => $i->insurance,
+            ], $this->collateral->securedItems($app->id)),
             'insurance' => array_values(array_map(static fn (array $f): array => ['fee_code' => $f['code'], 'cover' => $f['name'], 'premium' => ['amount' => $f['amount'], 'currency' => $facility->principal->currency->code], 'cover_until' => $maturity],
                 array_filter($facility->fees, static fn (array $f): bool => in_array($f['code'], $insuranceCodes, true)))),
             'servicing' => ['org_unit_id' => $app->orgUnitId, 'advice_document_id' => $facility->adviceDocumentId],
             'retention' => ['category' => $retention->category, 'trigger' => $retention->trigger, 'retain_until' => $retention->retain_until->toDateString()],
-            'notes' => ['collateral' => 'Collateral items are captured from P1-COL-01; none are recorded on this facility.'],
         ];
         $json = (string) json_encode($package, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $sha = hash('sha256', $json);

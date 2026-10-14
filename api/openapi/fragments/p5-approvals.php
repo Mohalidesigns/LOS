@@ -79,11 +79,12 @@ $schemas = [
             'exception_count' => OA_INT, 'max_exception_severity' => OA_NSTR, 'memo_recommendation' => OA_NSTR, 'is_routed_decision' => OA_BOOL,
         ], 'required' => ['decision_id', 'outcome', 'risk_grade', 'recommended_terms', 'exception_count', 'max_exception_severity', 'memo_recommendation', 'is_routed_decision']]]],
         'bureau_valid' => OA_BOOL,
+        'collateral' => oa_ref('ApprovalPacketCollateral'),
         'history' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [
             'id' => OA_UUID, 'sequence' => OA_INT, 'status' => OA_STR, 'opened_at' => OA_TS, 'decided_at' => OA_NTS,
             'votes' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => ['level_code' => OA_STR, 'decision' => OA_STR, 'voter_id' => OA_STR, 'voted_at' => OA_TS], 'required' => ['level_code', 'decision', 'voter_id', 'voted_at']]],
         ], 'required' => ['id', 'sequence', 'status', 'opened_at', 'decided_at', 'votes']]],
-    ], 'required' => ['application', 'credit', 'bureau_valid', 'history']],
+    ], 'required' => ['application', 'credit', 'bureau_valid', 'collateral', 'history']],
 ];
 
 return ['tags' => ['Approvals'], 'paths' => $paths, 'schemas' => $schemas];

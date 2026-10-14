@@ -183,6 +183,28 @@ final class ProductDefinition
                 $this->fail("bindings.{$k}", "bindings.{$k} must be a configuration key.");
             }
         }
+        if (isset($c['collateral'])) {
+            $col = $this->map('collateral');
+            if (isset($col['required']) && ! is_bool($col['required'])) {
+                $this->fail('collateral.required', 'collateral.required must be true or false.');
+            }
+            if (isset($col['min_cover_percent'])) {
+                $this->decimal('collateral.min_cover_percent', $col['min_cover_percent']);
+            }
+            if (isset($col['max_ltv_percent'])) {
+                $this->percent('collateral.max_ltv_percent', $col['max_ltv_percent']);
+            }
+            $timing = $col['perfection_timing'] ?? [];
+            if (! is_array($timing)) {
+                $this->fail('collateral.perfection_timing', 'perfection_timing must map step codes to precedent or subsequent.');
+                $timing = [];
+            }
+            foreach ($timing as $step => $t) {
+                if (preg_match('/^[a-z][a-z0-9_]{1,47}$/', (string) $step) !== 1 || ! in_array($t, ['precedent', 'subsequent'], true)) {
+                    $this->fail("collateral.perfection_timing.{$step}", 'Each step code (snake_case) maps to precedent or subsequent (G-34).');
+                }
+            }
+        }
         $this->int('offer_validity_days', $c['offer_validity_days'] ?? null, 1, 365);
         $this->int('approval_validity_days', $c['approval_validity_days'] ?? null, 1, 365);
     }

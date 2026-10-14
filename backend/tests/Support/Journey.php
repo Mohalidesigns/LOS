@@ -104,8 +104,13 @@ final class Journey
         return $this->t->api('POST', "/api/v1/applications/{$app['id']}/offers")->assertCreated()->json('data');
     }
 
-    /** Sign, accept, and pass the pre-disbursement check against 058/0123456789. */
-    public function acceptAndCheck(array $app, array $offer): void
+    /**
+     * Sign, accept, and run the pre-disbursement check against 058/0123456789
+     * (asserting it passes unless told otherwise).
+     *
+     * @return array<string, mixed> the check
+     */
+    public function acceptAndCheck(array $app, array $offer, bool $expectPass = true): array
     {
         $t = $this->t;
         $t->login($this->ops);
@@ -113,7 +118,9 @@ final class Journey
             $t->api('POST', "/api/v1/offers/{$offer['id']}/signatories/{$s['id']}/actions/sign", ['signed_at' => now()->toIso8601String()])->assertOk();
         }
         $t->api('POST', "/api/v1/offers/{$offer['id']}/actions/accept", ['file' => UploadedFile::fake()->createWithContent('executed.pdf', "%PDF-1.4\n%%EOF\n")])->assertOk();
-        $t->api('POST', "/api/v1/applications/{$app['id']}/pre-disbursement-checks", ['bank_code' => '058', 'account_no' => '0123456789'])->assertCreated()->assertJsonPath('data.passed', true);
+        $check = $t->api('POST', "/api/v1/applications/{$app['id']}/pre-disbursement-checks", ['bank_code' => '058', 'account_no' => '0123456789'])->assertCreated()->assertJsonPath('data.passed', $expectPass)->json('data');
+
+        return $check;
     }
 
     /**

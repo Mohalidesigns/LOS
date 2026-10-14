@@ -108,6 +108,11 @@ return [
         'offer_reminder_days' => (int) env('FUNDLY_OFFER_REMINDER_DAYS', 3),
     ],
 
+    // Collateral (FR-COL-003/006): revaluation and insurance-expiry notice window
+    'collateral' => [
+        'notice_days' => (int) env('FUNDLY_COLLATERAL_NOTICE_DAYS', 30),
+    ],
+
     // Handover and retention (FR-HND-003/004): fee codes that are insurance premiums; origination-record retention [verify, G-29].
     'handover' => [
         'insurance_fee_codes' => array_values(array_filter(explode(',', (string) env('FUNDLY_INSURANCE_FEE_CODES', 'CRI')))),

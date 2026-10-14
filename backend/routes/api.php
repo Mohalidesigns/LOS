@@ -15,6 +15,7 @@ use Fundly\Modules\Access\Http\Controllers\UserController;
 use Fundly\Modules\Application\Http\Controllers\ApplicationController;
 use Fundly\Modules\Approval\Http\Controllers\ApprovalController;
 use Fundly\Modules\Audit\Http\Controllers\AuditController;
+use Fundly\Modules\Collateral\Http\Controllers\CollateralController;
 use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
 use Fundly\Modules\Conditions\Http\Controllers\ConditionController;
 use Fundly\Modules\Credit\Http\Controllers\CreditController;
@@ -150,6 +151,18 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::post('offers/{id}/actions/decline', [OfferController::class, 'decline'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.decline');
 
     // Conditions (FR-CPR-001..005): CP/CS register, waivers via change requests, final pre-disbursement check
+    Route::get('collateral-types', [CollateralController::class, 'types'])->middleware('authz:application:view')->name('collateral-types.index');
+    Route::get('applications/{id}/collateral', [CollateralController::class, 'forApplication'])->middleware('authz:application:view')->name('collateral.for-application');
+    Route::get('collaterals', [CollateralController::class, 'index'])->middleware('authz:application:view')->name('collaterals.index');
+    Route::post('collaterals', [CollateralController::class, 'store'])->middleware(['authz:collateral:manage', 'idempotent'])->name('collaterals.store');
+    Route::get('collaterals/{id}', [CollateralController::class, 'show'])->middleware('authz:application:view')->name('collaterals.show');
+    Route::post('collaterals/{id}/valuations', [CollateralController::class, 'valuation'])->middleware(['authz:collateral:manage', 'idempotent'])->name('collaterals.valuations.store');
+    Route::post('collaterals/{id}/insurance-policies', [CollateralController::class, 'insurance'])->middleware(['authz:collateral:manage', 'idempotent'])->name('collaterals.insurance.store');
+    Route::post('collaterals/{id}/allocations', [CollateralController::class, 'allocate'])->middleware(['authz:collateral:manage', 'idempotent'])->name('collaterals.allocations.store');
+    Route::post('collaterals/{id}/actions/request-insurance-waiver', [CollateralController::class, 'requestInsuranceWaiver'])->middleware(['authz:collateral:manage', 'idempotent'])->name('collaterals.request-insurance-waiver');
+    Route::patch('perfection-steps/{id}', [CollateralController::class, 'updateStep'])->middleware('authz:collateral:manage')->name('perfection-steps.update');
+    Route::post('perfection-steps/{id}/actions/complete', [CollateralController::class, 'completeStep'])->middleware(['authz:collateral:manage', 'idempotent'])->name('perfection-steps.complete');
+    Route::post('perfection-steps/{id}/actions/request-waiver', [CollateralController::class, 'requestStepWaiver'])->middleware(['authz:collateral:manage', 'idempotent'])->name('perfection-steps.request-waiver');
     Route::get('applications/{id}/conditions', [ConditionController::class, 'forApplication'])->middleware('authz:application:view')->name('conditions.index');
     Route::post('applications/{id}/conditions', [ConditionController::class, 'add'])->middleware(['authz:condition:manage', 'idempotent'])->name('conditions.store');
     Route::post('conditions/{id}/actions/satisfy', [ConditionController::class, 'satisfy'])->middleware(['authz:condition:manage', 'idempotent'])->name('conditions.satisfy');

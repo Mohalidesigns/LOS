@@ -7,6 +7,7 @@ use Fundly\Modules\Access\AccessServiceProvider;
 use Fundly\Modules\Application\ApplicationServiceProvider;
 use Fundly\Modules\Approval\ApprovalServiceProvider;
 use Fundly\Modules\Audit\AuditServiceProvider;
+use Fundly\Modules\Collateral\CollateralServiceProvider;
 use Fundly\Modules\Compliance\ComplianceServiceProvider;
 use Fundly\Modules\Conditions\ConditionsServiceProvider;
 use Fundly\Modules\Credit\CreditServiceProvider;
@@ -38,6 +39,7 @@ return [
     CreditServiceProvider::class,
     ApprovalServiceProvider::class,
     OfferServiceProvider::class,
+    CollateralServiceProvider::class,
     ConditionsServiceProvider::class,
     DisbursementServiceProvider::class,
     HandoverServiceProvider::class,

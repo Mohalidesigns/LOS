@@ -9,6 +9,8 @@ use Fundly\Modules\Application\Contracts\ApplicationSummary;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalCondition;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalRequest;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalVote;
+use Fundly\Modules\Collateral\Contracts\CollateralRegister;
+use Fundly\Modules\Collateral\Contracts\SecuredItem;
 use Fundly\Modules\Credit\Contracts\CreditFile;
 use Fundly\Shared\Money\Money;
 use Fundly\Shared\Security\AuthorizationGate;
@@ -21,6 +23,7 @@ final class ApprovalQueries
         private readonly AuthorizationGate $gate,
         private readonly AuthorityDirectory $directory,
         private readonly CreditFile $credit,
+        private readonly CollateralRegister $collateral,
     ) {}
 
     /** @return array{data: list<array<string, mixed>>} */
@@ -171,7 +174,27 @@ final class ApprovalQueries
                 'is_routed_decision' => $d->decisionId === $r->decision_id,
             ],
             'bureau_valid' => $this->credit->hasValidBureauReport($app->id),
+            'collateral' => $this->collateralPacket($app->id),
             'history' => $history,
+        ];
+    }
+
+    /** @return array<string, mixed> cover against policy and each item with its perfection status (FR-APV-010) */
+    private function collateralPacket(string $applicationId): array
+    {
+        $cover = $this->collateral->coverage($applicationId);
+        $security = $this->collateral->security($applicationId);
+
+        return [
+            'cover_percent' => $cover?->coverPercent, 'ltv_percent' => $cover?->ltvPercent,
+            'min_cover_percent' => $cover?->minCoverPercent, 'max_ltv_percent' => $cover?->maxLtvPercent,
+            'meets_cover' => $cover?->meetsCover, 'meets_ltv' => $cover?->meetsLtv,
+            'lending_value' => $cover?->lendingValue->toArray(), 'outstanding_perfection' => count($security->perfectionBlockers),
+            'items' => array_map(static fn (SecuredItem $i): array => [
+                'collateral_id' => $i->collateralId, 'type_code' => $i->typeCode, 'description' => $i->description, 'owner_name' => $i->ownerName,
+                'market_value' => $i->marketValue->toArray(), 'forced_sale_value' => $i->forcedSaleValue->toArray(), 'allocated' => $i->allocated->toArray(),
+                'open_steps' => count($i->openSteps),
+            ], $this->collateral->securedItems($applicationId)),
         ];
     }
 

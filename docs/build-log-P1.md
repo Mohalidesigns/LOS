@@ -841,3 +841,129 @@ agreement, advice) and the CRI insurance item, with retention until
 - Not built yet: SMS, WhatsApp, push, communication preferences and
   opt-out, quiet hours (P4-NTF-01).
 - Templates are plain text (no HTML layout yet).
+
+## Milestone 11: Collateral (P1-COL-01)
+
+### Backend
+- **Collateral module** (`src/Modules/Collateral`). Other modules see it only
+  through the `CollateralRegister` contract:
+  - `coverage()`
+  - `security()`
+  - `securedItems()`
+  - `attentionDue()`
+- **Types** (FR-COL-001): built-in defaults cover every BRD type:
+  - real estate
+  - vehicle
+  - plant and equipment
+  - inventory
+  - receivables
+  - cash / deposit lien
+  - quoted securities
+  - personal, corporate and institutional guarantees
+  - assignment of insurance
+
+  A tenant overrides or adds types with `collateral.type` configuration
+  (maker-checker). Each type sets:
+  - category
+  - haircut
+  - whether valuation is required, and how long it stays valid
+  - whether insurance is required
+  - the perfection checklist, which can differ by state (e.g. the FCT uses
+    Minister's consent)
+
+  The checklists and haircuts are indicative [verify, G-34].
+- **Cover** (FR-COL-002):
+  - Forced-sale value = market value less the haircut, computed in decimals.
+  - Allocations are made in lending value.
+  - Cover = lending value ÷ exposure. LTV = exposure ÷ allocated market
+    value.
+  - Both are compared with the product's new `collateral` section:
+    `required`, `min_cover_percent`, `max_ltv_percent` and
+    `perfection_timing`.
+- **Valuations** (FR-COL-003) record:
+  - valuer
+  - date (never in the future)
+  - method
+  - market and forced-sale value
+  - validity (defaults to the type's period)
+  - the report, archived as a document
+
+  Valuations are append-only. The latest becomes the value basis.
+- **Re-valuation and insurance-expiry prompts:** the daily
+  `notifications:reminders` job sends them in-app to collateral officers
+  within `fundly.collateral.notice_days` (default 30), once each.
+- **Perfection** (FR-COL-004):
+  - Steps are created from the type for the asset's state.
+  - The product can move a step between before disbursement (precedent) and
+    after booking (subsequent), per G-34.
+  - Each step carries a responsible user and a due date.
+  - Completing a step needs evidence: a file and/or a reference.
+- **Allocation** (FR-COL-005):
+  - One item can secure several facilities.
+  - Over-allocation is refused under a row lock on the item.
+  - Setting an allocation to 0 releases it.
+  - After a downward re-valuation, allocations are scaled pro rata and the
+    item is flagged as over-allocated.
+  - Cross-currency allocation is refused until FX haircuts exist.
+- **Insurance** (FR-COL-006) records:
+  - policy number
+  - insurer
+  - sum insured (with an under-insured flag)
+  - start and expiry dates
+  - whether the bank's interest is noted
+
+  Policies are append-only. The policy that counts is one in force that
+  notes the bank's interest.
+- **Disbursement block** (FR-COL-008): the pre-disbursement check's
+  `security_perfected` and `insurance_in_force` items now come from
+  `CollateralRegister`. Release re-runs the check, so the block also applies
+  at release. The exception route is a `collateral.waive` change request
+  (maker `collateral:manage`, checker `condition:waive_approve`, step-up)
+  for a perfection step or an item's insurance.
+- **Approvals:** the matrix fact `collateral.coverage_percent` is now filled
+  in, and the decision packet gains a collateral section (FR-APV-010).
+- **Handover:** the package (version 2) now lists the collateral with its
+  open perfection steps and current insurance (FR-HND-003).
+- **Demo:** seed-demo adds **dapo@fundly.test** (Collateral Officer).
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-COL-001 / 002 / 004 / 005 / 006 / 008 | Done | `CollateralTest`, `CoverTest` |
+| FR-COL-003 | Done (prompts in-app) | `CollateralTest` |
+| FR-COL-007 | P4-INT-08 (registry adapters) | — |
+
+### Frontend
+- **Collateral tab** (SCR-APP-07):
+  - A "Security & cover" strip: cover, LTV, lending value, and perfection
+    and insurance, each with pass/fail against the product.
+  - A blockers banner.
+  - A collateral table.
+- **Item drawer:** valuation, perfection steps split into before
+  disbursement and after booking, insurance, and allocation.
+- **Dialogs:**
+  - add collateral
+  - record valuation
+  - record insurance
+  - change allocation
+  - complete step
+  - request waiver
+  - decide waiver
+- `features/collateral/domain.ts` has 5 unit tests.
+
+### Verification
+- Local Pest: 292 passed, with Pint and PHPStan clean.
+- Frontend `npm run verify`: 165 tests.
+- Dev smoke test as dapo: captured a Lagos property on DEMO-2026-000002
+  (cover 157.50%, LTV 44.44%, 4 blockers).
+- Checked in the browser:
+  - the tab and the drawer render
+  - completing a step with a reference cleared one blocker
+
+### Gaps carried forward
+- No collateral registry or valuer/insurer integrations (P4-INT-08,
+  FR-COL-007).
+- No FX for cross-currency security.
+- Exposure is the requested amount, as for approval authority (G-15).
+- Haircuts and perfection steps need confirming with Legal and Credit Risk
+  (G-34).
+- Collateral release on facility closure comes from the LMS (P4).

@@ -49,6 +49,7 @@ tags:
 - name: Parties
 - name: Applications
 - name: Notifications
+- name: Collateral
 - name: Compliance
 - name: Documents
 - name: Credit
@@ -3423,6 +3424,610 @@ paths:
       security:
         - sessionCookie: []
         - bearerToken: []
+  /api/v1/collateral-types:
+    get:
+      summary: 'Collateral types the tenant can capture (built-in defaults and tenant versions)'
+      operationId: listCollateralTypes
+      tags:
+        - Collateral
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CollateralType'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/collateral':
+    get:
+      summary: 'Security file of an application: items allocated, cover and LTV against the product, perfection and insurance blockers'
+      operationId: getApplicationCollateral
+      tags:
+        - Collateral
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SecurityFile'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  /api/v1/collaterals:
+    get:
+      summary: "Collateral items visible to me, e.g. a party's existing security to link to another facility"
+      operationId: listCollaterals
+      tags:
+        - Collateral
+      x-permission: 'application:view'
+      parameters:
+        - name: 'filter[owner_party_id]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'owner party'
+        - name: 'filter[application_id]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'items allocated to an application'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Collateral'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+    post:
+      summary: 'Capture a collateral item; its perfection checklist is created and its lending value allocated to the application'
+      operationId: createCollateral
+      tags:
+        - Collateral
+      x-permission: 'collateral:manage'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                application_id:
+                  type: string
+                  format: uuid
+                type_code:
+                  type: string
+                description:
+                  type: string
+                market_value:
+                  type: string
+                owner_party_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+                owner_name:
+                  type:
+                    - string
+                    - 'null'
+                state_code:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - application_id
+                - type_code
+                - description
+                - market_value
+      responses:
+        201:
+          description: Captured
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Collateral'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/collaterals/{id}':
+    get:
+      summary: 'A collateral item with valuations, perfection steps, insurance and allocations'
+      operationId: getCollateral
+      tags:
+        - Collateral
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Collateral'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/collaterals/{id}/valuations':
+    post:
+      summary: 'Record a valuation (with the report); it becomes the value basis'
+      operationId: recordCollateralValuation
+      tags:
+        - Collateral
+      x-permission: 'collateral:manage'
+      x-idempotency-key: required
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                valuer:
+                  type: string
+                valuation_date:
+                  type: string
+                  format: date
+                method:
+                  type: string
+                  enum:
+                    - market_comparison
+                    - income
+                    - cost
+                    - residual
+                    - desktop
+                    - mark_to_market
+                market_value:
+                  type: string
+                forced_sale_value:
+                  type:
+                    - string
+                    - 'null'
+                valid_until:
+                  type:
+                    - string
+                    - 'null'
+                  format: date
+                note:
+                  type:
+                    - string
+                    - 'null'
+                file:
+                  type: string
+                  format: binary
+              required:
+                - valuer
+                - valuation_date
+                - method
+                - market_value
+          application/json:
+            schema:
+              type: object
+              properties:
+                valuer:
+                  type: string
+                valuation_date:
+                  type: string
+                  format: date
+                method:
+                  type: string
+                  enum:
+                    - market_comparison
+                    - income
+                    - cost
+                    - residual
+                    - desktop
+                    - mark_to_market
+                market_value:
+                  type: string
+                forced_sale_value:
+                  type:
+                    - string
+                    - 'null'
+                valid_until:
+                  type:
+                    - string
+                    - 'null'
+                  format: date
+                note:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - valuer
+                - valuation_date
+                - method
+                - market_value
+      responses:
+        201:
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Collateral'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/collaterals/{id}/insurance-policies':
+    post:
+      summary: 'Record an insurance policy on the item'
+      operationId: recordCollateralInsurance
+      tags:
+        - Collateral
+      x-permission: 'collateral:manage'
+      x-idempotency-key: required
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                policy_no:
+                  type: string
+                insurer:
+                  type: string
+                sum_insured:
+                  type: string
+                start_date:
+                  type: string
+                  format: date
+                expiry_date:
+                  type: string
+                  format: date
+                bank_interest_noted:
+                  type: boolean
+                file:
+                  type: string
+                  format: binary
+              required:
+                - policy_no
+                - insurer
+                - sum_insured
+                - start_date
+                - expiry_date
+                - bank_interest_noted
+          application/json:
+            schema:
+              type: object
+              properties:
+                policy_no:
+                  type: string
+                insurer:
+                  type: string
+                sum_insured:
+                  type: string
+                start_date:
+                  type: string
+                  format: date
+                expiry_date:
+                  type: string
+                  format: date
+                bank_interest_noted:
+                  type: boolean
+              required:
+                - policy_no
+                - insurer
+                - sum_insured
+                - start_date
+                - expiry_date
+                - bank_interest_noted
+      responses:
+        201:
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Collateral'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/collaterals/{id}/allocations':
+    post:
+      summary: 'Set the lending value of the item that secures a facility; 0 releases it; over-allocation is refused'
+      operationId: allocateCollateral
+      tags:
+        - Collateral
+      x-permission: 'collateral:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                application_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: string
+              required:
+                - application_id
+                - amount
+      responses:
+        200:
+          description: Allocated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Collateral'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/collaterals/{id}/actions/request-insurance-waiver':
+    post:
+      summary: "Request a waiver of the item's insurance requirement (maker-checker)"
+      operationId: requestCollateralInsuranceWaiver
+      tags:
+        - Collateral
+      x-permission: 'collateral:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+              required:
+                - reason
+      responses:
+        202:
+          description: 'Change request awaiting a checker holding condition:waive_approve'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/perfection-steps/{id}':
+    patch:
+      summary: 'Assign the responsible party and due date of a perfection step, or start it'
+      operationId: updatePerfectionStep
+      tags:
+        - Collateral
+      x-permission: 'collateral:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                responsible_user_id:
+                  type:
+                    - string
+                    - 'null'
+                  format: uuid
+                due_date:
+                  type:
+                    - string
+                    - 'null'
+                  format: date
+                start:
+                  type: boolean
+      responses:
+        200:
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Collateral'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/perfection-steps/{id}/actions/complete':
+    post:
+      summary: 'Complete a perfection step with evidence: an uploaded file and/or a reference'
+      operationId: completePerfectionStep
+      tags:
+        - Collateral
+      x-permission: 'collateral:manage'
+      x-idempotency-key: required
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                evidence_reference:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+              required:
+                - note
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                evidence_reference:
+                  type: string
+              required:
+                - note
+      responses:
+        200:
+          description: Completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Collateral'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/perfection-steps/{id}/actions/request-waiver':
+    post:
+      summary: 'Request a waiver of a perfection step (maker-checker)'
+      operationId: requestPerfectionStepWaiver
+      tags:
+        - Collateral
+      x-permission: 'collateral:manage'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+              required:
+                - reason
+      responses:
+        202:
+          description: 'Change request awaiting a checker holding condition:waive_approve'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequest'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
   '/api/v1/parties/{id}/consents':
     get:
       summary: 'Current consents and full history'
@@ -8014,6 +8619,730 @@ components:
         - created_at
         - sent_at
         - read_at
+    CollateralType:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        haircut_percent:
+          type: string
+        requires_valuation:
+          type: boolean
+        valuation_validity_months:
+          type:
+            - integer
+            - 'null'
+        requires_insurance:
+          type: boolean
+        perfection_steps:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              name:
+                type: string
+              timing:
+                type: string
+              due_days:
+                type:
+                  - integer
+                  - 'null'
+            required:
+              - code
+              - name
+              - timing
+              - due_days
+        source:
+          type: string
+          enum:
+            - default
+            - tenant
+        version_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+      required:
+        - code
+        - name
+        - category
+        - haircut_percent
+        - requires_valuation
+        - valuation_validity_months
+        - requires_insurance
+        - perfection_steps
+        - source
+        - version_id
+    Collateral:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        origin_application_id:
+          type: string
+          format: uuid
+        type:
+          type: object
+          properties:
+            code:
+              type: string
+            name:
+              type: string
+            category:
+              type: string
+            source:
+              type: string
+            version_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+          required:
+            - code
+            - name
+            - category
+            - source
+            - version_id
+        description:
+          type: string
+        owner:
+          type: object
+          properties:
+            party_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            name:
+              type: string
+          required:
+            - party_id
+            - name
+        state_code:
+          type:
+            - string
+            - 'null'
+        market_value:
+          $ref: '#/components/schemas/Money'
+        haircut_percent:
+          type: string
+        forced_sale_value:
+          $ref: '#/components/schemas/Money'
+        value_basis:
+          type: string
+          enum:
+            - declared
+            - valuation
+        status:
+          type: string
+          enum:
+            - active
+            - released
+        allocation:
+          type: object
+          properties:
+            total:
+              $ref: '#/components/schemas/Money'
+            available:
+              $ref: '#/components/schemas/Money'
+            over_allocated:
+              type: boolean
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  application_id:
+                    type: string
+                    format: uuid
+                  application_reference:
+                    type:
+                      - string
+                      - 'null'
+                  amount:
+                    $ref: '#/components/schemas/Money'
+                  status:
+                    type: string
+                    enum:
+                      - active
+                      - released
+                required:
+                  - id
+                  - application_id
+                  - application_reference
+                  - amount
+                  - status
+          required:
+            - total
+            - available
+            - over_allocated
+            - items
+        valuation:
+          type: object
+          properties:
+            required:
+              type: boolean
+            status:
+              type: string
+              enum:
+                - not_required
+                - none
+                - current
+                - due_soon
+                - expired
+            valid_until:
+              type:
+                - string
+                - 'null'
+              format: date
+            history:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  sequence:
+                    type: integer
+                  valuer:
+                    type: string
+                  valuation_date:
+                    type: string
+                    format: date
+                  method:
+                    type: string
+                  market_value:
+                    $ref: '#/components/schemas/Money'
+                  forced_sale_value:
+                    $ref: '#/components/schemas/Money'
+                  valid_until:
+                    type:
+                      - string
+                      - 'null'
+                    format: date
+                  report:
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      document_id:
+                        type: string
+                        format: uuid
+                      version_id:
+                        type: string
+                        format: uuid
+                    required:
+                      - document_id
+                      - version_id
+                  note:
+                    type:
+                      - string
+                      - 'null'
+                  recorded_by:
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - id
+                      - name
+                  recorded_at:
+                    type: string
+                    format: date-time
+                required:
+                  - id
+                  - sequence
+                  - valuer
+                  - valuation_date
+                  - method
+                  - market_value
+                  - forced_sale_value
+                  - valid_until
+                  - report
+                  - note
+                  - recorded_by
+                  - recorded_at
+          required:
+            - required
+            - status
+            - valid_until
+            - history
+        perfection:
+          type: object
+          properties:
+            precedent_complete:
+              type: boolean
+            steps:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  sequence:
+                    type: integer
+                  code:
+                    type: string
+                  name:
+                    type: string
+                  timing:
+                    type: string
+                    enum:
+                      - precedent
+                      - subsequent
+                  responsible:
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - id
+                      - name
+                  due_date:
+                    type:
+                      - string
+                      - 'null'
+                    format: date
+                  is_overdue:
+                    type: boolean
+                  status:
+                    type: string
+                    enum:
+                      - pending
+                      - in_progress
+                      - completed
+                      - waiver_pending
+                      - waived
+                  evidence:
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      document_id:
+                        type:
+                          - string
+                          - 'null'
+                        format: uuid
+                      version_id:
+                        type:
+                          - string
+                          - 'null'
+                        format: uuid
+                      reference:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - document_id
+                      - version_id
+                      - reference
+                  completion:
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      by:
+                        type:
+                          - object
+                          - 'null'
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type:
+                              - string
+                              - 'null'
+                        required:
+                          - id
+                          - name
+                      at:
+                        type: string
+                        format: date-time
+                      note:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - by
+                      - at
+                      - note
+                  waiver:
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      change_request_id:
+                        type: string
+                        format: uuid
+                      reason:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - change_request_id
+                      - reason
+                required:
+                  - id
+                  - sequence
+                  - code
+                  - name
+                  - timing
+                  - responsible
+                  - due_date
+                  - is_overdue
+                  - status
+                  - evidence
+                  - completion
+                  - waiver
+          required:
+            - precedent_complete
+            - steps
+        insurance:
+          type: object
+          properties:
+            requirement:
+              type: string
+              enum:
+                - not_required
+                - required
+                - waiver_pending
+                - waived
+            status:
+              type: string
+              enum:
+                - not_required
+                - waived
+                - in_force
+                - expiring
+                - missing
+                - expired
+                - not_started
+                - interest_not_noted
+            current_policy_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            waiver:
+              type:
+                - object
+                - 'null'
+              properties:
+                change_request_id:
+                  type: string
+                  format: uuid
+                reason:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - change_request_id
+                - reason
+            policies:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  policy_no:
+                    type: string
+                  insurer:
+                    type: string
+                  sum_insured:
+                    $ref: '#/components/schemas/Money'
+                  start_date:
+                    type: string
+                    format: date
+                  expiry_date:
+                    type: string
+                    format: date
+                  bank_interest_noted:
+                    type: boolean
+                  under_insured:
+                    type: boolean
+                  document:
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      document_id:
+                        type: string
+                        format: uuid
+                      version_id:
+                        type: string
+                        format: uuid
+                    required:
+                      - document_id
+                      - version_id
+                  recorded_by:
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - id
+                      - name
+                  recorded_at:
+                    type: string
+                    format: date-time
+                required:
+                  - id
+                  - policy_no
+                  - insurer
+                  - sum_insured
+                  - start_date
+                  - expiry_date
+                  - bank_interest_noted
+                  - under_insured
+                  - document
+                  - recorded_by
+                  - recorded_at
+          required:
+            - requirement
+            - status
+            - current_policy_id
+            - waiver
+            - policies
+        created_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - origin_application_id
+        - type
+        - description
+        - owner
+        - state_code
+        - market_value
+        - haircut_percent
+        - forced_sale_value
+        - value_basis
+        - status
+        - allocation
+        - valuation
+        - perfection
+        - insurance
+        - created_by
+        - created_at
+    SecurityFile:
+      type: object
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        exposure:
+          $ref: '#/components/schemas/Money'
+        policy:
+          type: object
+          properties:
+            required:
+              type: boolean
+            min_cover_percent:
+              type:
+                - string
+                - 'null'
+            max_ltv_percent:
+              type:
+                - string
+                - 'null'
+          required:
+            - required
+            - min_cover_percent
+            - max_ltv_percent
+        cover:
+          type:
+            - object
+            - 'null'
+          properties:
+            lending_value:
+              $ref: '#/components/schemas/Money'
+            market_value:
+              $ref: '#/components/schemas/Money'
+            cover_percent:
+              type:
+                - string
+                - 'null'
+            ltv_percent:
+              type:
+                - string
+                - 'null'
+            meets_cover:
+              type:
+                - boolean
+                - 'null'
+            meets_ltv:
+              type:
+                - boolean
+                - 'null'
+          required:
+            - lending_value
+            - market_value
+            - cover_percent
+            - ltv_percent
+            - meets_cover
+            - meets_ltv
+        security:
+          type: object
+          properties:
+            applicable:
+              type: boolean
+            perfected:
+              type: boolean
+            insurance_in_force:
+              type: boolean
+            blockers:
+              type: array
+              items:
+                type: string
+            open_subsequent_steps:
+              type: integer
+          required:
+            - applicable
+            - perfected
+            - insurance_in_force
+            - blockers
+            - open_subsequent_steps
+        items:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Collateral'
+              - type: object
+                properties:
+                  allocated_here:
+                    $ref: '#/components/schemas/Money'
+                required:
+                  - allocated_here
+      required:
+        - application_id
+        - status
+        - exposure
+        - policy
+        - cover
+        - security
+        - items
+    ApprovalPacketCollateral:
+      type: object
+      properties:
+        cover_percent:
+          type:
+            - string
+            - 'null'
+        ltv_percent:
+          type:
+            - string
+            - 'null'
+        min_cover_percent:
+          type:
+            - string
+            - 'null'
+        max_ltv_percent:
+          type:
+            - string
+            - 'null'
+        meets_cover:
+          type:
+            - boolean
+            - 'null'
+        meets_ltv:
+          type:
+            - boolean
+            - 'null'
+        lending_value:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        outstanding_perfection:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              collateral_id:
+                type: string
+                format: uuid
+              type_code:
+                type: string
+              description:
+                type: string
+              owner_name:
+                type: string
+              market_value:
+                $ref: '#/components/schemas/Money'
+              forced_sale_value:
+                $ref: '#/components/schemas/Money'
+              allocated:
+                $ref: '#/components/schemas/Money'
+              open_steps:
+                type: integer
+            required:
+              - collateral_id
+              - type_code
+              - description
+              - owner_name
+              - market_value
+              - forced_sale_value
+              - allocated
+              - open_steps
+      required:
+        - cover_percent
+        - ltv_percent
+        - min_cover_percent
+        - max_ltv_percent
+        - meets_cover
+        - meets_ltv
+        - lending_value
+        - outstanding_perfection
+        - items
     ScreeningAlert:
       type: object
       properties:
@@ -9360,6 +10689,8 @@ components:
                 - is_routed_decision
         bureau_valid:
           type: boolean
+        collateral:
+          $ref: '#/components/schemas/ApprovalPacketCollateral'
         history:
           type: array
           items:
@@ -9410,6 +10741,7 @@ components:
         - application
         - credit
         - bureau_valid
+        - collateral
         - history
     OfferKeyFacts:
       type: object

@@ -31,6 +31,8 @@ final class DefaultTemplates
             'disbursement.ready' => $staff('disbursement.ready', 'Ready to disburse: {{ reference }}', '{{ applicant_name }} · {{ amount }}: conditions are met; raise the disbursement instruction.'),
             'disbursement.awaiting_release' => $staff('disbursement.awaiting_release', 'Release needed: {{ reference }}', 'A disbursement instruction for {{ applicant_name }} · {{ amount }} is waiting for a checker.'),
             'disbursement.failed' => $staff('disbursement.failed', 'Disbursement needs attention: {{ reference }}', 'Booking with the core banking system stopped ({{ error_code }}). Open the case to retry or raise a new instruction.'),
+            'collateral.revaluation_due' => $staff('collateral.revaluation_due', 'Re-valuation due: {{ reference }}', 'The valuation of {{ collateral }} securing {{ reference }} lapses on {{ due_date }}. Instruct a valuer and record the new valuation.'),
+            'collateral.insurance_expiring' => $staff('collateral.insurance_expiring', 'Insurance expiring: {{ reference }}', 'The insurance on {{ collateral }} securing {{ reference }} expires on {{ due_date }}. Record the renewed policy with the bank\'s interest noted.'),
             'facility.booked.staff' => $staff('facility.booked.staff', 'Booked: {{ reference }}', '{{ applicant_name }} · loan account {{ loan_account_no }} is booked and handed over to servicing.'),
         ];
     }

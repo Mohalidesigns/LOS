@@ -72,6 +72,8 @@ DEMO_MK_NAME="${DEMO_MK_NAME:-Tolu Maker}"
 DEMO_MK_EMAIL="${DEMO_MK_EMAIL:-tolu@fundly.test}"
 DEMO_CK_NAME="${DEMO_CK_NAME:-Bayo Checker}"
 DEMO_CK_EMAIL="${DEMO_CK_EMAIL:-bayo@fundly.test}"
+DEMO_COL_NAME="${DEMO_COL_NAME:-Dapo Collateral}"
+DEMO_COL_EMAIL="${DEMO_COL_EMAIL:-dapo@fundly.test}"
 DEMO_RULE_SET_KEY="${DEMO_RULE_SET_KEY:-sme-policy}"
 
 LICENCE_MODULES="${LICENCE_MODULES:-*}"
@@ -104,7 +106,7 @@ password_for() {
   case "$1" in
     "$ADMIN1_EMAIL") printf '%s' "$ADMIN1_PASSWORD" ;;
     "$ADMIN2_EMAIL") printf '%s' "$ADMIN2_PASSWORD" ;;
-    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL"|"$DEMO_CA_EMAIL"|"$DEMO_AP1_EMAIL"|"$DEMO_AP2_EMAIL"|"$DEMO_LG_EMAIL"|"$DEMO_MK_EMAIL"|"$DEMO_CK_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
+    "$DEMO_LO_EMAIL"|"$DEMO_CMP1_EMAIL"|"$DEMO_CMP2_EMAIL"|"$DEMO_CA_EMAIL"|"$DEMO_AP1_EMAIL"|"$DEMO_AP2_EMAIL"|"$DEMO_LG_EMAIL"|"$DEMO_MK_EMAIL"|"$DEMO_CK_EMAIL"|"$DEMO_COL_EMAIL") printf '%s' "$DEMO_PASSWORD" ;;
     *) local v="${FUNDLY_DEV_PASSWORD:-}"; [[ -n "$v" ]] || die "no password known for $1 (set FUNDLY_DEV_PASSWORD)"; printf '%s' "$v" ;;
   esac
 }
@@ -884,7 +886,7 @@ cmd_seed_demo() {
   login "$ADMIN1_EMAIL"; ADA_JAR="$JAR"
   seed_org
   heading "Demo users and roles (maker: $ADMIN1_EMAIL, checker: $ADMIN2_EMAIL)"
-  local lola chidi ngozi tunde kemi segun femi tolu bayo r_lo r_doc r_cmp r_bm r_sca r_ap1 r_ap2 r_lg r_mk r_ck
+  local lola chidi ngozi tunde kemi segun femi tolu bayo dapo r_lo r_doc r_cmp r_bm r_sca r_ap1 r_ap2 r_lg r_mk r_ck r_col
   lola="$(seed_user "$DEMO_LO_EMAIL" "$DEMO_LO_NAME")"
   chidi="$(seed_user "$DEMO_CMP1_EMAIL" "$DEMO_CMP1_NAME")"
   ngozi="$(seed_user "$DEMO_CMP2_EMAIL" "$DEMO_CMP2_NAME")"
@@ -894,6 +896,7 @@ cmd_seed_demo() {
   femi="$(seed_user "$DEMO_LG_EMAIL" "$DEMO_LG_NAME")"
   tolu="$(seed_user "$DEMO_MK_EMAIL" "$DEMO_MK_NAME")"
   bayo="$(seed_user "$DEMO_CK_EMAIL" "$DEMO_CK_NAME")"
+  dapo="$(seed_user "$DEMO_COL_EMAIL" "$DEMO_COL_NAME")"
   r_lo="$(seed_role demo_loan_officer 'Loan Officer (demo)' loan_officer legal_entity:read org_unit:read)"
   r_doc="$(seed_role demo_documentation_officer 'Documentation Officer (demo)' documentation_officer)"
   r_cmp="$(seed_role demo_compliance_officer 'Compliance Officer (demo)' compliance_officer)"
@@ -905,6 +908,7 @@ cmd_seed_demo() {
   r_lg="$(seed_role demo_legal_officer 'Legal Officer (demo)' legal_officer condition:manage)"
   r_mk="$(seed_role demo_disbursement_maker 'Disbursement Maker (demo)' disbursement_maker condition:manage)"
   r_ck="$(seed_role demo_disbursement_checker 'Disbursement Checker (demo)' disbursement_checker disbursement:retry reconciliation:run change_request:read)"
+  r_col="$(seed_role demo_collateral_officer 'Collateral Officer (demo)' collateral_officer)"
   seed_assignment "$lola" "$r_lo" "lola: loan officer"
   seed_assignment "$lola" "$r_doc" "lola: documentation officer"
   seed_assignment "$chidi" "$r_cmp" "chidi: compliance officer"
@@ -918,6 +922,7 @@ cmd_seed_demo() {
   seed_assignment "$femi" "$r_lg" "femi: legal officer (offers)"
   seed_assignment "$tolu" "$r_mk" "tolu: disbursement maker"
   seed_assignment "$bayo" "$r_ck" "bayo: disbursement checker"
+  seed_assignment "$dapo" "$r_col" "dapo: collateral officer"
 
   JAR="$ADA_JAR"; seed_product_author
   JAR="$BO_JAR"; seed_product_review
@@ -1007,7 +1012,7 @@ cmd_seed_demo() {
 
   heading "MFA enrolment for the compliance demo users"
   local who
-  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL" "$DEMO_AP1_EMAIL" "$DEMO_AP2_EMAIL" "$DEMO_LG_EMAIL" "$DEMO_MK_EMAIL" "$DEMO_CK_EMAIL"; do
+  for who in "$DEMO_CMP1_EMAIL" "$DEMO_CMP2_EMAIL" "$DEMO_CA_EMAIL" "$DEMO_AP1_EMAIL" "$DEMO_AP2_EMAIL" "$DEMO_LG_EMAIL" "$DEMO_MK_EMAIL" "$DEMO_CK_EMAIL" "$DEMO_COL_EMAIL"; do
     if [[ -f "$(secret_file_for "$who")" && -n "$(sql_value "select coalesce(mfa_confirmed_at::text, '') from users where lower(email) = lower('$who')" "$tid")" ]]; then
       info "$who: enrolled, secret on file"
     else login "$who"; rm -f "$JAR"; fi
@@ -1026,6 +1031,7 @@ cmd_seed_demo() {
                           segun also decides condition waivers (condition:waive_approve)
       $DEMO_MK_EMAIL     Disbursement Maker (make instructions)
       $DEMO_CK_EMAIL     Disbursement Checker (release with step-up, retry, exception queue, reconciliation)
+      $DEMO_COL_EMAIL     Collateral Officer (capture security, valuations, perfection, insurance, allocation, waiver requests)
     Draft application:      Adebayo Foods Limited, NGN 12.5M / 24 months  ($app1)
     In approval (L1):       Chinedu Eze, NGN 2M / 12 months               ($app2)
     Approved (offer ready): Amaka Nwosu, NGN 3M / 12 months               ($app5)

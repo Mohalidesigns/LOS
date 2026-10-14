@@ -26,7 +26,7 @@ use Fundly\Shared\Security\ResourceAttributes;
  * Who hears about what (P1 rules):
  *   customer email  application.received, offer.issued, offer.expiring, facility.booked
  *   staff in-app    holders of the permission that acts next, in the application's scope
- *                   (approval.awaiting, screening.alert, disbursement.*), or the originator
+ *                   (approval.awaiting, screening.alert, disbursement.*, collateral.*), or the originator
  *                   (facility.booked.staff)
  * Every message is logged (FR-NTF-005); a repeat of the same message to the
  * same recipient is suppressed by its dedupe key (FR-NTF-006).
@@ -47,6 +47,8 @@ final class NotifyHandler implements CommandHandler
         'disbursement.ready' => ['to' => 'permission', 'permission' => 'disbursement:make'],
         'disbursement.awaiting_release' => ['to' => 'permission', 'permission' => 'disbursement:check'],
         'disbursement.failed' => ['to' => 'permission', 'permission' => 'disbursement:check'],
+        'collateral.revaluation_due' => ['to' => 'permission', 'permission' => 'collateral:manage'],
+        'collateral.insurance_expiring' => ['to' => 'permission', 'permission' => 'collateral:manage'],
     ];
 
     public function __construct(

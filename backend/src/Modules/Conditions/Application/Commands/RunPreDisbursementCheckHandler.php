@@ -13,6 +13,7 @@ use Fundly\Integration\Runtime\IntegrationGateway;
 use Fundly\Modules\Application\Contracts\ApplicationSummary;
 use Fundly\Modules\Application\Contracts\CanonicalStatus;
 use Fundly\Modules\Approval\Contracts\ApprovalRegister;
+use Fundly\Modules\Collateral\Contracts\CollateralRegister;
 use Fundly\Modules\Compliance\Contracts\ComplianceGate;
 use Fundly\Modules\Conditions\Application\ConditionFile;
 use Fundly\Modules\Conditions\Application\ConditionQueries;
@@ -44,6 +45,7 @@ final class RunPreDisbursementCheckHandler implements CommandHandler
         private readonly IntegrationGateway $gateway,
         private readonly FieldEncryptor $crypto,
         private readonly ConditionQueries $queries,
+        private readonly CollateralRegister $collateral,
     ) {}
 
     /** @return array{data: array<string, mixed>} */
@@ -88,8 +90,18 @@ final class RunPreDisbursementCheckHandler implements CommandHandler
 
         [$accountItem, $accountName, $score] = $this->nameEnquiry($app, $command->bankCode, $command->accountNo);
         $items[] = $accountItem;
-        $items[] = CheckItem::notApplicable('security_perfected', 'Collateral perfection is tracked from P1-COL-01; capture it as a condition precedent until then.');
-        $items[] = CheckItem::notApplicable('insurance_in_force', 'Insurance is not configured for this product; capture it as a condition precedent if required.');
+        // FR-COL-008: precedent perfection steps and required insurance, unless waived through maker-checker
+        $security = $this->collateral->security($app->id);
+        $items[] = match (true) {
+            ! $security->applicable => CheckItem::notApplicable('security_perfected', 'No collateral secures this facility and the product does not require any.'),
+            $security->perfectionBlockers === [] => CheckItem::pass('security_perfected', 'Every perfection step due before disbursement is complete or waived'.($security->openSubsequentSteps > 0 ? "; {$security->openSubsequentSteps} step(s) follow as conditions subsequent." : '.')),
+            default => CheckItem::fail('security_perfected', 'Outstanding: '.implode(' ', $security->perfectionBlockers)),
+        };
+        $items[] = match (true) {
+            ! $security->insuranceApplicable => CheckItem::notApplicable('insurance_in_force', 'No collateral on this facility requires insurance.'),
+            $security->insuranceBlockers === [] => CheckItem::pass('insurance_in_force', "Insurance is in force with the bank's interest noted, or waived."),
+            default => CheckItem::fail('insurance_in_force', implode(' ', $security->insuranceBlockers)),
+        };
 
         $check = new PreDisbursementCheck;
         $check->forceFill([
