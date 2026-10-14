@@ -103,6 +103,14 @@ final class RunPreDisbursementCheckHandler implements CommandHandler
             default => CheckItem::fail('insurance_in_force', implode(' ', $security->insuranceBlockers)),
         };
 
+        // FR-CMP-023: re-checked against today's exposure in the core banking system
+        $limits = $this->compliance->regulatoryLimits($app->id, 'pre_disbursement', $context->principal->id);
+        $items[] = match ($limits->outcome) {
+            'pass' => CheckItem::pass('regulatory_limits', $limits->detail),
+            'not_applicable' => CheckItem::notApplicable('regulatory_limits', $limits->detail),
+            default => CheckItem::fail('regulatory_limits', $limits->detail),
+        };
+
         $check = new PreDisbursementCheck;
         $check->forceFill([
             'application_id' => $app->id,

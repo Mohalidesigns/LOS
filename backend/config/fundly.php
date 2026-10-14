@@ -141,6 +141,12 @@ return [
         ],
     ],
 
+    // Jurisdiction packs (TRD §9.4): a pack activates only when every rule is verified.
+    // Non-production installs may allow unverified packs for demos; never honoured in production.
+    'compliance' => [
+        'allow_unverified_packs' => (bool) env('FUNDLY_ALLOW_UNVERIFIED_PACKS', false),
+    ],
+
     // Collateral (FR-COL-003/006): revaluation and insurance-expiry notice window
     'collateral' => [
         'notice_days' => (int) env('FUNDLY_COLLATERAL_NOTICE_DAYS', 30),

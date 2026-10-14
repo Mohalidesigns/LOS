@@ -18,6 +18,9 @@ final class ConfigTypeRegistry implements ConfigTypeCatalogue
     /** @var array<string, array{description: string, rules: array<string, mixed>|Closure(array<string, mixed>): void}> */
     private array $types = [];
 
+    /** @var array<string, Closure(array<string, mixed>): void> */
+    private array $gates = [];
+
     public function __construct(private readonly Factory $validator)
     {
         $this->register('security.session_policy', 'Session controls: idle/absolute timeouts and concurrent-session cap (FR-SEC-015).', [
@@ -36,6 +39,19 @@ final class ConfigTypeRegistry implements ConfigTypeCatalogue
     public function register(string $type, string $description, array|Closure $rules): void
     {
         $this->types[$type] = ['description' => $description, 'rules' => $rules];
+    }
+
+    public function registerActivationGate(string $type, Closure $gate): void
+    {
+        $this->gates[$type] = $gate;
+    }
+
+    /** @param array<string, mixed> $content */
+    public function assertActivatable(string $type, array $content): void
+    {
+        if (isset($this->gates[$type])) {
+            ($this->gates[$type])($content);
+        }
     }
 
     public function has(string $type): bool

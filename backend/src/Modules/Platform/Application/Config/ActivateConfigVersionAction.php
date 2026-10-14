@@ -26,7 +26,7 @@ final class ActivateConfigVersionAction implements ChangeAction
 {
     public const TYPE = 'platform.config.activate';
 
-    public function __construct(private readonly Clock $clock) {}
+    public function __construct(private readonly Clock $clock, private readonly ConfigTypeRegistry $types) {}
 
     public function type(): string
     {
@@ -61,6 +61,16 @@ final class ActivateConfigVersionAction implements ChangeAction
                 ? "Only a previously active (superseded) version can be rolled back to; this one is {$v->status}."
                 : "Only an approved version can be activated; this one is {$v->status}.");
         }
+        $this->gate($v);
+    }
+
+    /** Type-specific activation gate, e.g. a jurisdiction pack must be fully verified (TRD §9.4). */
+    private function gate(ConfigVersion $v): void
+    {
+        $artifact = ConfigArtifact::query()->find($v->artifact_id);
+        if ($artifact instanceof ConfigArtifact) {
+            $this->types->assertActivatable($artifact->type, $v->content);
+        }
     }
 
     public function fingerprint(array $payload): string
@@ -80,6 +90,7 @@ final class ActivateConfigVersionAction implements ChangeAction
         $now = $this->clock->now();
         $v = ConfigVersion::query()->lockForUpdate()->findOrFail(Payload::string($payload, 'config_version_id'));
         $artifact = ConfigArtifact::query()->lockForUpdate()->findOrFail($v->artifact_id);
+        $this->types->assertActivatable($artifact->type, $v->content);
         $previousId = $artifact->active_version_id;
 
         if ($previousId !== null) {

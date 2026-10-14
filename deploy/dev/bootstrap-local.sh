@@ -326,6 +326,8 @@ step_kek() {
     ok "generated $KEK_FILE"
   fi
   set_env_key FUNDLY_KEK_PATH "$KEK_FILE"
+  # demo only: lets the unverified draft jurisdiction pack go live (refused in production installs, TRD §9.4)
+  set_env_key FUNDLY_ALLOW_UNVERIFIED_PACKS true
 }
 
 step_migrate() {
@@ -936,6 +938,11 @@ cmd_seed_demo() {
   fi
   seed_rule_set
   seed_config approval.matrix sme-matrix 'SME approval matrix' 'L1 to 10M (grade A-C), L1+L2 to 50M, CCO above (seed-demo)' "$MATRIX_CONTENT"
+  # jurisdiction pack (draft v0, unverified: demo only until P1-CMP-04) and the demo prudential base
+  JAR="$ADA_JAR"; api GET /api/v1/jurisdiction-packs/defaults ''; expect 200 "draft jurisdiction packs"
+  seed_config jurisdiction.pack ng.commercial_bank 'Nigeria × commercial bank' 'Draft v0 rule register (unverified; demo only)' "$(jq -c '.data[] | select(.key=="ng.commercial_bank") | .content' <<<"$BODY")"
+  seed_config prudential.parameters demo 'Demo Bank Plc prudential parameters' "Shareholders' funds unimpaired (demo figure)" \
+    '{"entries":[{"effective_from":"2026-01-01","shareholders_funds_unimpaired":{"amount":"150000000000.00","currency":"NGN"},"source":"Demo figure, not a real bank"}]}'
   seed_config approval.authority_limits default 'Authority limits' 'Role limits in NGN (seed-demo)' "$LIMITS_CONTENT"
   seed_config offer.template sme-offer 'SME offer letter' 'Offer letter with key facts, schedule and ordered wet signing (seed-demo)' "$OFFER_TEMPLATE_CONTENT"
   # products activated before M6 lack the offer template binding: author the next version

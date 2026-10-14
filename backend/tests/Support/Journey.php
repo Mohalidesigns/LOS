@@ -67,7 +67,7 @@ final class Journey
      *
      * @return array<string, mixed> the application
      */
-    public function approved(string $amount = '3000000.00', int $tenor = 12): array
+    public function approved(string $amount = '3000000.00', int $tenor = 12, bool $vote = true): array
     {
         $t = $this->t;
         $t->login($this->rm);
@@ -89,6 +89,9 @@ final class Journey
         $t->api('POST', "/api/v1/applications/{$app['id']}/decisions/actions/run")->assertCreated();
         $t->api('POST', "/api/v1/applications/{$app['id']}/credit-memo", ['narrative' => 'Five years trading, affordable on stated income.', 'recommendation' => 'approve'])->assertCreated();
         $t->api('POST', "/api/v1/applications/{$app['id']}/actions/recommend", [], ['If-Match' => $etag()])->assertOk();
+        if (! $vote) {
+            return $app;
+        }
         $request = $t->api('GET', "/api/v1/applications/{$app['id']}/approval-requests")->json('data.0');
         $t->login($this->approver);
         $t->api('POST', "/api/v1/approval-requests/{$request['id']}/actions/vote", ['decision' => 'approve', 'rationale' => 'Affordable and within appetite.'])->assertOk();

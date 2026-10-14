@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Fundly\Modules\Compliance\Application;
 
 use Fundly\Modules\Compliance\Application\Commands\ScreenApplication;
+use Fundly\Modules\Compliance\Application\Packs\SingleObligorEvaluator;
 use Fundly\Modules\Compliance\Contracts\ComplianceGate;
 use Fundly\Modules\Compliance\Contracts\KycStatus;
+use Fundly\Modules\Compliance\Contracts\RegulatoryLimitCheck;
 use Fundly\Modules\Compliance\Contracts\ScreeningOutcome;
 use Fundly\Modules\Compliance\Domain\AlertStatus;
 use Fundly\Modules\Compliance\Infrastructure\Models\ScreeningAlert;
@@ -16,7 +18,7 @@ use Fundly\Shared\Security\SystemIdentity;
 
 final class StandardComplianceGate implements ComplianceGate
 {
-    public function __construct(private readonly KycEvaluator $kyc, private readonly CommandBus $bus) {}
+    public function __construct(private readonly KycEvaluator $kyc, private readonly CommandBus $bus, private readonly SingleObligorEvaluator $singleObligor) {}
 
     public function kyc(string $applicationId): ?KycStatus
     {
@@ -37,5 +39,10 @@ final class StandardComplianceGate implements ComplianceGate
             ->whereIn('status', [AlertStatus::Open->value, AlertStatus::PendingConfirmation->value, AlertStatus::ConfirmedMatch->value])->count();
 
         return new ScreeningOutcome($result['runs'], $result['hits'], $open);
+    }
+
+    public function regulatoryLimits(string $applicationId, string $stage, string $actorId): RegulatoryLimitCheck
+    {
+        return $this->singleObligor->evaluate($applicationId, $stage, $actorId);
     }
 }

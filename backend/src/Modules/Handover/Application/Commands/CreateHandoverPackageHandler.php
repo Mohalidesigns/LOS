@@ -11,6 +11,7 @@ use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Application\Contracts\CanonicalStatus;
 use Fundly\Modules\Collateral\Contracts\CollateralRegister;
 use Fundly\Modules\Collateral\Contracts\SecuredItem;
+use Fundly\Modules\Compliance\Contracts\RegulatoryRules;
 use Fundly\Modules\Conditions\Contracts\ConditionsGate;
 use Fundly\Modules\Conditions\Contracts\OpenCondition;
 use Fundly\Modules\Disbursement\Contracts\DisbursementRegister;
@@ -53,6 +54,7 @@ final class CreateHandoverPackageHandler implements CommandHandler
         private readonly WebhookPublisher $webhooks,
         private readonly Clock $clock,
         private readonly CollateralRegister $collateral,
+        private readonly RegulatoryRules $rules,
     ) {}
 
     /** @return array{package_id: string, sha256: string} */
@@ -76,7 +78,7 @@ final class CreateHandoverPackageHandler implements CommandHandler
         $maturity = (string) ($last['due_date'] ?? $facility->valueDate);
         $insuranceCodes = (array) config('fundly.handover.insurance_fee_codes', ['CRI']);
         $now = $this->clock->now();
-        $retention = $this->retention($app->id, $now);
+        $retention = $this->retention($app->id, $app->legalEntityId, $now);
 
         $package = [
             'package_version' => self::PACKAGE_VERSION,
@@ -137,18 +139,21 @@ final class CreateHandoverPackageHandler implements CommandHandler
     }
 
     /** FR-HND-004: the origination record is kept for the configured period from booking, whatever happens downstream. */
-    private function retention(string $applicationId, DateTimeImmutable $now): RetentionRecord
+    private function retention(string $applicationId, string $legalEntityId, DateTimeImmutable $now): RetentionRecord
     {
         $existing = RetentionRecord::query()->where('application_id', $applicationId)->where('category', 'origination_record')->first();
         if ($existing !== null) {
             return $existing;
         }
-        $years = max(1, (int) config('fundly.retention.origination_years', 5));
+        // the jurisdiction pack's retention rule when one is active (FR-CMP-003), else the installation default
+        $rule = $this->rules->rule($legalEntityId, 'origination_record_retention', $now);
+        $years = max(1, $rule?->int('years', 0) ?: (int) config('fundly.retention.origination_years', 5));
+        $source = $rule === null ? 'fundly.retention.origination_years' : "pack {$rule->packKey} v{$rule->packVersionNo}, rule origination_record_retention".($rule->verificationStatus === 'verified' ? '' : ' (unverified)');
         $r = new RetentionRecord;
         $r->forceFill([
             'application_id' => $applicationId, 'category' => 'origination_record', 'trigger' => 'fixed_from_booking',
             'starts_on' => $now->format('Y-m-d'), 'retain_until' => $now->add(new DateInterval("P{$years}Y"))->format('Y-m-d'),
-            'legal_hold' => false, 'basis' => "{$years} years from booking (fundly.retention.origination_years) until the LMS reports facility closure (P4) [verify against the Nigeria pack, G-29]",
+            'legal_hold' => false, 'basis' => "{$years} years from booking ({$source}) until the LMS reports facility closure (P4)",
             'created_at' => $now,
         ])->save();
 

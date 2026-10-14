@@ -51,6 +51,7 @@ tags:
 - name: Notifications
 - name: Collateral
 - name: Compliance
+- name: Compliance
 - name: Documents
 - name: Credit
 - name: Approvals
@@ -4028,6 +4029,99 @@ paths:
         - sessionCookie: []
         - bearerToken: []
       x-idempotency-key: required
+  '/api/v1/legal-entities/{id}/regulatory-rules':
+    get:
+      summary: 'The regulatory rule register in force for a booking legal entity: active pack, rules with citations and verification, prudential base'
+      operationId: getRegulatoryRules
+      tags:
+        - Compliance
+      x-permission: 'config:read'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RegulatoryRegister'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  /api/v1/jurisdiction-packs/defaults:
+    get:
+      summary: 'Draft jurisdiction packs shipped with the product (all rules unverified) to author a pack version from'
+      operationId: listDefaultJurisdictionPacks
+      tags:
+        - Compliance
+      x-permission: 'config:read'
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                        content:
+                          type: object
+                          additionalProperties: true
+                      required:
+                        - key
+                        - content
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  '/api/v1/applications/{id}/regulatory-limit-checks':
+    get:
+      summary: 'Recorded regulatory limit checks for an application, newest first'
+      operationId: listRegulatoryLimitChecks
+      tags:
+        - Compliance
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RegulatoryLimitCheck'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
   '/api/v1/parties/{id}/consents':
     get:
       summary: 'Current consents and full history'
@@ -9346,6 +9440,248 @@ components:
         - lending_value
         - outstanding_perfection
         - items
+    RegulatoryRegister:
+      type: object
+      properties:
+        legal_entity:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            code:
+              type: string
+            name:
+              type: string
+            jurisdiction:
+              type: string
+            licence_category:
+              type: string
+          required:
+            - id
+            - code
+            - name
+            - jurisdiction
+            - licence_category
+        pack:
+          type:
+            - object
+            - 'null'
+          properties:
+            key:
+              type: string
+            name:
+              type: string
+            version_id:
+              type: string
+              format: uuid
+            version_no:
+              type: integer
+            activated_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+            unverified_rules:
+              type: integer
+          required:
+            - key
+            - name
+            - version_id
+            - version_no
+            - activated_at
+            - unverified_rules
+        prudential:
+          type:
+            - object
+            - 'null'
+          properties:
+            effective_from:
+              type: string
+              format: date
+            shareholders_funds_unimpaired:
+              $ref: '#/components/schemas/Money'
+            source:
+              type: string
+            version_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+          required:
+            - effective_from
+            - shareholders_funds_unimpaired
+            - source
+            - version_id
+        rules:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              title:
+                type: string
+              kind:
+                type: string
+                enum:
+                  - parameter
+                  - obligation
+              parameters:
+                type:
+                  - object
+                  - 'null'
+                additionalProperties: true
+              citation:
+                type: object
+                additionalProperties: true
+              effective_from:
+                type: string
+                format: date
+              effective_to:
+                type:
+                  - string
+                  - 'null'
+                format: date
+              verification_status:
+                type: string
+                enum:
+                  - unverified
+                  - verified
+              verified_by:
+                type:
+                  - string
+                  - 'null'
+              verified_on:
+                type:
+                  - string
+                  - 'null'
+              note:
+                type:
+                  - string
+                  - 'null'
+              in_force:
+                type: boolean
+            required:
+              - code
+              - title
+              - kind
+              - parameters
+              - citation
+              - effective_from
+              - effective_to
+              - verification_status
+              - verified_by
+              - verified_on
+              - note
+              - in_force
+      required:
+        - legal_entity
+        - pack
+        - prudential
+        - rules
+    RegulatoryLimitCheck:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        limit_type:
+          type: string
+        stage:
+          type: string
+          enum:
+            - approval
+            - pre_disbursement
+        outcome:
+          type: string
+          enum:
+            - pass
+            - breach
+            - unavailable
+            - not_applicable
+        detail:
+          type: string
+        rule:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+        base:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+        figures:
+          type:
+            - object
+            - 'null'
+          properties:
+            base:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+            limit_percent:
+              type:
+                - string
+                - 'null'
+            limit:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+            existing:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+            proposed:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+            total:
+              oneOf:
+                - $ref: '#/components/schemas/Money'
+                - type: 'null'
+          required:
+            - base
+            - limit_percent
+            - limit
+            - existing
+            - proposed
+            - total
+        facilities:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        checked_by:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+        checked_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - limit_type
+        - stage
+        - outcome
+        - detail
+        - rule
+        - base
+        - figures
+        - facilities
+        - checked_by
+        - checked_at
     ScreeningAlert:
       type: object
       properties:
@@ -11355,6 +11691,7 @@ components:
                   - account_verified
                   - security_perfected
                   - insurance_in_force
+                  - regulatory_limits
               label:
                 type: string
               status:

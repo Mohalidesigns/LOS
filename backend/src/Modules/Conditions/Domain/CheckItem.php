@@ -22,6 +22,7 @@ final readonly class CheckItem
         'account_verified' => 'Destination account verified',
         'security_perfected' => 'Security perfected',
         'insurance_in_force' => 'Insurance in force',
+        'regulatory_limits' => 'Regulatory limits (single obligor)',
     ];
 
     public function __construct(public string $code, public string $status, public string $detail) {}

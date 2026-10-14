@@ -1078,3 +1078,102 @@ agreement, advice) and the CRI insurance item, with retention until
 - No inbound WhatsApp handling (HollaTags chat webhook) or delivery reports.
 - No SMS fallback when WhatsApp definitely fails while it replaces SMS.
   That is why SMS stays on alongside WhatsApp by default.
+
+## Milestone 12: Jurisdiction pack and single-obligor limit (P1-CMP-03, P1-CMP-02)
+
+### Backend
+- **Jurisdiction pack framework** (Compliance module, TRD §9.1):
+  - A `jurisdiction.pack` config keyed by jurisdiction and licence category
+    (`ng.commercial_bank`), activated through maker-checker and resolved
+    from the booking legal entity (LOS-FR-310).
+  - Each pack is a rule register. Every rule has:
+    - a code, title and kind (`parameter`, which the system reads, or
+      `obligation`, a recorded duty)
+    - a citation (instrument, section, url, retrieved_on)
+    - `effective_from` / `effective_to`, with no overlapping versions of a
+      code
+    - a verification status
+  - Lookups are by date, so a past decision can be re-evaluated (FR-CMP-003).
+- **Activation gate** (TRD §9.4):
+  - `ConfigTypeCatalogue::registerActivationGate` was added (a Platform
+    contract), and it runs at both activation request and execution.
+  - A pack goes live only when every rule is `verified` (verified_by,
+    verified_on, source url).
+  - `FUNDLY_ALLOW_UNVERIFIED_PACKS` lets demos run a draft and is never
+    honoured in production. The dev bootstrap sets it.
+- **Draft pack: Nigeria × commercial bank v0.** Eight rules, **all
+  unverified**, with figures and sections to confirm (P1-CMP-04):
+  - Parameter rules:
+    - single-obligor limit of 20% of shareholders' funds unimpaired (BOFIA
+      2020 and CBN prudential guidelines)
+    - origination record retention of 5 years (MLPPA 2022)
+    - bureau report validity of 30 days (Credit Reporting Act 2017; the
+      window is bank policy)
+  - Obligation rules:
+    - CDD and AML/CFT/CPF (CBN Regulations 2022)
+    - NDPA 2023 and GAID 2025
+    - key-facts disclosure (CBN Consumer Protection Regulations)
+    - insider lending (P3)
+    - CRMS (P5)
+  - Available at `GET /jurisdiction-packs/defaults` to author from.
+- **Prudential parameters** (LOS-FR-307): a `prudential.parameters` config
+  keyed by legal entity code, holding effective-dated shareholders' funds
+  unimpaired with their source (maker-checker).
+- **Single-obligor check** (FR-CMP-023, P1 scope):
+  - The obligor's exposure comes from the CBA, via
+    `customer.findByLosReference` and `exposure.get`; each facility counts
+    at the higher of its limit and outstanding balance.
+  - That exposure plus this facility is compared with limit% × the base in
+    force.
+  - It runs on every approve vote (a breach, or exposure that can't be read,
+    refuses the vote) and in the pre-disbursement check as a new item,
+    `regulatory_limits`.
+  - Every check is recorded in `regulatory_limit_checks` (append-only), with
+    the rule reference (pack, version, effective date, verification) and the
+    base it used.
+- **Consumers now read the pack when one is active:**
+  - bureau report validity (Credit)
+  - origination record retention (Handover; the basis names the pack
+    version)
+- **API:**
+  - `GET /legal-entities/{id}/regulatory-rules`: the register in force
+  - `GET /applications/{id}/regulatory-limit-checks`
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-CMP-001 | Partial: framework, one pack; multi-pack per deployment is v2 (FR-CMP-002) | `JurisdictionPackTest` |
+| FR-CMP-003 | Done | `JurisdictionPackTest` (unit + feature) |
+| FR-CMP-023 | Partial: single obligor; insider and sector limits, connected exposure P3 | `JurisdictionPackTest` |
+
+### Frontend
+- **Configuration > Regulatory rules:**
+  - pick a booking entity
+  - see the pack in force with its version and verification state, and the
+    prudential base
+  - see the rule register with parameter summaries, citations, effective
+    dates, verification and source links
+- The pre-disbursement checklist shows "Regulatory limits (single obligor)".
+- `regulatoryDomain.ts` has unit tests.
+
+### Verification
+- Local Pest: 319 passed, with Pint and PHPStan clean.
+- Frontend `npm run verify`: 168 tests.
+- Dev: seed-demo authored and activated the draft pack, which shows
+  "unverified" (allowed on dev only), and the Demo Bank prudential base. The
+  register endpoint returns 8 rules.
+
+### Gaps carried forward
+- **P1-CMP-04:** every rule in the Nigeria pack is unverified. Compliance
+  must check each against the primary source, record url, retrieval and
+  verification, and get PO sign-off before a production pack can go live.
+- Connected-party aggregation, insider register and limits, and sector caps
+  (P3).
+- Other LOS applications for the same obligor that are approved but not yet
+  booked are not counted.
+- Cross-currency exposure is not counted (no FX).
+- When an approval is refused, the recorded breach is rolled back with the
+  vote. The refusal is in the API response, and the pre-disbursement check
+  records its own result.
+- The approval packet does not show the limit check yet.
+- Pack signing is a content hash plus maker-checker; vendor-signed packs
+  come later.

@@ -54,7 +54,7 @@ $schemas = [
     'PreDisbursementCheck' => ['type' => 'object', 'properties' => [
         'id' => OA_UUID, 'sequence' => OA_INT, 'passed' => OA_BOOL,
         'items' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [
-            'code' => ['type' => 'string', 'enum' => ['kyc_current', 'screening_clear', 'documentation_executed', 'conditions_precedent', 'approval_valid', 'account_verified', 'security_perfected', 'insurance_in_force']],
+            'code' => ['type' => 'string', 'enum' => ['kyc_current', 'screening_clear', 'documentation_executed', 'conditions_precedent', 'approval_valid', 'account_verified', 'security_perfected', 'insurance_in_force', 'regulatory_limits']],
             'label' => OA_STR, 'status' => ['type' => 'string', 'enum' => ['pass', 'fail', 'not_applicable']], 'detail' => OA_STR,
         ], 'required' => ['code', 'label', 'status', 'detail']]],
         'destination' => ['type' => 'object', 'properties' => ['bank_code' => OA_STR, 'account' => OA_STR, 'account_name' => OA_NSTR, 'name_match_score' => ['type' => ['integer', 'null']]], 'required' => ['bank_code', 'account', 'account_name', 'name_match_score']],

@@ -17,6 +17,7 @@ use Fundly\Modules\Approval\Http\Controllers\ApprovalController;
 use Fundly\Modules\Audit\Http\Controllers\AuditController;
 use Fundly\Modules\Collateral\Http\Controllers\CollateralController;
 use Fundly\Modules\Compliance\Http\Controllers\ComplianceController;
+use Fundly\Modules\Compliance\Http\Controllers\RegulatoryController;
 use Fundly\Modules\Conditions\Http\Controllers\ConditionController;
 use Fundly\Modules\Credit\Http\Controllers\CreditController;
 use Fundly\Modules\Disbursement\Http\Controllers\DisbursementController;
@@ -151,6 +152,9 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::post('offers/{id}/actions/decline', [OfferController::class, 'decline'])->middleware(['authz:offer:prepare', 'idempotent'])->name('offers.decline');
 
     // Conditions (FR-CPR-001..005): CP/CS register, waivers via change requests, final pre-disbursement check
+    Route::get('legal-entities/{id}/regulatory-rules', [RegulatoryController::class, 'register'])->middleware('authz:config:read')->name('regulatory-rules.index');
+    Route::get('jurisdiction-packs/defaults', [RegulatoryController::class, 'defaults'])->middleware('authz:config:read')->name('jurisdiction-packs.defaults');
+    Route::get('applications/{id}/regulatory-limit-checks', [RegulatoryController::class, 'limitChecks'])->middleware('authz:application:view')->name('regulatory-limit-checks.index');
     Route::get('collateral-types', [CollateralController::class, 'types'])->middleware('authz:application:view')->name('collateral-types.index');
     Route::get('applications/{id}/collateral', [CollateralController::class, 'forApplication'])->middleware('authz:application:view')->name('collateral.for-application');
     Route::get('collaterals', [CollateralController::class, 'index'])->middleware('authz:application:view')->name('collaterals.index');

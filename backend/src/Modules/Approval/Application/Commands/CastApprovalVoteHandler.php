@@ -13,6 +13,7 @@ use Fundly\Modules\Approval\Contracts\Events\ApprovalDecided;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalCondition;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalRequest;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalVote;
+use Fundly\Modules\Compliance\Contracts\ComplianceGate;
 use Fundly\Modules\Credit\Contracts\CreditFile;
 use Fundly\Shared\Audit\AuditEntry;
 use Fundly\Shared\Bus\Command;
@@ -31,6 +32,7 @@ final class CastApprovalVoteHandler implements CommandHandler
         private readonly CreditFile $credit,
         private readonly ApplicationLifecycle $lifecycle,
         private readonly ApprovalQueries $queries,
+        private readonly ComplianceGate $compliance,
     ) {}
 
     /** @return array{data: array<string, mixed>} */
@@ -58,6 +60,13 @@ final class CastApprovalVoteHandler implements CommandHandler
         }
         if ($command->decision !== 'decline' && ! $this->credit->hasValidBureauReport($app->id)) {
             throw new DomainRuleViolation('The credit bureau report has lapsed; pull a current report before approving (FR-CMP-020).');
+        }
+        // FR-CMP-023: a facility that would breach the single-obligor limit cannot be approved here
+        if (in_array($command->decision, ['approve', 'approve_with_conditions'], true)) {
+            $limits = $this->compliance->regulatoryLimits($app->id, 'approval', $principal->id);
+            if ($limits->blocks()) {
+                throw new DomainRuleViolation("{$limits->detail} (FR-CMP-023)");
+            }
         }
         $counter = null;
         if ($command->decision === 'counter_offer') {

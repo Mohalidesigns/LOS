@@ -10,6 +10,7 @@ use Fundly\Integration\Ports\CreditBureau\CreditBureauOperations;
 use Fundly\Integration\Ports\CreditBureau\CreditBureauPort;
 use Fundly\Integration\Ports\CreditBureau\CreditProfile;
 use Fundly\Integration\Runtime\IntegrationGateway;
+use Fundly\Modules\Compliance\Contracts\RegulatoryRules;
 use Fundly\Modules\Credit\Application\CreditFileLoader;
 use Fundly\Modules\Credit\Application\CreditPresenter;
 use Fundly\Modules\Credit\Infrastructure\Models\BureauReport;
@@ -31,6 +32,7 @@ final class PullBureauReportHandler implements CommandHandler
         private readonly ConsentRegistry $consents,
         private readonly IdentityNumberResolver $identities,
         private readonly IntegrationGateway $gateway,
+        private readonly RegulatoryRules $rules,
     ) {}
 
     /** @return array{data: array<string, mixed>} */
@@ -84,7 +86,7 @@ final class PullBureauReportHandler implements CommandHandler
             'consent_reference' => 'consent:'.$app->reference,
             'pulled_by' => $context->principal->id,
             'pulled_at' => $now,
-            'valid_until' => $now->copy()->addDays((int) config('fundly.credit.bureau_validity_days', 30)),
+            'valid_until' => $now->copy()->addDays($this->validityDays($app->legalEntityId)),
         ])->save();
         $context->audit(new AuditEntry(action: $command->action(), entityType: 'application', entityId: $app->id, after: [
             'party_id' => $partyId, 'bureau' => $profile->bureau, 'report_reference' => $profile->reportReference, 'hit' => $profile->hit, 'score' => $profile->score,
@@ -128,5 +130,13 @@ final class PullBureauReportHandler implements CommandHandler
             'has_write_off' => $p->hasWriteOff,
             'facilities' => $facilities,
         ];
+    }
+
+    /** The pack's bureau_report_validity when a pack is active (FR-CMP-003), else the installation default. */
+    private function validityDays(string $legalEntityId): int
+    {
+        $rule = $this->rules->rule($legalEntityId, 'bureau_report_validity');
+
+        return max(1, $rule?->int('days', 0) ?: (int) config('fundly.credit.bureau_validity_days', 30));
     }
 }

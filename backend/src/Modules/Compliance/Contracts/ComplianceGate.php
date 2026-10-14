@@ -14,4 +14,12 @@ interface ComplianceGate
      * and report the alerts still open, pending confirmation or confirmed.
      */
     public function rescreen(string $applicationId, string $tenantId): ScreeningOutcome;
+
+    /**
+     * Check and record the single-obligor limit now, with the obligor's
+     * current exposure from the core banking system (FR-CMP-023).
+     *
+     * @param  'approval'|'pre_disbursement'  $stage
+     */
+    public function regulatoryLimits(string $applicationId, string $stage, string $actorId): RegulatoryLimitCheck;
 }
