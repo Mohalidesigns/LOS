@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { eventLabel, groupByDay } from './domain';
+import { CHANNEL_LABEL, eventLabel, groupByDay } from './domain';
 
 describe('notifications presentation', () => {
   it('labels known events and humanises unknown ones', () => {
     expect(eventLabel('approval.awaiting')).toBe('Approval needed');
     expect(eventLabel('collateral.revalued')).toBe('collateral revalued');
+  });
+
+  it('labels every channel', () => {
+    expect(Object.values(CHANNEL_LABEL)).toEqual(['Email', 'SMS', 'In-app']);
   });
 
   it('splits today from earlier', () => {

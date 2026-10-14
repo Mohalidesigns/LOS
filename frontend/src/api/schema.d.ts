@@ -2897,7 +2897,7 @@ export interface components {
             id: string;
             event: string;
             /** @enum {string} */
-            channel: "email" | "in_app";
+            channel: "email" | "sms" | "in_app";
             /** @enum {string} */
             audience: "customer" | "staff";
             recipient: {
