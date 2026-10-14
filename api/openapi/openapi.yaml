@@ -8522,6 +8522,7 @@ components:
           type: string
           enum:
             - email
+            - sms
             - in_app
         audience:
           type: string

@@ -87,9 +87,9 @@ it('uses a tenant template once activated through maker-checker, and validates t
     $author = $this->userWith([Permission::ConfigRead, Permission::ConfigAuthor]);
     $this->login($author);
     $artifact = $this->api('POST', '/api/v1/config-artifacts/notification.template', ['key' => 'application.received', 'name' => 'Received'])->assertCreated()->json('data');
-    $bad = ['event' => 'application.received', 'audience' => 'customer', 'languages' => ['en' => ['email' => ['subject' => 'Hi {{ salary }}', 'body' => 'x'], 'sms' => ['body' => 'y']]]];
+    $bad = ['event' => 'application.received', 'audience' => 'customer', 'languages' => ['en' => ['email' => ['subject' => 'Hi {{ salary }}', 'body' => 'x'], 'whatsapp' => ['body' => 'y']]]];
     $errors = $this->api('POST', "/api/v1/config-artifacts/notification.template/{$artifact['id']}/versions", ['content' => $bad])->assertStatus(422)->json('errors');
-    expect(array_keys($errors))->toContain('content.languages.en.email.subject', 'content.languages.en.sms');
+    expect(array_keys($errors))->toContain('content.languages.en.email.subject', 'content.languages.en.whatsapp');
 
     $version = LendingFixtures::activateConfig($this, 'notification.template', 'application.received', 'Received', [
         'event' => 'application.received', 'audience' => 'customer',
@@ -134,3 +134,52 @@ it('logs a customer message it could not send', function () {
     $c = comms($app['id'])->firstWhere('event', 'application.received');
     expect($c->status)->toBe('failed')->and($c->error)->toContain('No email address');
 })->group('FR-NTF-005');
+
+it('texts customers through the sms port when SMS is enabled, masked in the log, retrying a gateway outage once only (FR-NTF-001)', function () {
+    config(['fundly.sms.enabled' => true]);
+    $app = $this->j->approved();
+    $sms = DB::table('communications')->where('application_id', $app['id'])->where('channel', 'sms')->first();
+    expect($sms)->not->toBeNull()
+        ->and($sms->status)->toBe('queued')
+        ->and($sms->recipient_hint)->toBe('+234*******677')
+        ->and($sms->body)->toContain("loan application {$app['reference']}");
+
+    // a gateway outage: retried later, then sent once with the same reference
+    DB::table('adapter_bindings')->where('port', 'sms')->update(['config' => json_encode(['unavailable' => true])]);
+    LendingFixtures::drainOutbox($this);
+    expect(DB::table('communications')->where('id', $sms->id)->first())->status->toBe('queued');
+    DB::table('adapter_bindings')->where('port', 'sms')->update(['config' => json_encode([])]);
+    $this->travel(10)->minutes();
+    LendingFixtures::drainOutbox($this);
+    $sent = DB::table('communications')->where('id', $sms->id)->first();
+    expect($sent->status)->toBe('sent')->and($sent->provider_ref)->toStartWith('sim-')->and($sent->attempts)->toBe(2);
+    $calls = DB::table('integration_calls')->where('port', 'sms')->orderBy('started_at')->get();
+    expect($calls->pluck('outcome')->all())->toBe(['retryable', 'success'])
+        ->and($calls->pluck('idempotency_key')->unique()->all())->toBe([$sms->id])
+        ->and((string) $calls->last()->request)->toContain('234802****677')->not->toContain('loan application');
+
+    // the API log shows the channel
+    $this->login($this->j->rm);
+    expect(collect($this->api('GET', "/api/v1/applications/{$app['id']}/communications")->assertOk()->json('data'))->firstWhere('channel', 'sms'))->toMatchArray(['status' => 'sent', 'audience' => 'customer']);
+})->group('FR-NTF-001', 'FR-NTF-005');
+
+it('fails a text the gateway definitely refuses, and sends none when SMS is off', function () {
+    $app = $this->j->approved();
+    expect(DB::table('communications')->where('application_id', $app['id'])->where('channel', 'sms')->count())->toBe(0);
+
+    config(['fundly.sms.enabled' => true]);
+    DB::table('adapter_bindings')->where('port', 'sms')->update(['config' => json_encode(['reject_numbers' => ['2348025566677']])]);
+    $this->j->issueOffer($app);
+    LendingFixtures::drainOutbox($this);
+    $sms = DB::table('communications')->where('application_id', $app['id'])->where('channel', 'sms')->where('event', 'offer.issued')->first();
+    expect($sms->status)->toBe('failed')->and($sms->error)->toContain('SMS.REQUEST.INVALID_NUMBER');
+
+    // SMS template text is validated like the rest
+    $author = $this->userWith([Permission::ConfigRead, Permission::ConfigAuthor]);
+    $this->login($author);
+    $artifact = $this->api('POST', '/api/v1/config-artifacts/notification.template', ['key' => 'offer.issued', 'name' => 'Offer'])->assertCreated()->json('data');
+    $errors = $this->api('POST', "/api/v1/config-artifacts/notification.template/{$artifact['id']}/versions", ['content' => [
+        'event' => 'offer.issued', 'audience' => 'customer', 'languages' => ['en' => ['sms' => ['body' => str_repeat('a', 460)]]],
+    ]])->assertStatus(422)->json('errors');
+    expect(array_keys($errors))->toContain('content.languages.en.sms.body');
+})->group('FR-NTF-001');

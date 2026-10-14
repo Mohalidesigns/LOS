@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property int $attempts
  * @property string|null $error
  * @property string $dedupe_key
+ * @property string|null $provider_ref
  * @property Carbon $created_at
  * @property Carbon|null $sent_at
  * @property Carbon|null $read_at

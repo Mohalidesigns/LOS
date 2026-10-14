@@ -14,7 +14,7 @@ use Fundly\Shared\Exceptions\ValidationFailed;
  * activated through maker-checker.
  *
  *   { event, audience: customer|staff,
- *     languages: { en: { email?: {subject, body}, in_app?: {title, body} }, … } }
+ *     languages: { en: { email?: {subject, body}, sms?: {body}, in_app?: {title, body} }, … } }
  *
  * Bodies are plain text with {{ variable }} placeholders.
  */
@@ -26,7 +26,10 @@ final class NotificationTemplate
         'collateral', 'due_date',
     ];
 
-    public const CHANNELS = ['email' => ['subject', 'body'], 'in_app' => ['title', 'body']];
+    public const CHANNELS = ['email' => ['subject', 'body'], 'sms' => ['body'], 'in_app' => ['title', 'body']];
+
+    /** Three concatenated GSM segments; longer texts cost more and arrive split. */
+    public const SMS_MAX = 459;
 
     /** @param array<string, mixed> $content */
     private function __construct(private readonly array $content) {}
@@ -65,7 +68,7 @@ final class NotificationTemplate
             foreach ($channels as $channel => $parts) {
                 $fields = self::CHANNELS[$channel] ?? null;
                 if ($fields === null) {
-                    $e["content.languages.{$lang}.{$channel}"][] = 'Channels are email and in_app (SMS and push arrive in P4).';
+                    $e["content.languages.{$lang}.{$channel}"][] = 'Channels are email, sms and in_app (WhatsApp and push arrive later).';
 
                     continue;
                 }
@@ -75,6 +78,9 @@ final class NotificationTemplate
                         $e["content.languages.{$lang}.{$channel}.{$f}"][] = "{$f} is required.";
 
                         continue;
+                    }
+                    if ($channel === 'sms' && mb_strlen($text) > self::SMS_MAX) {
+                        $e["content.languages.{$lang}.{$channel}.{$f}"][] = 'An SMS body may be at most '.self::SMS_MAX.' characters (three segments).';
                     }
                     preg_match_all('/\{\{\s*([a-z_]+)\s*\}\}/', $text, $m);
                     $unknown = array_diff($m[1], self::VARIABLES);

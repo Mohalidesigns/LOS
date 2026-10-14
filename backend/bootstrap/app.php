@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Dotenv\Dotenv;
 use Fundly\Modules\Access\Http\Middleware\Authorize;
 use Fundly\Modules\Access\Http\Middleware\BindPrincipal;
 use Fundly\Modules\Access\Http\Middleware\EnforceSessionPolicy;
@@ -22,7 +23,27 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Route;
+
+/*
+ * Delivery credentials (SMTP relay, SMS gateway) live outside backend/.env in
+ * a gitignored file at the repository root, `.env.sms.email` (or the path in
+ * FUNDLY_DELIVERY_ENV_FILE). It is loaded first, so its values win over
+ * backend/.env. It is never loaded under tests, which must not reach a real
+ * relay or gateway.
+ */
+(static function (): void {
+    $appEnv = $_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? getenv('APP_ENV');
+    if ($appEnv === 'testing') {
+        return;
+    }
+    $file = $_SERVER['FUNDLY_DELIVERY_ENV_FILE'] ?? $_ENV['FUNDLY_DELIVERY_ENV_FILE'] ?? getenv('FUNDLY_DELIVERY_ENV_FILE');
+    $file = is_string($file) && $file !== '' ? $file : dirname(__DIR__, 2).'/.env.sms.email';
+    if (is_file($file) && is_readable($file)) {
+        Dotenv::create(Env::getRepository(), dirname($file), basename($file))->safeLoad();
+    }
+})();
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(

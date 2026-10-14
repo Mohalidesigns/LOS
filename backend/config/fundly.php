@@ -108,6 +108,22 @@ return [
         'offer_reminder_days' => (int) env('FUNDLY_OFFER_REMINDER_DAYS', 3),
     ],
 
+    // SMS (FR-NTF-001): customer texts through the `sms` integration port. The
+    // adapter is chosen by the tenant's binding (integration:bind sms <adapter>);
+    // gateway credentials come from the environment (.env.sms.email), never the binding.
+    'sms' => [
+        'enabled' => (bool) env('SMS_ENABLED', false),
+        'driver' => env('SMS_DRIVER', 'mock'),
+        'default_country_code' => (string) env('SMS_DEFAULT_COUNTRY_CODE', '234'),
+        'always_to' => env('SMS_ALWAYS_TO'),
+        'hollatags' => [
+            'url' => env('SMS_HOLLATAGS_URL', 'https://sms.hollatags.com/api/send'),
+            'username' => env('SMS_HOLLATAGS_USERNAME'),
+            'password' => env('SMS_HOLLATAGS_PASSWORD'),
+            'sender' => env('SMS_HOLLATAGS_SENDER'),
+        ],
+    ],
+
     // Collateral (FR-COL-003/006): revaluation and insurance-expiry notice window
     'collateral' => [
         'notice_days' => (int) env('FUNDLY_COLLATERAL_NOTICE_DAYS', 30),

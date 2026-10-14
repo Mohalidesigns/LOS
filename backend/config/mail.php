@@ -41,7 +41,12 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            // smtps = implicit TLS (465); smtp = STARTTLS when offered (587). MAIL_ENCRYPTION=ssl|tls is accepted for older env files.
+            'scheme' => match (strtolower((string) env('MAIL_SCHEME', '')) ?: strtolower((string) env('MAIL_ENCRYPTION', ''))) {
+                'smtps', 'ssl' => 'smtps',
+                'smtp', 'tls', 'starttls' => 'smtp',
+                default => null,
+            },
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
@@ -116,5 +121,11 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
+
+    /*
+    | Non-production safety net: every message goes to this address instead
+    | of the customer (Mail::alwaysTo). Ignored in a production installation.
+    */
+    'always_to' => env('MAIL_ALWAYS_TO'),
 
 ];

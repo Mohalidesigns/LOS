@@ -2,3 +2,8 @@
 .idea/
 .vscode/
 *.log
+
+# local SMTP / SMS credentials (never committed)
+.env.sms.email
+.env.sms.email.*
+!.env.sms.email.example

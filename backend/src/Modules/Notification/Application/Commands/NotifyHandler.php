@@ -25,6 +25,7 @@ use Fundly\Shared\Security\ResourceAttributes;
 /**
  * Who hears about what (P1 rules):
  *   customer email  application.received, offer.issued, offer.expiring, facility.booked
+ *   customer SMS    the same events, when fundly.sms.enabled and the template has an sms text
  *   staff in-app    holders of the permission that acts next, in the application's scope
  *                   (approval.awaiting, screening.alert, disbursement.*, collateral.*), or the originator
  *                   (facility.booked.staff)
@@ -34,6 +35,8 @@ use Fundly\Shared\Security\ResourceAttributes;
 final class NotifyHandler implements CommandHandler
 {
     public const EMAIL_TOPIC = 'notification.email';
+
+    public const SMS_TOPIC = 'notification.sms';
 
     /** @var array<string, array{to: 'customer'|'originator'|'permission', permission?: string, exclude_originator?: bool}> */
     private const RULES = [
@@ -89,6 +92,21 @@ final class NotifyHandler implements CommandHandler
                     $sent++;
                     if ($c->status === 'queued') {
                         $context->outbox(new OutboxIntent(topic: self::EMAIL_TOPIC, payload: ['communication_id' => $c->id], aggregateType: 'communication', aggregateId: $c->id, idempotencyKey: "{$context->principal->tenantId}:ntf:{$c->id}", maxAttempts: 8));
+                    }
+                }
+            }
+            // SMS alongside email when the installation enables it and the template has a text (FR-NTF-001)
+            $text = config('fundly.sms.enabled') === true ? $template->render('sms', 'en', $vars) : null;
+            if ($text !== null) {
+                $phone = $this->parties->contactPhone($partyId);
+                $rendered = ['subject' => mb_substr($text['body'], 0, 120), 'body' => $text['body']];
+                $c = $this->log($app, $command->event, 'sms', 'customer', null, $partyId, $phone === null ? null : Format::maskPhone($phone), $source, $versionId, $rendered, null, [], $phone === null ? 'failed' : 'queued', $phone === null ? 'No mobile number on file for the applicant.' : null, "{$base}:sms:{$partyId}");
+                if ($c === null) {
+                    $suppressed++;
+                } else {
+                    $sent++;
+                    if ($c->status === 'queued') {
+                        $context->outbox(new OutboxIntent(topic: self::SMS_TOPIC, payload: ['communication_id' => $c->id], aggregateType: 'communication', aggregateId: $c->id, idempotencyKey: "{$context->principal->tenantId}:ntf:{$c->id}", maxAttempts: 8));
                     }
                 }
             }

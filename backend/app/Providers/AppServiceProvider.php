@@ -9,6 +9,7 @@ use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -26,6 +27,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->runMigrationsAsSchemaOwner();
+
+        // Non-production safety net: redirect all mail to one inbox.
+        $alwaysTo = config('mail.always_to');
+        if (is_string($alwaysTo) && $alwaysTo !== '' && config('fundly.installation.environment') !== 'production') {
+            Mail::alwaysTo($alwaysTo);
+        }
 
         Route::pattern('id', self::UUID);
         Route::pattern('artifact', self::UUID);

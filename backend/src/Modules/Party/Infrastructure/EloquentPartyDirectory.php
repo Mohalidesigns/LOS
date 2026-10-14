@@ -42,6 +42,13 @@ final class EloquentPartyDirectory implements PartyDirectory
         return $p?->email_enc === null ? null : $this->crypto->decrypt($p->email_enc, 'party.email');
     }
 
+    public function contactPhone(string $partyId): ?string
+    {
+        $p = preg_match('/^[0-9a-f-]{36}$/', $partyId) === 1 ? Party::query()->find($partyId) : null;
+
+        return $p?->phone_enc === null ? null : $this->crypto->decrypt($p->phone_enc, 'party.phone');
+    }
+
     public function kycProfile(string $partyId): ?PartyKycProfile
     {
         $p = preg_match('/^[0-9a-f-]{36}$/', $partyId) === 1 ? Party::query()->find($partyId) : null;

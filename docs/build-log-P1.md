@@ -967,3 +967,64 @@ agreement, advice) and the CRI insurance item, with retention until
 - Haircuts and perfection steps need confirming with Legal and Credit Risk
   (G-34).
 - Collateral release on facility closure comes from the LMS (P4).
+
+## Milestone 11b: SMTP and SMS delivery (P1-NTF-01, continued)
+
+### Backend
+- **Delivery credentials** live in `.env.sms.email` at the repository root:
+  - It is gitignored; `.env.sms.email.example` documents the keys.
+  - It is loaded in `bootstrap/app.php` before `backend/.env`, so its values
+    win. `FUNDLY_DELIVERY_ENV_FILE` can point elsewhere.
+  - It is **never loaded under tests**.
+- **SMTP:**
+  - `MAIL_SCHEME`/`MAIL_ENCRYPTION` map to `smtps` (465) or `smtp` with
+    STARTTLS (587).
+  - `MAIL_ALWAYS_TO` redirects all mail in a non-production installation.
+  - `MAIL_MAILER=log` (the current setting) keeps mail in the log.
+- **SMS integration port** (`Integration/Ports/Sms`):
+  - **HollaTags adapter**, following docs.hollatags.com:
+    - A form POST to `/api/send` with `enable_msg_id`.
+    - `message_uuid` is set to the communication id, so retries are safe.
+    - Plain-text replies are mapped: `error_gw` and `error_billing` are
+      retried; `error_user`, `error_credit`, `error_limit` and `error_param`
+      fail.
+    - Credentials come only from the environment.
+  - **SMS simulator** with scripted outage and rejection.
+  - **`NonProductionSmsGuard`:** outside production, a real gateway only
+    texts `SMS_ALWAYS_TO`, and sends nothing without it.
+- **Commands:**
+  - `integration:bind {port} {adapter}`
+  - `integration:bind-sms` (follows `SMS_DRIVER`: mock or hollatags)
+  - `notifications:check-delivery` logs in to SMTP and reports the SMS
+    configuration and bindings, without sending anything.
+- **Notifications:**
+  - New `sms` channel: templates take `sms.body` (max 459 characters), and
+    every customer event has a default text.
+  - When `SMS_ENABLED`, customers get a text alongside the email: queued
+    through the outbox topic `notification.sms`, sent via the gateway with
+    the number masked in the call log and the text never logged, with the
+    provider message id kept.
+  - No mobile number on file is logged as `failed`.
+- **New contract:** `PartyDirectory::contactPhone()`.
+
+### Frontend
+- The communications log shows SMS with its own icon and label.
+
+### Verification
+- Local Pest: 303 passed, with Pint and PHPStan clean.
+- Frontend `npm run verify`: 166 tests.
+- Dev, using the simulator: one submit produced a customer SMS (`sent`,
+  `+234*******177`) and an email (log mailer, redirected to
+  `MAIL_ALWAYS_TO`).
+
+### Gaps carried forward
+- **SMTP login could not be checked from the build sandbox.** Port 465 timed
+  out, and on 587 the TCP connection opened but the SMTP handshake never
+  completed, so the sandbox's network probably filters SMTP. Run
+  `php artisan notifications:check-delivery` on the host to check the login.
+- **No live HollaTags send yet:** `SMS_DRIVER=mock`. To go live:
+  1. Set `SMS_DRIVER=hollatags` and an `SMS_ALWAYS_TO` test handset.
+  2. Run `integration:bind-sms`.
+- No delivery-report callback (HollaTags `callback_url`) yet.
+- WhatsApp is due before go-live (P4-NTF-01 → pulled forward).
+- No customer channel preferences or opt-out (P4).
