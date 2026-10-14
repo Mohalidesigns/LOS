@@ -16,6 +16,7 @@ export const CONSENT_PURPOSES: readonly { value: ConsentBody['purpose']; label: 
   { value: 'credit_reporting', label: 'Credit reporting' },
   { value: 'marketing', label: 'Marketing' },
   { value: 'third_party_sharing', label: 'Third-party sharing' },
+  { value: 'whatsapp_messaging', label: 'WhatsApp messages' },
 ];
 const CHANNELS: readonly { value: ConsentBody['channel']; label: string }[] = [
   { value: 'branch', label: 'Branch' },

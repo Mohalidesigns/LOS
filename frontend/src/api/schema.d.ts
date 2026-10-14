@@ -2897,7 +2897,7 @@ export interface components {
             id: string;
             event: string;
             /** @enum {string} */
-            channel: "email" | "sms" | "in_app";
+            channel: "email" | "sms" | "whatsapp" | "in_app";
             /** @enum {string} */
             audience: "customer" | "staff";
             recipient: {
@@ -7278,7 +7278,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    purpose: "data_processing" | "credit_bureau" | "credit_reporting" | "marketing" | "third_party_sharing";
+                    purpose: "data_processing" | "credit_bureau" | "credit_reporting" | "marketing" | "third_party_sharing" | "whatsapp_messaging";
                     /** @enum {string} */
                     action: "grant" | "withdraw";
                     /** @enum {string} */

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Mail, MessageSquare, Paperclip, Smartphone } from 'lucide-react';
+import { Mail, MessageCircle, MessageSquare, Paperclip, Smartphone } from 'lucide-react';
 import { notificationsApi } from '@/api/notifications';
 import { CardHeader, DateTimeText, Pill, SectionError, Skeleton } from '@/components';
 import { useCase } from '@/features/applications/case/CaseContext';
@@ -25,7 +25,7 @@ export function CommunicationsTab() {
             <li key={c.id} className="rounded-control border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="inline-flex min-w-0 items-center gap-2 text-body-sm">
-                  {c.channel === 'email' ? <Mail aria-hidden="true" className="h-icon-sm w-icon-sm text-tertiary" /> : c.channel === 'sms' ? <Smartphone aria-hidden="true" className="h-icon-sm w-icon-sm text-tertiary" /> : <MessageSquare aria-hidden="true" className="h-icon-sm w-icon-sm text-tertiary" />}
+                  {c.channel === 'email' ? <Mail aria-hidden="true" className="h-icon-sm w-icon-sm text-tertiary" /> : c.channel === 'sms' ? <Smartphone aria-hidden="true" className="h-icon-sm w-icon-sm text-tertiary" /> : c.channel === 'whatsapp' ? <MessageCircle aria-hidden="true" className="h-icon-sm w-icon-sm text-tertiary" /> : <MessageSquare aria-hidden="true" className="h-icon-sm w-icon-sm text-tertiary" />}
                   <span className="font-semibold text-primary">{eventLabel(c.event)}</span>
                   <span className="text-secondary">
                     → {c.audience === 'customer' ? `customer ${c.recipient.hint ?? ''}` : (c.recipient.hint ?? 'staff')}

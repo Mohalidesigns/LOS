@@ -8,7 +8,7 @@ describe('notifications presentation', () => {
   });
 
   it('labels every channel', () => {
-    expect(Object.values(CHANNEL_LABEL)).toEqual(['Email', 'SMS', 'In-app']);
+    expect(Object.values(CHANNEL_LABEL)).toEqual(['Email', 'SMS', 'WhatsApp', 'In-app']);
   });
 
   it('splits today from earlier', () => {

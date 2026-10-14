@@ -10,7 +10,7 @@ export const STATUS_META: Record<Communication['status'], { label: string; tone:
   read: { label: 'Read', tone: 'neutral' },
 };
 
-export const CHANNEL_LABEL: Record<Communication['channel'], string> = { email: 'Email', sms: 'SMS', in_app: 'In-app' };
+export const CHANNEL_LABEL: Record<Communication['channel'], string> = { email: 'Email', sms: 'SMS', whatsapp: 'WhatsApp', in_app: 'In-app' };
 
 export const EVENT_LABEL: Record<string, string> = {
   'application.received': 'Application received',
