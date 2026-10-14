@@ -48,6 +48,7 @@ tags:
 - name: Products
 - name: Parties
 - name: Applications
+- name: Notifications
 - name: Compliance
 - name: Documents
 - name: Credit
@@ -3282,6 +3283,139 @@ paths:
                     required:
                       - as_at
                       - state
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  /api/v1/me/notifications:
+    get:
+      summary: 'My in-app notifications, newest first, with the unread count'
+      operationId: listMyNotifications
+      tags:
+        - Notifications
+      x-permission: 'application:view'
+      parameters:
+        - name: 'filter[unread]'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'true for unread only'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InAppNotification'
+                  meta:
+                    type: object
+                    properties:
+                      unread:
+                        type: integer
+                    required:
+                      - unread
+                required:
+                  - data
+                  - meta
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+  /api/v1/me/notifications/actions/read-all:
+    post:
+      summary: 'Mark all my notifications read'
+      operationId: readAllNotifications
+      tags:
+        - Notifications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      marked:
+                        type: integer
+                    required:
+                      - marked
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/me/notifications/{id}/actions/read':
+    post:
+      summary: 'Mark one of my notifications read'
+      operationId: readNotification
+      tags:
+        - Notifications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InAppNotification'
+                required:
+                  - data
+        default:
+          $ref: '#/components/responses/Problem'
+      security:
+        - sessionCookie: []
+        - bearerToken: []
+      x-idempotency-key: required
+  '/api/v1/applications/{id}/communications':
+    get:
+      summary: 'Communication log: everything sent about the application, to whom, when, how and its status'
+      operationId: listApplicationCommunications
+      tags:
+        - Notifications
+      x-permission: 'application:view'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Communication'
                 required:
                   - data
         default:
@@ -7733,6 +7867,153 @@ components:
         - occurred_at
         - actor
         - payload
+    InAppNotification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        link:
+          type:
+            - string
+            - 'null'
+        application_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        read_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+      required:
+        - id
+        - event
+        - title
+        - body
+        - link
+        - application_id
+        - created_at
+        - read_at
+    Communication:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+        channel:
+          type: string
+          enum:
+            - email
+            - in_app
+        audience:
+          type: string
+          enum:
+            - customer
+            - staff
+        recipient:
+          type: object
+          properties:
+            user_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            party_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            hint:
+              type:
+                - string
+                - 'null'
+          required:
+            - user_id
+            - party_id
+            - hint
+        template:
+          type: object
+          properties:
+            source:
+              type: string
+              enum:
+                - tenant
+                - default
+            version_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+            language:
+              type: string
+          required:
+            - source
+            - version_id
+            - language
+        subject:
+          type: string
+        body:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum:
+            - queued
+            - sent
+            - failed
+            - delivered
+            - read
+        attempts:
+          type: integer
+        error:
+          type:
+            - string
+            - 'null'
+        created_at:
+          type: string
+          format: date-time
+        sent_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        read_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+      required:
+        - id
+        - event
+        - channel
+        - audience
+        - recipient
+        - template
+        - subject
+        - body
+        - attachments
+        - status
+        - attempts
+        - error
+        - created_at
+        - sent_at
+        - read_at
     ScreeningAlert:
       type: object
       properties:

@@ -110,12 +110,12 @@ final class LendingFixtures
     }
 
     /** @return array<string, mixed> */
-    public static function person(TestCase $t, string $first, string $last, string $bvn, ?string $orgUnitId = null): array
+    public static function person(TestCase $t, string $first, string $last, string $bvn, ?string $orgUnitId = null, ?string $email = null): array
     {
         return $t->api('POST', '/api/v1/parties', [
             'type' => 'individual', 'first_name' => $first, 'last_name' => $last, 'date_of_birth' => '1980-05-17', 'gender' => 'female',
             'nationality' => 'NG', 'phone' => '0802'.substr($bvn, -7), 'identities' => [['type' => 'bvn', 'value' => $bvn]], 'org_unit_id' => $orgUnitId,
-        ])->assertCreated()->json('data');
+        ] + ($email === null ? [] : ['email' => $email]))->assertCreated()->json('data');
     }
 
     /** Bind the identity and screening simulators for the current tenant (UAT posture, D-037). */

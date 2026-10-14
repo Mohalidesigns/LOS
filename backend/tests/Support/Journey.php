@@ -62,17 +62,16 @@ final class Journey
     }
 
     /**
-     * An individual borrower (KYC-verified), approved without conditions,
-     * offered, signed, accepted, and with a passing pre-disbursement check
-     * against 058/0123456789: the application is ready for disbursement.
+     * An individual borrower (KYC-verified, with an email address), approved
+     * without conditions at L1.
      *
      * @return array<string, mixed> the application
      */
-    public function readyForDisbursement(string $amount = '3000000.00', int $tenor = 12): array
+    public function approved(string $amount = '3000000.00', int $tenor = 12): array
     {
         $t = $this->t;
         $t->login($this->rm);
-        $borrower = LendingFixtures::person($t, 'Amaka', 'Nwosu', '22255566677', $this->org['lagos']['id']);
+        $borrower = LendingFixtures::person($t, 'Amaka', 'Nwosu', '22255566677', $this->org['lagos']['id'], 'amaka.nwosu@example.ng');
         LendingFixtures::consent($t, $borrower);
         $t->api('POST', "/api/v1/parties/{$borrower['id']}/identities/bvn/actions/verify")->assertOk();
         $app = $t->api('POST', '/api/v1/applications', [
@@ -93,13 +92,40 @@ final class Journey
         $request = $t->api('GET', "/api/v1/applications/{$app['id']}/approval-requests")->json('data.0');
         $t->login($this->approver);
         $t->api('POST', "/api/v1/approval-requests/{$request['id']}/actions/vote", ['decision' => 'approve', 'rationale' => 'Affordable and within appetite.'])->assertOk();
+
+        return $app;
+    }
+
+    /** @return array<string, mixed> the issued offer */
+    public function issueOffer(array $app): array
+    {
+        $this->t->login($this->ops);
+
+        return $this->t->api('POST', "/api/v1/applications/{$app['id']}/offers")->assertCreated()->json('data');
+    }
+
+    /** Sign, accept, and pass the pre-disbursement check against 058/0123456789. */
+    public function acceptAndCheck(array $app, array $offer): void
+    {
+        $t = $this->t;
         $t->login($this->ops);
-        $offer = $t->api('POST', "/api/v1/applications/{$app['id']}/offers")->assertCreated()->json('data');
         foreach ($offer['signatories'] as $s) {
             $t->api('POST', "/api/v1/offers/{$offer['id']}/signatories/{$s['id']}/actions/sign", ['signed_at' => now()->toIso8601String()])->assertOk();
         }
         $t->api('POST', "/api/v1/offers/{$offer['id']}/actions/accept", ['file' => UploadedFile::fake()->createWithContent('executed.pdf', "%PDF-1.4\n%%EOF\n")])->assertOk();
         $t->api('POST', "/api/v1/applications/{$app['id']}/pre-disbursement-checks", ['bank_code' => '058', 'account_no' => '0123456789'])->assertCreated()->assertJsonPath('data.passed', true);
+    }
+
+    /**
+     * Approved, offered, signed, accepted, with a passing pre-disbursement
+     * check: the application is ready for disbursement.
+     *
+     * @return array<string, mixed> the application
+     */
+    public function readyForDisbursement(string $amount = '3000000.00', int $tenor = 12): array
+    {
+        $app = $this->approved($amount, $tenor);
+        $this->acceptAndCheck($app, $this->issueOffer($app));
 
         return $app;
     }

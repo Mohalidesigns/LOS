@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Fundly\Modules\Offer\Infrastructure;
 
+use DateTimeImmutable;
 use Fundly\Modules\Offer\Contracts\AcceptedOffer;
+use Fundly\Modules\Offer\Contracts\ExpiringOffer;
 use Fundly\Modules\Offer\Contracts\OfferRegister;
 use Fundly\Modules\Offer\Infrastructure\Models\Agreement;
 use Fundly\Modules\Offer\Infrastructure\Models\Offer;
@@ -12,6 +14,12 @@ use Fundly\Shared\Money\Money;
 
 final class DatabaseOfferRegister implements OfferRegister
 {
+    public function expiring(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        return array_values(Offer::query()->where('status', 'issued')->whereBetween('valid_until', [$from, $to])->orderBy('valid_until')->get()
+            ->map(static fn (Offer $o): ExpiringOffer => new ExpiringOffer($o->id, $o->application_id, $o->sequence, $o->valid_until->toDateTimeImmutable()))->all());
+    }
+
     public function accepted(string $applicationId): ?AcceptedOffer
     {
         $o = Offer::query()->where('application_id', $applicationId)->where('status', 'accepted')->orderByDesc('sequence')->first();

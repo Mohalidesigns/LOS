@@ -68,7 +68,8 @@ it('moves a clean case from submit through automated pre-qualification and intak
     $kyc = $this->api('GET', "/api/v1/applications/{$c['app']['id']}/kyc")->assertOk()->json('data');
     expect($kyc['outcome'])->toBe('pending')->and(collect($kyc['conditions'])->firstWhere('code', 'SCREENING_COMPLETE')['met'])->toBeFalse();
 
-    expect(LendingFixtures::drainOutbox($this)['dispatched'])->toBe(1);
+    // intake screening, plus the application-received email (M10)
+    expect(LendingFixtures::drainOutbox($this)['dispatched'])->toBe(2);
     expect(status($this, $c['app']))->toBe('documentation');
     $kyc = $this->api('GET', "/api/v1/applications/{$c['app']['id']}/kyc")->json('data');
     expect($kyc['outcome'])->toBe('clear')->and($kyc['risk'])->toBe('standard')

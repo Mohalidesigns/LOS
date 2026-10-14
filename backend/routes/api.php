@@ -22,6 +22,7 @@ use Fundly\Modules\Disbursement\Http\Controllers\DisbursementController;
 use Fundly\Modules\Document\Http\Controllers\DocumentController;
 use Fundly\Modules\Handover\Http\Controllers\HandoverController;
 use Fundly\Modules\Licensing\Http\Controllers\LicenceController;
+use Fundly\Modules\Notification\Http\Controllers\NotificationController;
 use Fundly\Modules\Offer\Http\Controllers\OfferController;
 use Fundly\Modules\Party\Http\Controllers\PartyController;
 use Fundly\Modules\Platform\Http\Controllers\ConfigController;
@@ -170,6 +171,12 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('applications/{id}/handover', [HandoverController::class, 'forApplication'])->middleware('authz:application:view')->name('handover.show');
     Route::get('handover-packages/{id}', [HandoverController::class, 'show'])->middleware('authz:application:view')->name('handover-packages.show');
     Route::post('handover-packages/{id}/actions/acknowledge', [HandoverController::class, 'acknowledge'])->middleware(['authz:handover:acknowledge', 'idempotent'])->name('handover-packages.acknowledge');
+
+    // Notifications (FR-NTF-001/005): my in-app inbox and the communication log per application
+    Route::get('me/notifications', [NotificationController::class, 'inbox'])->middleware('authz:application:view')->name('notifications.inbox');
+    Route::post('me/notifications/actions/read-all', [NotificationController::class, 'readAll'])->middleware(['authz:application:view', 'idempotent'])->name('notifications.read-all');
+    Route::post('me/notifications/{id}/actions/read', [NotificationController::class, 'read'])->middleware(['authz:application:view', 'idempotent'])->name('notifications.read');
+    Route::get('applications/{id}/communications', [NotificationController::class, 'forApplication'])->middleware('authz:application:view')->name('communications.index');
 
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
     Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');

@@ -10,6 +10,7 @@ use Fundly\Modules\Conditions\Contracts\ConditionsGate;
 use Fundly\Modules\Disbursement\Application\DisbursementFile;
 use Fundly\Modules\Disbursement\Application\DisbursementQueries;
 use Fundly\Modules\Disbursement\Application\ReleaseDisbursementAction;
+use Fundly\Modules\Disbursement\Contracts\Events\DisbursementAwaitingRelease;
 use Fundly\Modules\Disbursement\Domain\DisbursementStatus;
 use Fundly\Modules\Disbursement\Domain\FeeSplit;
 use Fundly\Modules\Disbursement\Infrastructure\Models\Disbursement;
@@ -86,6 +87,8 @@ final class CreateDisbursementHandler implements CommandHandler
             'application_id' => $app->id, 'principal' => $d->principal_amount, 'net' => $d->net_amount, 'fees' => $d->fees, 'destination' => $d->destination,
             'value_date' => $valueDate, 'change_request_id' => $d->change_request_id,
         ]));
+
+        $context->raise(new DisbursementAwaitingRelease($context->principal->tenantId, $app->id, $d->id, $context->principal->id));
 
         return ['data' => $this->queries->present($d)];
     }

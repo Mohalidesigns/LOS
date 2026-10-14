@@ -760,3 +760,84 @@ agreement, advice) and the CRI insurance item, with retention until
   role change request by a second administrator who does not hold the role.
 - Facility closure from the LMS (to restart retention at
   relationship end) is P4.
+
+## Milestone 10: Notifications (P1-NTF-01)
+
+### Backend
+- **Notification module** (`src/Modules/Notification`). It listens to domain
+  events from other modules' Contracts and never calls those modules
+  directly:
+  - application submitted
+  - awaiting approval
+  - offer issued
+  - ready for disbursement
+  - disbursement awaiting release or failed
+  - screening hits
+  - facility booked
+- **Channels:**
+  - Customer **email** goes through the outbox (topic `notification.email`)
+    with retry and backoff.
+  - Staff get **in-app** messages (`GET /me/notifications` with an unread
+    count, plus read and read-all).
+  - The webhook channel shipped in M9.
+- **Templates** (FR-NTF-002): config type `notification.template`, keyed by
+  event and activated through maker-checker.
+  - Content is per language (fallback `en`), per channel (email
+    subject/body, in-app title/body), with placeholders from a fixed
+    allow-list.
+  - Validation rejects unknown events, channels and variables.
+  - Built-in defaults apply until a tenant activates its own version.
+- **Recipients:**
+  - customers by email
+  - the originator in-app
+  - holders of a permission (approvers, disbursement checkers, compliance)
+    through `AuthorityDirectory`, excluding the maker where it applies
+- **Communication log** (FR-NTF-005): every message is a `communications`
+  row, recording:
+  - the event
+  - the channel
+  - the masked recipient
+  - the rendered subject
+  - the template source and version
+  - the status (queued, sent, failed, delivered or read)
+  - any attachments
+
+  A missing email address is logged as `failed`. The log is available at
+  `GET /applications/{id}/communications`.
+- **Duplicate suppression** (FR-NTF-006, partial): a unique dedupe key per
+  event, application, discriminator, channel and recipient.
+- **Offer expiry reminders** (FR-OFR-007): `notifications:reminders` runs
+  daily at 08:00 for offers expiring within
+  `fundly.notifications.offer_reminder_days` (default 3), and sends each
+  reminder only once.
+- **Disbursement advice** emailed on booking, attached from the archive
+  (FR-DSB-011).
+- **New contracts:** `DisbursementAwaitingRelease` event and
+  `OfferRegister::expiring()`.
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-NTF-001 | Partial: email, in-app and webhook; SMS, WhatsApp and push are P4-NTF-01 | `NotificationTest` |
+| FR-NTF-002 / 005 | Done | `NotificationTest`, `NotificationTemplateTest` |
+| FR-NTF-006 | Partial: dedupe; preferences and quiet hours are P4 | `NotificationTest` |
+| FR-OFR-007 | Done (reminders) | `NotificationTest` |
+
+### Frontend
+- **Inbox page** (`/inbox`): unread filter, mark read and read all, links to
+  the case.
+- The title-bar bell and nav badge show the real unread count.
+- **Communications tab** on the case shows the per-application log with
+  status, masked recipient and template source.
+- `features/notifications/domain.ts` has unit tests.
+
+### Verification
+- Local Pest: 286 passed, with Pint and PHPStan clean.
+- Frontend `npm run verify`: 160 tests.
+- Dev smoke test: submitting a draft sent the `application.received` email
+  (status `sent`, recipient masked).
+
+### Gaps carried forward
+- Not checked in the browser this session.
+- Not built yet: SMS, WhatsApp, push, communication preferences and
+  opt-out, quiet hours (P4-NTF-01).
+- Templates are plain text (no HTML layout yet).

@@ -103,6 +103,11 @@ return [
         'schedule_tolerance' => (string) env('FUNDLY_SCHEDULE_TOLERANCE', '1.00'),
     ],
 
+    // Notifications: offer expiry reminder window in days (FR-OFR-007).
+    'notifications' => [
+        'offer_reminder_days' => (int) env('FUNDLY_OFFER_REMINDER_DAYS', 3),
+    ],
+
     // Handover and retention (FR-HND-003/004): fee codes that are insurance premiums; origination-record retention [verify, G-29].
     'handover' => [
         'insurance_fee_codes' => array_values(array_filter(explode(',', (string) env('FUNDLY_INSURANCE_FEE_CODES', 'CRI')))),
