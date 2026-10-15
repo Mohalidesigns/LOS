@@ -31,7 +31,7 @@ describe('nav visibility (deny by default)', () => {
   it('maps admin, config, audit, party and screening permissions to their items', () => {
     renderSidebar(['user:read', 'config:read', 'audit:read', 'party:manage', 'screening:review']);
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    for (const label of ['Customers', 'Compliance alerts', 'Products', 'Users & roles', 'Audit trail']) expect(within(nav).getByRole('link', { name: new RegExp(label) })).toBeInTheDocument();
+    for (const label of ['Customers', 'Compliance alerts', 'Products', 'Users & roles', 'Audit explorer', 'Overrides & waivers']) expect(within(nav).getByRole('link', { name: new RegExp(label) })).toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: /Inbox/ })).toBeNull();
   });
 

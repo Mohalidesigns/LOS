@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, Building2, FileStack, Gavel, Inbox, LayoutGrid, ListChecks, Package, Scale, ScrollText, ShieldAlert, UsersRound, Webhook, Workflow } from 'lucide-react';
+import { Banknote, Building2, FileStack, FileWarning, Gavel, Inbox, LayoutGrid, ListChecks, Package, Scale, ScrollText, ShieldAlert, UsersRound, Webhook, Workflow } from 'lucide-react';
 
 export type NavItem = {
   id: string;
@@ -54,7 +54,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     id: 'assurance',
     label: 'Assurance',
-    items: [{ id: 'audit', label: 'Audit trail', to: '/audit/events', icon: ScrollText, anyOf: ['audit:read'] }],
+    items: [
+      { id: 'audit', label: 'Audit explorer', to: '/audit/events', icon: ScrollText, anyOf: ['audit:read'] },
+      { id: 'overrides', label: 'Overrides & waivers', to: '/audit/overrides', icon: FileWarning, anyOf: ['audit:read'] },
+    ],
   },
 ];
 

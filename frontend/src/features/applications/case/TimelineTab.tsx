@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { History } from 'lucide-react';
+import { FileArchive, History } from 'lucide-react';
+import { auditApi } from '@/api/audit';
 import { applicationsApi, type ApplicationEvent } from '@/api/lending';
 import { isApiProblem } from '@/api/problem';
 import { ActivityTimeline, Button, CardHeader, ErrorSummary, KeyValueGrid, MoneyText, SectionError, Skeleton, StatusBadge, TextInput } from '@/components';
 import { statusMeta } from '@/components/StatusBadge';
 import { formatDateTime } from '@/lib/format';
-import { useSession } from '@/features/auth/session';
+import { saveBlob, shortHash } from '@/lib/download';
+import { evidenceFilename } from '@/features/audit/domain';
+import { usePermissions, useSession } from '@/features/auth/session';
 import { timelineQuery } from '../queries';
 import { useCase } from './CaseContext';
 
@@ -88,7 +91,10 @@ export function TimelineTab() {
           />
         )}
       </section>
-      <AsAtPanel applicationId={app.id} />
+      <div className="min-w-0 space-y-6">
+        <AsAtPanel applicationId={app.id} />
+        <EvidencePackPanel applicationId={app.id} reference={app.reference} />
+      </div>
     </div>
   );
 }
@@ -140,6 +146,32 @@ function AsAtPanel({ applicationId }: { applicationId: string }) {
             />
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+/** Evidence pack v1 download for auditors (FR-AUD-010): ZIP + SHA-256 manifest; the export is audited. */
+function EvidencePackPanel({ applicationId, reference }: { applicationId: string; reference: string }) {
+  const permissions = usePermissions();
+  const pack = useMutation({
+    mutationFn: () => auditApi.evidencePack(applicationId),
+    onSuccess: ({ blob }) => saveBlob(blob, evidenceFilename(reference)),
+  });
+  if (!permissions.has('audit:read')) return null;
+  return (
+    <section aria-labelledby="evp-h" className="rounded-card bg-muted p-5">
+      <h3 id="evp-h" className="flex items-center gap-2 text-title text-emphasis">
+        <FileArchive aria-hidden="true" className="h-icon w-icon" />
+        Evidence pack
+      </h3>
+      <p className="mt-1 text-body-sm text-secondary">Timeline, decisions, approvals, screening, communications and every document, with a SHA-256 manifest. Your export is recorded in the audit trail.</p>
+      <Button className="mt-3" variant="secondary" loading={pack.isPending} onClick={() => pack.mutate()}>
+        Download evidence pack
+      </Button>
+      <div aria-live="polite" className="mt-3">
+        {pack.error && <ErrorSummary problem={isApiProblem(pack.error) ? pack.error : null} messages={isApiProblem(pack.error) ? undefined : [pack.error.message]} />}
+        {pack.data?.manifestSha256 && <p className="text-meta text-tertiary">Manifest SHA-256 <span className="ref">{shortHash(pack.data.manifestSha256)}</span></p>}
       </div>
     </section>
   );

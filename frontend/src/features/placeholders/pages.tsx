@@ -6,6 +6,3 @@ export function ProductsPage() {
 export function UsersPage() {
   return <PlaceholderPage title="Users & roles" phase="P0 UI follow-up (API ready)" anyOf={['user:read']} description="Users, role assignments, scopes and segregation-of-duties conflicts." />;
 }
-export function AuditPage() {
-  return <PlaceholderPage title="Audit trail" phase="P0 UI follow-up (API ready)" anyOf={['audit:read']} description="Search the hash-chained audit trail and verify its integrity." />;
-}

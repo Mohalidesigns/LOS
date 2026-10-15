@@ -691,7 +691,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Search the audit trail */
+        /** Search the audit trail (audit explorer). filter[action] ending in * is a prefix match. */
         get: operations["searchAuditEvents"];
         put?: never;
         post?: never;
@@ -1572,6 +1572,57 @@ export interface paths {
         put?: never;
         /** Add a case note; @mentioned users are notified */
         post: operations["addCaseNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/read-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read-access log: who read application or PII data, when and for what purpose; newest first */
+        get: operations["searchReadAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overrides, waivers, policy exceptions and manual interventions across a period, with counts by type and by user */
+        get: operations["overridesReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/applications/{id}/evidence-pack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Evidence pack v1 (ZIP): one JSON file per section (application, timeline, documents, checklist, decisions, exceptions, bureau reports, approvals, screening, conditions, offers, communications), the latest clean version of every document, and manifest.json with the SHA-256 of every file. Unsigned until P5. The export is audited. */
+        get: operations["exportEvidencePack"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3616,6 +3667,46 @@ export interface components {
             } | null)[];
             /** Format: date-time */
             created_at: string;
+        };
+        ReadAccessRecord: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            occurred_at: string;
+            actor_type: string;
+            actor_id: string;
+            on_behalf_of: string | null;
+            resource_type: string;
+            resource_id: string | null;
+            route: string;
+            contains_pii: boolean;
+            purpose: string | null;
+            source_ip: string | null;
+            correlation_id: string | null;
+        };
+        OverrideRecord: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @enum {string} */
+            type: "policy_exception" | "waiver" | "manual_intervention";
+            action: string;
+            entity_type: string | null;
+            entity_id: string | null;
+            application_id: string | null;
+            performed_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            requested_by: {
+                id: string;
+                name: string | null;
+            } | null;
+            change_request_id: string | null;
+            reason_code: string | null;
+            reason: string | null;
+            details: Record<string, never>;
         };
         ScreeningAlert: {
             /** Format: uuid */
@@ -6279,6 +6370,9 @@ export interface operations {
                 "filter[correlation_id]"?: string;
                 "filter[outcome]"?: string;
                 "filter[permission]"?: string;
+                "filter[actor_type]"?: string;
+                /** @description The application, events naming it, and events sharing a correlation id with an event on it */
+                "filter[application_id]"?: string;
                 "filter[from]"?: string;
                 "filter[to]"?: string;
             };
@@ -8187,6 +8281,135 @@ export interface operations {
                     "application/json": {
                         data: components["schemas"]["CaseNote"];
                     };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    searchReadAccess: {
+        parameters: {
+            query?: {
+                "page[size]"?: components["parameters"]["PageSize"];
+                /** @description Opaque cursor from meta.page.next_cursor */
+                "page[after]"?: components["parameters"]["PageAfter"];
+                /** @description user id */
+                "filter[actor_id]"?: string;
+                /** @description application | party | document | decision */
+                "filter[resource_type]"?: string;
+                /** @description id */
+                "filter[resource_id]"?: string;
+                /** @description purpose code */
+                "filter[purpose]"?: string;
+                /** @description true: PII reads only */
+                "filter[pii]"?: string;
+                /** @description request correlation id */
+                "filter[correlation_id]"?: string;
+                /** @description ISO 8601, inclusive */
+                "filter[from]"?: string;
+                /** @description ISO 8601, exclusive */
+                "filter[to]"?: string;
+            };
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReadAccessRecord"][];
+                        meta: components["schemas"]["PageMeta"];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    overridesReport: {
+        parameters: {
+            query?: {
+                "page[size]"?: components["parameters"]["PageSize"];
+                /** @description Opaque cursor from meta.page.next_cursor */
+                "page[after]"?: components["parameters"]["PageAfter"];
+                /** @description policy_exception | waiver | manual_intervention */
+                "filter[type]"?: string;
+                /** @description who performed or approved it */
+                "filter[actor_id]"?: string;
+                /** @description ISO 8601, inclusive */
+                "filter[from]"?: string;
+                /** @description ISO 8601, exclusive */
+                "filter[to]"?: string;
+            };
+            header?: {
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OverrideRecord"][];
+                        meta: {
+                            page: Record<string, never>;
+                            summary: {
+                                by_type: {
+                                    policy_exception: number;
+                                    waiver: number;
+                                    manual_intervention: number;
+                                };
+                                by_user: {
+                                    user: {
+                                        id: string;
+                                        name: string | null;
+                                    } | null;
+                                    count: number;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    exportEvidencePack: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Why the data is read (recorded in the read-access log) */
+                "X-Access-Purpose"?: string;
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pack */
+            200: {
+                headers: {
+                    /** @description SHA-256 of manifest.json */
+                    "X-Manifest-SHA256"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
                 };
             };
             default: components["responses"]["Problem"];
