@@ -6,8 +6,10 @@ namespace Fundly\Modules\Offer;
 
 use Fundly\Integration\Runtime\Outbox\OutboxHandlerRegistry;
 use Fundly\Modules\Application\Contracts\ApplicationReader;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
 use Fundly\Modules\Offer\Application\Commands\DeliverOfferHandler;
 use Fundly\Modules\Offer\Application\OfferFile;
+use Fundly\Modules\Offer\Application\OfferQueries;
 use Fundly\Modules\Offer\Console\ExpireOffersCommand;
 use Fundly\Modules\Offer\Contracts\OfferRegister;
 use Fundly\Modules\Offer\Domain\OfferTemplate;
@@ -29,8 +31,10 @@ final class OfferServiceProvider extends ServiceProvider
         $this->app->scoped(OfferRegister::class, DatabaseOfferRegister::class);
     }
 
-    public function boot(ConfigTypeCatalogue $types, ResourceResolver $resources, OutboxHandlerRegistry $outbox): void
+    public function boot(ConfigTypeCatalogue $types, ResourceResolver $resources, OutboxHandlerRegistry $outbox, EvidenceSources $evidence): void
     {
+        // evidence pack sections (FR-AUD-010)
+        $evidence->register('offers', OfferQueries::class, 'forApplication');
         $types->register(
             OfferFile::TEMPLATE_TYPE,
             'Offer letter / facility agreement template: HTML with placeholders, execution method, signing order, validity and disclosure method (FR-OFR-001/002/009, LOS-FR-314).',

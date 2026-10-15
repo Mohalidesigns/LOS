@@ -6,7 +6,9 @@ namespace Fundly\Modules\Conditions;
 
 use Fundly\Modules\Access\Application\ChangeRequests\ChangeActionRegistry;
 use Fundly\Modules\Application\Contracts\ApplicationReader;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
 use Fundly\Modules\Conditions\Application\ConditionFile;
+use Fundly\Modules\Conditions\Application\ConditionQueries;
 use Fundly\Modules\Conditions\Application\ConditionsProgression;
 use Fundly\Modules\Conditions\Application\WaiveConditionAction;
 use Fundly\Modules\Conditions\Console\OpenConditionsCommand;
@@ -28,8 +30,10 @@ final class ConditionsServiceProvider extends ServiceProvider
         $this->app->scoped(ConditionsGate::class, DatabaseConditionsGate::class);
     }
 
-    public function boot(ResourceResolver $resources, Dispatcher $events): void
+    public function boot(ResourceResolver $resources, Dispatcher $events, EvidenceSources $evidence): void
     {
+        // evidence pack sections (FR-AUD-010)
+        $evidence->register('conditions', ConditionQueries::class, 'forApplication');
         $this->app->make(ChangeActionRegistry::class)->register(WaiveConditionAction::TYPE, WaiveConditionAction::class);
         $app = $this->app;
         $resources->register('condition', static function (string $id) use ($app): ?ResourceAttributes {

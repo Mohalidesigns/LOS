@@ -8,12 +8,14 @@ use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Application\Contracts\Events\ApplicationStatusChanged;
 use Fundly\Modules\Approval\Application\ApprovalFile;
 use Fundly\Modules\Approval\Application\ApprovalProgression;
+use Fundly\Modules\Approval\Application\ApprovalQueries;
 use Fundly\Modules\Approval\Console\ExpireApprovalsCommand;
 use Fundly\Modules\Approval\Contracts\ApprovalRegister;
 use Fundly\Modules\Approval\Domain\AuthorityLimits;
 use Fundly\Modules\Approval\Domain\MatrixDefinition;
 use Fundly\Modules\Approval\Infrastructure\DatabaseApprovalRegister;
 use Fundly\Modules\Approval\Infrastructure\Models\ApprovalRequest;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
 use Fundly\Modules\Platform\Contracts\ConfigTypeCatalogue;
 use Fundly\Shared\Security\ResourceAttributes;
 use Fundly\Shared\Security\ResourceResolver;
@@ -29,8 +31,10 @@ final class ApprovalServiceProvider extends ServiceProvider
         $this->app->scoped(ApprovalRegister::class, DatabaseApprovalRegister::class);
     }
 
-    public function boot(ConfigTypeCatalogue $types, ResourceResolver $resources, Dispatcher $events): void
+    public function boot(ConfigTypeCatalogue $types, ResourceResolver $resources, Dispatcher $events, EvidenceSources $evidence): void
     {
+        // evidence pack sections (FR-AUD-010)
+        $evidence->register('approvals', ApprovalQueries::class, 'forApplication');
         $types->register(
             ApprovalFile::MATRIX_TYPE,
             'Approval matrix: authority levels and a routing decision table over amount, grade, segment and exceptions, with escalation and step-up rules (FR-APV-001/003/007).',

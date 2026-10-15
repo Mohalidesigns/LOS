@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Fundly\Modules\Audit;
 
 use Fundly\Modules\Audit\Application\AuditCheckpointer;
+use Fundly\Modules\Audit\Application\EvidenceRegistry;
 use Fundly\Modules\Audit\Console\AuditCheckpointCommand;
 use Fundly\Modules\Audit\Console\AuditVerifyCommand;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
 use Fundly\Shared\Clock\Clock;
 use Fundly\Shared\SharedServiceProvider;
 use Fundly\Shared\Tenancy\TenantContext;
@@ -17,6 +19,9 @@ final class AuditServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // modules register their evidence sections while booting (FR-AUD-010)
+        $this->app->singleton(EvidenceRegistry::class);
+        $this->app->alias(EvidenceRegistry::class, EvidenceSources::class);
         $this->app->scoped(AuditCheckpointer::class, function (Application $app): AuditCheckpointer {
             $path = config('fundly.audit.checkpoint_path');
 

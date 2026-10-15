@@ -11,6 +11,7 @@ use Fundly\Modules\Application\Contracts\ApplicationLifecycle;
 use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Application\Infrastructure\Models\ApplicationRecord;
 use Fundly\Modules\Application\Infrastructure\StoreBackedApplicationReader;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
 use Fundly\Shared\Security\ResourceAttributes;
 use Fundly\Shared\Security\ResourceResolver;
 use Illuminate\Support\ServiceProvider;
@@ -24,8 +25,11 @@ final class ApplicationServiceProvider extends ServiceProvider
         $this->app->scoped(ApplicationLifecycle::class, BusApplicationLifecycle::class);
     }
 
-    public function boot(ResourceResolver $resources): void
+    public function boot(ResourceResolver $resources, EvidenceSources $evidence): void
     {
+        // evidence pack sections (FR-AUD-010)
+        $evidence->register('application', ApplicationQueries::class, 'show');
+        $evidence->register('timeline', ApplicationQueries::class, 'timeline');
         $resources->register('application', static function (string $id): ?ResourceAttributes {
             $r = preg_match('/^[0-9a-f-]{36}$/', $id) === 1 ? ApplicationRecord::query()->find($id) : null;
 

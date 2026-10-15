@@ -8,7 +8,9 @@ use Fundly\Modules\Access\Application\ChangeRequests\ChangeActionRegistry;
 use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Application\Contracts\Events\ApplicationCreated;
 use Fundly\Modules\Application\Contracts\Events\ApplicationStatusChanged;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
 use Fundly\Modules\Document\Application\DocumentationProgression;
+use Fundly\Modules\Document\Application\DocumentQueries;
 use Fundly\Modules\Document\Application\VaultDocumentArchive;
 use Fundly\Modules\Document\Application\WaiveChecklistItemAction;
 use Fundly\Modules\Document\Application\WaiveChecklistItemCreditAuthority;
@@ -30,8 +32,11 @@ final class DocumentServiceProvider extends ServiceProvider
         $this->app->scoped(DocumentArchive::class, VaultDocumentArchive::class);
     }
 
-    public function boot(ResourceResolver $resources, Dispatcher $events): void
+    public function boot(ResourceResolver $resources, Dispatcher $events, EvidenceSources $evidence): void
     {
+        // evidence pack sections (FR-AUD-010)
+        $evidence->register('documents', DocumentQueries::class, 'forApplication');
+        $evidence->register('checklist', DocumentQueries::class, 'checklist');
         $registry = $this->app->make(ChangeActionRegistry::class);
         $registry->register(WaiveChecklistItemAction::TYPE_STANDARD, WaiveChecklistItemStandard::class);
         $registry->register(WaiveChecklistItemAction::TYPE_CREDIT_AUTHORITY, WaiveChecklistItemCreditAuthority::class);

@@ -91,10 +91,10 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('products/{key}', [ProductController::class, 'show'])->middleware('authz:application:view')->where('key', '[a-z0-9][a-z0-9_.-]*')->name('products.show');
 
     // Parties (FR-CUS-001/006, FR-CHN-007)
-    Route::get('parties', [PartyController::class, 'index'])->middleware('authz:application:view')->name('parties.index');
+    Route::get('parties', [PartyController::class, 'index'])->middleware(['authz:application:view', 'access.log:party,pii'])->name('parties.index');
     Route::post('parties', [PartyController::class, 'store'])->middleware(['authz:party:manage', 'idempotent'])->name('parties.store');
     Route::post('parties/actions/match', [PartyController::class, 'match'])->middleware('authz:party:manage')->name('parties.match');
-    Route::get('parties/{id}', [PartyController::class, 'show'])->middleware('authz:application:view')->name('parties.show');
+    Route::get('parties/{id}', [PartyController::class, 'show'])->middleware(['authz:application:view', 'access.log:party,pii'])->name('parties.show');
     Route::get('parties/{id}/relationships', [PartyController::class, 'relationships'])->middleware('authz:application:view')->name('parties.relationships.index');
     Route::post('parties/{id}/relationships', [PartyController::class, 'addRelationship'])->middleware(['authz:party:manage', 'idempotent'])->name('parties.relationships.store');
     Route::get('parties/{id}/consents', [PartyController::class, 'consents'])->middleware('authz:application:view')->name('parties.consents.index');
@@ -103,37 +103,37 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
         ->where('type', 'bvn|nin|passport|drivers_licence|voters_card')->name('parties.identities.verify');
 
     // Applications (FR-APP-*, LOS-FR-282/283/301)
-    Route::get('applications', [ApplicationController::class, 'index'])->middleware('authz:application:view')->name('applications.index');
+    Route::get('applications', [ApplicationController::class, 'index'])->middleware(['authz:application:view', 'access.log:application'])->name('applications.index');
     Route::get('applications/stats', [ApplicationController::class, 'stats'])->middleware('authz:application:view')->name('applications.stats');
     Route::post('applications', [ApplicationController::class, 'store'])->middleware(['authz:application:originate', 'idempotent'])->name('applications.store');
-    Route::get('applications/{id}', [ApplicationController::class, 'show'])->middleware('authz:application:view')->name('applications.show');
+    Route::get('applications/{id}', [ApplicationController::class, 'show'])->middleware(['authz:application:view', 'access.log:application,pii'])->name('applications.show');
     Route::patch('applications/{id}', [ApplicationController::class, 'update'])->middleware('authz:application:originate')->name('applications.update');
     Route::post('applications/{id}/applicants', [ApplicationController::class, 'addApplicant'])->middleware(['authz:application:originate', 'idempotent'])->name('applications.applicants.store');
     Route::delete('applications/{id}/applicants/{partyId}', [ApplicationController::class, 'removeApplicant'])->middleware('authz:application:originate')->name('applications.applicants.destroy');
     Route::post('applications/{id}/actions/{action}', [ApplicationController::class, 'act'])->middleware(['authz:application:view', 'idempotent'])
         ->where('action', 'submit|withdraw|cancel|hold|resume|return|resubmit|recommend')->name('applications.act');
-    Route::get('applications/{id}/timeline', [ApplicationController::class, 'timeline'])->middleware('authz:application:view')->name('applications.timeline');
-    Route::get('applications/{id}/as-at', [ApplicationController::class, 'asAt'])->middleware('authz:application:view')->name('applications.as-at');
+    Route::get('applications/{id}/timeline', [ApplicationController::class, 'timeline'])->middleware(['authz:application:view', 'access.log:application'])->name('applications.timeline');
+    Route::get('applications/{id}/as-at', [ApplicationController::class, 'asAt'])->middleware(['authz:application:view', 'access.log:application,pii'])->name('applications.as-at');
 
     // Documents (FR-DOC-001..009)
     Route::get('applications/{id}/documents', [DocumentController::class, 'index'])->middleware('authz:application:view')->name('documents.index');
     Route::post('applications/{id}/documents', [DocumentController::class, 'store'])->middleware(['authz:document:upload', 'idempotent'])->name('documents.store');
     Route::get('applications/{id}/checklist', [DocumentController::class, 'checklist'])->middleware('authz:application:view')->name('checklist.show');
-    Route::get('documents/{id}', [DocumentController::class, 'show'])->middleware('authz:application:view')->name('documents.show');
-    Route::get('documents/{id}/versions/{versionId}/content', [DocumentController::class, 'content'])->middleware('authz:application:view')->name('documents.content');
+    Route::get('documents/{id}', [DocumentController::class, 'show'])->middleware(['authz:application:view', 'access.log:document'])->name('documents.show');
+    Route::get('documents/{id}/versions/{versionId}/content', [DocumentController::class, 'content'])->middleware(['authz:application:view', 'access.log:document,pii'])->name('documents.content');
     Route::post('checklist-items/{id}/actions/{action}', [DocumentController::class, 'actOnItem'])->middleware(['authz:document:verify', 'idempotent'])
         ->where('action', 'verify|reject|waive')->name('checklist-items.act');
 
     // Credit (FR-CRD-003..015, FR-CMP-020/027/043)
-    Route::get('applications/{id}/bureau-reports', [CreditController::class, 'bureauReports'])->middleware('authz:application:view')->name('bureau-reports.index');
+    Route::get('applications/{id}/bureau-reports', [CreditController::class, 'bureauReports'])->middleware(['authz:application:view', 'access.log:application,pii'])->name('bureau-reports.index');
     Route::post('applications/{id}/bureau-reports/actions/pull', [CreditController::class, 'pullBureau'])->middleware(['authz:bureau:pull', 'idempotent'])->name('bureau-reports.pull');
     Route::get('applications/{id}/decisions', [CreditController::class, 'decisions'])->middleware('authz:application:view')->name('decisions.index');
     Route::post('applications/{id}/decisions/actions/run', [CreditController::class, 'runDecision'])->middleware(['authz:credit:analyse', 'idempotent'])->name('decisions.run');
-    Route::get('decisions/{id}', [CreditController::class, 'decision'])->middleware('authz:application:view')->name('decisions.show');
+    Route::get('decisions/{id}', [CreditController::class, 'decision'])->middleware(['authz:application:view', 'access.log:decision'])->name('decisions.show');
     Route::post('decisions/{id}/actions/replay', [CreditController::class, 'replay'])->middleware(['authz:application:view', 'idempotent'])->name('decisions.replay');
     Route::post('decisions/{id}/exceptions', [CreditController::class, 'raiseException'])->middleware(['authz:exception:raise', 'idempotent'])->name('decisions.exceptions.store');
     Route::get('applications/{id}/exceptions', [CreditController::class, 'exceptions'])->middleware('authz:application:view')->name('exceptions.index');
-    Route::get('applications/{id}/credit-memo', [CreditController::class, 'memo'])->middleware('authz:application:view')->name('credit-memo.show');
+    Route::get('applications/{id}/credit-memo', [CreditController::class, 'memo'])->middleware(['authz:application:view', 'access.log:application'])->name('credit-memo.show');
     Route::post('applications/{id}/credit-memo', [CreditController::class, 'saveMemo'])->middleware(['authz:credit:analyse', 'idempotent'])->name('credit-memo.store');
 
     // Approvals (FR-APV-001..012): routing happens on recommend; matrix and limits are config artifacts (maker-checker)
@@ -211,7 +211,7 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::get('applications/{id}/communications', [NotificationController::class, 'forApplication'])->middleware('authz:application:view')->name('communications.index');
 
     // Compliance: KYC/CDD gate and screening alerts (FR-CUS-005/007, FR-CMP-011/013/014/017)
-    Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware('authz:application:view')->name('applications.kyc');
+    Route::get('applications/{id}/kyc', [ComplianceController::class, 'kyc'])->middleware(['authz:application:view', 'access.log:application,pii'])->name('applications.kyc');
     Route::post('applications/{id}/kyc/actions/rescreen', [ComplianceController::class, 'rescreen'])->middleware(['authz:screening:review', 'idempotent'])->name('applications.kyc.rescreen');
     Route::get('screening-alerts', [ComplianceController::class, 'alerts'])->middleware('authz:screening:review')->name('screening-alerts.index');
     Route::get('screening-alerts/{id}', [ComplianceController::class, 'alert'])->middleware('authz:screening:review')->name('screening-alerts.show');
@@ -260,6 +260,9 @@ Route::middleware(['auth:sanctum', 'principal', 'session.policy', 'licence:core'
     Route::middleware('licence.exempt')->group(function (): void {
         Route::get('audit-events', [AuditController::class, 'index'])->middleware('authz:audit:read')->name('audit-events.index');
         Route::get('audit/verify', [AuditController::class, 'verify'])->middleware('authz:audit:verify')->name('audit.verify');
+        Route::get('audit/read-access', [AuditController::class, 'readAccess'])->middleware('authz:audit:read')->name('audit.read-access');
+        Route::get('audit/overrides', [AuditController::class, 'overrides'])->middleware('authz:audit:read')->name('audit.overrides');
+        Route::get('applications/{id}/evidence-pack', [AuditController::class, 'evidencePack'])->middleware(['authz:audit:read', 'access.log:application,pii'])->name('applications.evidence-pack');
     });
 
     // Licensing (LOS-FR-316). Recovery endpoints stay available whatever the licence state.

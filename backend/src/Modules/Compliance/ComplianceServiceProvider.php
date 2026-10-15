@@ -6,6 +6,8 @@ namespace Fundly\Modules\Compliance;
 
 use Fundly\Integration\Runtime\Outbox\OutboxHandlerRegistry;
 use Fundly\Modules\Application\Contracts\Events\ApplicationStatusChanged;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
+use Fundly\Modules\Compliance\Application\ComplianceQueries;
 use Fundly\Modules\Compliance\Application\KycProgression;
 use Fundly\Modules\Compliance\Application\Packs\PackFile;
 use Fundly\Modules\Compliance\Application\StandardComplianceGate;
@@ -35,8 +37,10 @@ final class ComplianceServiceProvider extends ServiceProvider
         $this->app->scoped(RegulatoryRules::class, ConfigBackedRegulatoryRules::class);
     }
 
-    public function boot(ResourceResolver $resources, Dispatcher $events, OutboxHandlerRegistry $outbox, ConfigTypeCatalogue $types): void
+    public function boot(ResourceResolver $resources, Dispatcher $events, OutboxHandlerRegistry $outbox, ConfigTypeCatalogue $types, EvidenceSources $evidence): void
     {
+        // evidence pack sections (FR-AUD-010)
+        $evidence->register('screening', ComplianceQueries::class, 'kycStatus');
         $types->register(PackFile::PACK_TYPE, 'Jurisdiction pack (key = jurisdiction.licence_category, e.g. ng.commercial_bank): the regulatory rule register with citations, effective dates and verification status (FR-CMP-001/003). Activates only when every rule is verified.', static function (array $content): void {
             JurisdictionPack::validate($content);
         });

@@ -8,6 +8,7 @@ use Fundly\Modules\Access\Http\Middleware\BindPrincipal;
 use Fundly\Modules\Access\Http\Middleware\EnforceSessionPolicy;
 use Fundly\Modules\Access\Http\Middleware\RequireStepUp;
 use Fundly\Modules\Access\Http\Middleware\ResolveTenantFromCredential;
+use Fundly\Modules\Audit\Http\Middleware\LogReadAccess;
 use Fundly\Modules\Licensing\Http\Middleware\EnforceLicence;
 use Fundly\Modules\Licensing\Http\Middleware\LicenceExempt;
 use Fundly\Shared\Exceptions\ProblemException;
@@ -68,6 +69,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'licence' => EnforceLicence::class,
             'licence.exempt' => LicenceExempt::class,
             'idempotent' => RequireIdempotencyKey::class,
+            'access.log' => LogReadAccess::class,
         ]);
         // Fixed pipeline order for route middleware.
         $middleware->priority([
@@ -83,6 +85,7 @@ return Application::configure(basePath: dirname(__DIR__))
             Authorize::class,
             RequireStepUp::class,
             RequireIdempotencyKey::class,
+            LogReadAccess::class,
             SubstituteBindings::class,
         ]);
     })

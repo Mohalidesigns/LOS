@@ -1288,3 +1288,92 @@ agreement, advice) and the CRI insurance item, with retention until
 - SLA times left are wall-clock in the UI; the deadlines themselves are
   business-hour.
 - Customer-visible notes reach no customer until the portal (P4).
+
+## Milestone 14: Audit explorer, read-access log and evidence pack (P1-AUD-01, P1-FE-04 slice)
+
+### Backend
+- **Read-access log** (FR-AUD-006, D-084):
+  - New append-only `pii_access_log` (RLS, INSERT/SELECT grants, immutable
+    trigger). Each row holds actor, on-behalf-of, resource type and id,
+    route, PII flag, purpose, IP and correlation id.
+  - The `access.log:<resource>[,pii]` middleware records only successful
+    reads.
+  - It is on application list, detail, timeline and as-at; party list and
+    detail; document metadata and content; decision; bureau reports; KYC;
+    credit memo; and the evidence pack.
+  - `X-Access-Purpose` carries the purpose code.
+  - `GET /audit/read-access` (`audit:read`) filters by actor, resource,
+    purpose, PII-only, correlation id and period.
+- **Integration-call audit** (FR-AUD-008): every port call already went to
+  `integration_calls`, masked (P0). The SMTP hand-off bypassed the gateway,
+  so it is now logged too (`port=email`, `adapter=smtp`), with recipient
+  hint, latency and outcome. Webhooks keep their own delivery log.
+- **Audit explorer API** (FR-AUD-009, D-085): `GET /audit-events` gains
+  `filter[application_id]`, `filter[actor_type]` and `filter[action]=prefix*`
+  on top of the P0 entity, actor, action, outcome, permission, correlation
+  and period filters. The auditor template (all read permissions) cannot
+  act.
+- **As-at** (FR-AUD-011): the M1 replay `GET /applications/{id}/as-at` is
+  now covered for auditors and logged as a PII read.
+- **Evidence pack v1** (FR-AUD-010 partial, D-087):
+  - `GET /applications/{id}/evidence-pack` (`audit:read`, licence-exempt)
+    returns a ZIP.
+  - It has one JSON file per section: application, timeline, documents,
+    checklist, decisions, exceptions, bureau_reports, approvals, screening,
+    conditions, offers and communications.
+  - Owning modules register sections through the
+    `Audit\Contracts\EvidenceSources` port, using their own read services
+    with the requester's permissions.
+  - It includes the latest clean version of each document (via the
+    `DocumentArchive` contract, hash re-verified), plus `manifest.json`
+    with the SHA-256 and size of every file and `signature: null`.
+  - The `X-Manifest-SHA256` header carries the manifest hash. The export is
+    audited as `audit.evidence_pack.exported`.
+- **Overrides and waivers report** (FR-AUD-016, D-086):
+  - `GET /audit/overrides` reads from the audit trail.
+  - It covers policy exceptions, condition, checklist and collateral
+    waivers, and manual interventions (task reassignment, workflow
+    migration, disbursement retry, reconciliation resolution, screening
+    alert resolution).
+  - Each row shows who performed or approved it, the maker for
+    change-request waivers, the reason and the application.
+  - The response includes counts by type and by user, filterable by type,
+    user and period.
+
+| ID | Status | Evidence |
+|---|---|---|
+| FR-AUD-006 | Done (P1 scope: synchronous, D-084) | `AuditExplorerTest` |
+| FR-AUD-008 | Done | `AuditExplorerTest`, `CoreBankingRuntimeTest` |
+| FR-AUD-009 | Done | `AuditExplorerTest`, `AuditTrailTest` |
+| FR-AUD-010 | Partial: ZIP + SHA-256 manifest; Ed25519 signature, PDF timeline and async build P5 | `AuditExplorerTest` |
+| FR-AUD-011 | Done (application aggregate; related entities by their immutable history) | `AuditExplorerTest`, `ApplicationTest` |
+| FR-AUD-016 | Done | `AuditExplorerTest` |
+
+### Frontend
+- **Audit explorer (`/audit/events`):** replaces the placeholder. It has
+  tabs for Audit events, Read access, and Integration calls (the last with
+  `integration:read`). Each tab has filters (application, user, action
+  prefix, entity, outcome, WAT period), a table and cursor "Load more".
+- **Overrides & waivers (`/audit/overrides`):** period and type filters,
+  counts by type and by user, and a table linking to the case.
+- **Case Timeline tab:** an "Evidence pack" panel next to As at, shown with
+  `audit:read`. It downloads the ZIP and shows the short manifest hash.
+- The Assurance nav group has both pages, gated by `audit:read`.
+  `features/audit/domain.ts` has 3 tests.
+
+### Verification
+- Local Pest: 333 passed (5 new), with Pint and PHPStan clean on the
+  changed code.
+- Frontend `npm run verify`: 174 tests.
+- The dev DB was migrated (additive `pii_access_log` only).
+- The new pages were not checked in the browser.
+
+### Gaps carried forward
+- The read log is synchronous and not reconciled against a request log
+  (TRD's async batching is deferred). List reads log no ids.
+- The explorer shows user ids, not names. There is no export to CSV yet.
+- Evidence packs are unsigned and synchronous. They hold only the latest
+  version of each document's bytes, though all version hashes are in
+  `documents.json`. There is no PDF timeline.
+- There is no `/pii/unmask` endpoint yet (P0-SEC-05 carry-over), so unmask
+  reads are not a separate log category.

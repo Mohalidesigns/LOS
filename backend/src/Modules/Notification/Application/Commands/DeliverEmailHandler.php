@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fundly\Modules\Notification\Application\Commands;
 
+use Fundly\Integration\Runtime\IntegrationCallLog;
 use Fundly\Modules\Document\Contracts\DocumentArchive;
 use Fundly\Modules\Notification\Infrastructure\Models\Communication;
 use Fundly\Modules\Party\Contracts\PartyDirectory;
@@ -21,10 +22,11 @@ use Throwable;
  * Sends through the installation's mailer (the bank's SMTP relay). The
  * address is read at send time, never stored in the log; a send failure is
  * recorded and reported as `retry` so the outbox tries again with backoff.
+ * Every SMTP hand-off is logged in integration_calls, masked (FR-AUD-008).
  */
 final class DeliverEmailHandler implements CommandHandler
 {
-    public function __construct(private readonly PartyDirectory $parties, private readonly DocumentArchive $archive, private readonly Mailer $mailer, private readonly Clock $clock) {}
+    public function __construct(private readonly PartyDirectory $parties, private readonly DocumentArchive $archive, private readonly Mailer $mailer, private readonly Clock $clock, private readonly IntegrationCallLog $calls) {}
 
     /** @return array{outcome: 'sent'|'retry'|'skipped'|'failed'} */
     public function handle(Command $command, CommandContext $context): array
@@ -47,6 +49,9 @@ final class DeliverEmailHandler implements CommandHandler
                 $files[] = [$bytes, (string) $a['filename']];
             }
         }
+        $logRequest = ['communication_id' => $c->id, 'event' => $c->event, 'recipient' => $c->recipient_hint, 'subject' => $c->subject, 'attachments' => count($files)];
+        $started = $this->clock->now();
+        $t0 = (int) hrtime(true);
         try {
             $this->mailer->raw($c->body, static function (Message $m) use ($email, $c, $files): void {
                 $m->to($email)->subject($c->subject);
@@ -55,13 +60,24 @@ final class DeliverEmailHandler implements CommandHandler
                 }
             });
         } catch (Throwable $e) {
+            $this->logCall($c->attempts + 1, $logRequest, ['error' => mb_substr($e->getMessage(), 0, 500)], 'retryable', 'EMAIL.TRANSPORT.FAILED', $started, $t0);
             $c->forceFill(['attempts' => $c->attempts + 1, 'error' => mb_substr($e->getMessage(), 0, 500)])->save();
 
             return ['outcome' => 'retry'];
         }
+        $this->logCall($c->attempts + 1, $logRequest, ['accepted' => true], 'success', null, $started, $t0);
         $c->forceFill(['status' => 'sent', 'attempts' => $c->attempts + 1, 'error' => null, 'sent_at' => $this->clock->now()])->save();
         $context->audit(new AuditEntry(action: $command->action(), entityType: 'communication', entityId: $c->id, after: ['event' => $c->event, 'recipient' => $c->recipient_hint, 'attachments' => count($files)]));
 
         return ['outcome' => 'sent'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $request
+     * @param  array<string, mixed>  $response
+     */
+    private function logCall(int $attempt, array $request, array $response, string $outcome, ?string $errorCode, \DateTimeImmutable $started, int $t0): void
+    {
+        $this->calls->record(null, 'email', 'send', 'smtp', (string) config('mail.default', 'smtp'), null, (string) $request['communication_id'], $attempt, $request, $response, $outcome, $errorCode, $started, $this->clock->now(), intdiv((int) hrtime(true) - $t0, 1_000_000));
     }
 }

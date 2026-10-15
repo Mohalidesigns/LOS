@@ -6,7 +6,9 @@ namespace Fundly\Modules\Credit;
 
 use Fundly\Modules\Application\Contracts\ApplicationReader;
 use Fundly\Modules\Application\Contracts\TransitionGuard;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
 use Fundly\Modules\Credit\Application\CreditFileLoader;
+use Fundly\Modules\Credit\Application\CreditQueries;
 use Fundly\Modules\Credit\Application\RecommendGuard;
 use Fundly\Modules\Credit\Contracts\CreditFile;
 use Fundly\Modules\Credit\Domain\RuleSetDefinition;
@@ -26,8 +28,12 @@ final class CreditServiceProvider extends ServiceProvider
         $this->app->tag([RecommendGuard::class], TransitionGuard::TAG);
     }
 
-    public function boot(ConfigTypeCatalogue $types, ResourceResolver $resources): void
+    public function boot(ConfigTypeCatalogue $types, ResourceResolver $resources, EvidenceSources $evidence): void
     {
+        // evidence pack sections (FR-AUD-010)
+        $evidence->register('decisions', CreditQueries::class, 'decisions');
+        $evidence->register('exceptions', CreditQueries::class, 'exceptions');
+        $evidence->register('bureau_reports', CreditQueries::class, 'bureauReports');
         $types->register(
             CreditFileLoader::RULE_SET_TYPE,
             'Credit rule set: formulas, knock-out / policy / grade / pricing decision tables and affordability (FR-CRD-001/002/008).',

@@ -6,10 +6,12 @@ namespace Fundly\Modules\Notification;
 
 use Fundly\Integration\Runtime\Outbox\OutboxHandlerRegistry;
 use Fundly\Modules\Application\Contracts\Events\ApplicationStatusChanged;
+use Fundly\Modules\Audit\Contracts\EvidenceSources;
 use Fundly\Modules\Compliance\Contracts\Events\ApplicationScreened;
 use Fundly\Modules\Disbursement\Contracts\Events\DisbursementAwaitingRelease;
 use Fundly\Modules\Disbursement\Contracts\Events\FacilityBooked;
 use Fundly\Modules\Notification\Application\Commands\NotifyHandler;
+use Fundly\Modules\Notification\Application\NotificationQueries;
 use Fundly\Modules\Notification\Application\NotificationTriggers;
 use Fundly\Modules\Notification\Application\TemplateResolver;
 use Fundly\Modules\Notification\Console\CheckDeliveryCommand;
@@ -28,8 +30,10 @@ use Illuminate\Support\ServiceProvider;
 /** M16 Notifications: email, SMS and WhatsApp (integration ports) and in-app (webhooks via the integration layer), templates with maker-checker, communication log (FR-NTF-001/002/005/006). */
 final class NotificationServiceProvider extends ServiceProvider
 {
-    public function boot(ConfigTypeCatalogue $types, Dispatcher $events, OutboxHandlerRegistry $outbox): void
+    public function boot(ConfigTypeCatalogue $types, Dispatcher $events, OutboxHandlerRegistry $outbox, EvidenceSources $evidence): void
     {
+        // evidence pack sections (FR-AUD-010)
+        $evidence->register('communications', NotificationQueries::class, 'forApplication');
         $types->register(
             TemplateResolver::TYPE,
             'Notification template for one event (key = event code): audience, and per language the email subject/body or in-app title/body with {{ placeholders }} (FR-NTF-002).',
